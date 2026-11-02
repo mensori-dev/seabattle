@@ -251,6 +251,13 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
 .stats-row span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
 
 .menu-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:540px;margin-top:16px}
+.privacy-link{
+  display:inline-block;margin-top:14px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+  color:var(--muted);text-decoration:none;
+  border-bottom:1px solid transparent;
+}
+.privacy-link:hover,.privacy-link:focus-visible{color:var(--aqua);border-bottom-color:currentColor}
 .history-panel{margin-top:16px;padding:14px 16px}
 .history-title{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .history-row{

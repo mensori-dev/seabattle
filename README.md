@@ -40,7 +40,27 @@ gradlew assembleDebug  # APK → app/build/outputs/apk/debug/app-debug.apk
 
 Иконки и splash для Android: `npx capacitor-assets generate --android --assetPath resources`.
 
-Для Google Play нужен `bundleRelease` (AAB) и подпись keystore, а также targetSdk 36 — он уже выставлен в `android/variables.gradle`.
+Для Google Play и RuStore нужен `bundleRelease` (AAB) и подпись keystore, а также targetSdk 36 — он уже выставлен в `android/variables.gradle`.
+
+Параметры подписи лежат в `android/keystore.properties` (в git не коммитится),
+сам ключ — `android/keystore/seabattle-release.jks`. **Потеряешь ключ или пароль —
+обновления приложения станут невозможны.**
+
+```
+cd android
+gradlew assembleRelease bundleRelease --no-daemon
+# APK → app/build/outputs/apk/release/app-release.apk
+# AAB → app/build/outputs/bundle/release/app-release.aab
+```
+
+Готовые файлы для магазинов складываются в `dist/` (`*.apk`, `*.aab` — в git не идут).
+
+## Публикация
+
+- **PWA / GitHub Pages**: https://mensori-dev.github.io/seabattle/
+- **APK для друзей**: https://github.com/mensori-dev/seabattle/releases/latest/download/seabattle-1.0.0.apk
+- **Политика конфиденциальности**: https://mensori-dev.github.io/seabattle/privacy.html
+- **Скриншоты для магазина**: `docs/screenshots/` (1080×1920)
 
 ## Что внутри
 

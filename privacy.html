@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#04101f">
+  <title>Политика конфиденциальности — Морской бой</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Rubik:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--text:#e8f4ff;--muted:#8fb0c9;--aqua:#35e0d2;--line:rgba(120,200,255,.14)}
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100dvh;padding:32px 18px 60px;
+      font-family:'Nunito',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+      font-weight:600;line-height:1.6;color:var(--text);
+      background:radial-gradient(120% 80% at 50% -10%,#0e4068 0%,#082441 40%,#04101f 100%);
+    }
+    .wrap{max-width:720px;margin:0 auto}
+    .brand{
+      display:flex;align-items:center;gap:10px;
+      font-family:'Rubik',sans-serif;font-weight:800;font-size:11px;
+      letter-spacing:.22em;text-transform:uppercase;color:#88b4d2;
+      margin-bottom:26px;text-decoration:none;
+    }
+    .brand span{font-size:16px;letter-spacing:0}
+    h1{
+      font-family:'Rubik',sans-serif;font-weight:800;
+      font-size:clamp(24px,6vw,34px);line-height:1.15;margin:0 0 6px;
+    }
+    .date{color:var(--muted);font-size:13px;margin:0 0 26px}
+    h2{
+      font-family:'Rubik',sans-serif;font-size:17px;margin:30px 0 10px;
+      color:#bfe9ff;
+    }
+    p,li{font-size:15px;color:#cfe3f1}
+    ul{padding-left:20px;margin:10px 0}
+    li{margin:6px 0}
+    a{color:var(--aqua)}
+    .card{
+      margin-top:34px;padding:16px 18px;border-radius:18px;
+      background:rgba(21,60,98,.35);border:1px solid var(--line);
+      font-size:13px;color:var(--muted)
+    }
+    .back{display:inline-block;margin-top:26px;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="brand" href="index.html"><span>⚓</span> Морской бой</a>
+
+    <h1>Политика конфиденциальности</h1>
+    <p class="date">Действует с 2 ноября 2026 года</p>
+
+    <p>Игра «Морской бой — Морская арена» (далее — Игра) не собирает, не передаёт
+      и не продаёт персональные данные пользователей. Всё, что Игра сохраняет,
+      остаётся на вашем устройстве.</p>
+
+    <h2>1. Какие данные хранятся</h2>
+    <ul>
+      <li><b>Никнейм</b> — тот, который вы ввели сами. Он нужен только для отображения в интерфейсе.</li>
+      <li><b>Игровой прогресс</b> — рейтинг ELO, количество боёв, победы, серия, история последних матчей.</li>
+      <li><b>Настройки</b> — включён или выключен звук.</li>
+    </ul>
+    <p>Эти данные хранятся локально: в браузере через <code>localStorage</code>, а в Android-приложении — во внутреннем хранилище приложения. Они никуда не отправляются.</p>
+
+    <h2>2. Что Игра не делает</h2>
+    <ul>
+      <li>Не требует регистрации и не запрашивает e-mail или телефон.</li>
+      <li>Не содержит рекламы, аналитики и трекеров.</li>
+      <li>Не использует доступ к камере, микрофону, контактам, геолокации и файлам.</li>
+      <li>Не передаёт данные третьим лицам.</li>
+    </ul>
+
+    <h2>3. Интернет и шрифты</h2>
+    <p>Игра работает офлайн. При первом запуске веб-версия может загрузить шрифты
+      с сервиса Google Fonts — в этом случае Google получает стандартные технические
+      данные запроса (IP-адрес, тип браузера). Политика Google:
+      <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a>.
+      Android-версия использует системные шрифты и в сеть не обращается.</p>
+
+    <h2>4. Дети</h2>
+    <p>Игра не собирает данные ни от кого, включая детей. Возрастной рейтинг —
+      6+ (без сцен насилия, крови и азартных механик).</p>
+
+    <h2>5. Удаление данных</h2>
+    <p>Чтобы стереть весь прогресс, нажмите «Сбросить» в меню Игры. В браузере
+      также можно очистить данные сайта в настройках браузера. В Android-приложении —
+      «Настройки → Приложения → Морской бой → Очистить данные».</p>
+
+    <h2>6. Изменения</h2>
+    <p>Если политика изменится, обновлённая версия появится на этой странице
+      с новой датой.</p>
+
+    <h2>7. Контакты</h2>
+    <p>По вопросам, связанным с Игрой и данными:
+      <a href="https://github.com/mensori-dev/seabattle/issues" target="_blank" rel="noopener">GitHub Issues</a>.</p>
+
+    <div class="card">
+      Разработчик: mensori-dev · Приложение: «Морской бой — Морская арена»
+      (dev.mensori.seabattle) · Данные не собираются и не покидают устройство.
+    </div>
+
+    <a class="back" href="index.html">← Вернуться в игру</a>
+  </div>
+</body>
+</html>

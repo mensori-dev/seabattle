@@ -1,7 +1,7 @@
 /* ============================================================
    Service worker «Морского боя»: офлайн-кэш и мгновенный старт
    ============================================================ */
-const VERSION = 'sb-v1';
+const VERSION = 'sb-v2';
 const CORE = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const CORE = [
   './js/engine.js',
   './js/app.js',
   './manifest.webmanifest',
+  './privacy.html',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/icon-maskable-512.png',

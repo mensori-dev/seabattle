@@ -114,6 +114,17 @@ def render(size, scale=1.0):
 def main():
     os.makedirs(OUT, exist_ok=True)
     base = render(1024)
+    base.save(os.path.join(OUT, "icon-1024.png"), optimize=True)
+
+    # ресурсы для Capacitor: иконка приложения и splash-экран
+    res = os.path.join(ROOT, "resources")
+    os.makedirs(res, exist_ok=True)
+    base.save(os.path.join(res, "icon.png"), optimize=True)
+
+    splash = Image.new("RGBA", (2732, 2732), (4, 16, 31, 255))
+    logo = base.resize((900, 900), Image.LANCZOS)
+    splash.alpha_composite(logo, ((2732 - 900) // 2, (2732 - 900) // 2))
+    splash.convert("RGB").save(os.path.join(res, "splash.png"), optimize=True)
 
     for name, size in (("icon-192.png", 192), ("icon-512.png", 512),
                        ("apple-touch-icon.png", 180), ("favicon-32.png", 32)):

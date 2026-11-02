@@ -6,6 +6,18 @@
   "description": "Морской бой против бота с ELO-рейтингом — vanilla HTML/CSS/JS",
   "scripts": {
     "dev": "node scripts/serve.mjs",
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "icons": "python scripts/make-icons.py",
+    "www": "node scripts/build-www.mjs",
+    "android:sync": "npm run www && cap sync android",
+    "android:apk": "node scripts/build-apk.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0"
   }
 }

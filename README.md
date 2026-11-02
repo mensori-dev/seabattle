@@ -27,6 +27,21 @@ npm run dev
 
 Иконки пересобираются скриптом `python scripts/make-icons.py` (нужен Pillow).
 
+## Android-приложение (APK)
+
+Обёртка — Capacitor. Нужны **JDK 21** (Capacitor 8 не собирается на 17) и Android SDK (platform 36, build-tools 36).
+
+```
+npm run www            # собрать www/ из корня
+npx cap sync android   # скопировать веб-ассеты в нативный проект
+cd android
+gradlew assembleDebug  # APK → app/build/outputs/apk/debug/app-debug.apk
+```
+
+Иконки и splash для Android: `npx capacitor-assets generate --android --assetPath resources`.
+
+Для Google Play нужен `bundleRelease` (AAB) и подпись keystore, а также targetSdk 36 — он уже выставлен в `android/variables.gradle`.
+
 ## Что внутри
 
 - **Поле 10×10**, классический флот: линкор (4), 2 крейсера (3), 3 эсминца (2), 4 катера (1).

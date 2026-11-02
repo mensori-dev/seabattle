@@ -1,0 +1,11 @@
+{
+  "appId": "dev.mensori.seabattle",
+  "appName": "Морской бой",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#04101f"
+  }
+}

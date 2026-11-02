@@ -13,12 +13,19 @@
 - `scripts/serve.mjs` — локальный статический сервер.
 - `manifest.webmanifest`, `sw.js` — PWA: установка на телефон и офлайн-кэш.
 - `assets/` — иконки PWA (генерируются `scripts/make-icons.py`).
+- `capacitor.config.json`, `www/` — мобильная обёртка: `www` собирается из корня `scripts/build-www.mjs`.
+- `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
+  Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
+  Из-за кириллицы в пути нужен `android.overridePathCheck=true` в `android/gradle.properties`.
 
 ## Команды
 
 - `npm run dev` — сервер на http://localhost:5173
 - `npm test` — тесты движка
 - `node --test tests/` — то же напрямую
+- `npm run icons` — перегенерировать иконки (Python + Pillow)
+- `npm run www` — собрать `www/` для Capacitor
+- `npm run android:apk` — sync + debug APK
 
 ## Правила разработки
 

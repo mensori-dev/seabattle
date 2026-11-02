@@ -3,3 +3,19 @@ server.log
 *.log
 .DS_Store
 Thumbs.db
+
+# Capacitor: www собирается из корня скриптом scripts/build-www.mjs
+www/
+resources/
+
+# Android-артефакты
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/release/
+*.apk
+*.aab
+*.jks
+*.keystore
+dist/

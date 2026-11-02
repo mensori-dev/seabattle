@@ -1,7 +1,7 @@
 /* ============================================================
    Service worker «Морского боя»: офлайн-кэш и мгновенный старт
    ============================================================ */
-const VERSION = 'sb-v4';
+const VERSION = 'sb-v5';
 const CORE = [
   './',
   './index.html',
@@ -20,8 +20,14 @@ const CORE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(VERSION).then((cache) =>
-      // один недоступный файл не должен ломать установку
-      Promise.all(CORE.map((url) => cache.add(url).catch(() => null)))
+      // один недоступный файл не должен ломать установку.
+      // `?v=` и cache:'reload' обходят HTTP-кэш браузера и кэш CDN:
+      // иначе после смены VERSION можно закэшировать прошлую версию файлов.
+      Promise.all(CORE.map((url) =>
+        fetch(url + '?v=' + VERSION, { cache: 'reload' })
+          .then((res) => (res && res.status === 200 ? cache.put(url, res) : null))
+          .catch(() => null)
+      ))
     ).then(() => self.skipWaiting())
   );
 });

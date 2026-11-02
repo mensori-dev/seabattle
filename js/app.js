@@ -15,7 +15,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v8';
+  const SW_VERSION = 'sb-v9';
 
   const state = {
     profile: null,
@@ -1398,6 +1398,41 @@
   }
 
   /* ---------------- Старт ---------------- */
+  /* iPhone: Safari не показывает «Установить», поэтому подсказываем вручную.
+     В установленном режиме и в других браузерах подсказка не нужна. */
+  const IOS_HINT_KEY = 'seabattle.iosHint.v1';
+
+  function isIosSafari() {
+    const ua = navigator.userAgent || '';
+    const ios = /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!ios) return false;
+    if (/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua)) return false;
+    const standalone = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    return !standalone;
+  }
+
+  function refreshIosHint() {
+    const el = $('#ios-install');
+    if (!el) return;
+    let dismissed = false;
+    try { dismissed = localStorage.getItem(IOS_HINT_KEY) === 'off'; } catch (e) { /* приватный режим */ }
+    el.hidden = dismissed || !isIosSafari();
+  }
+
+  function wireIosHint() {
+    const close = $('#ios-install-close');
+    if (close) close.addEventListener('click', function () {
+      try { localStorage.setItem(IOS_HINT_KEY, 'off'); } catch (e) { /* не критично */ }
+      const el = $('#ios-install');
+      if (el) el.hidden = true;
+    });
+    refreshIosHint();
+    // Safari может восстановить страницу из кэша — перепроверяем режим запуска
+    window.addEventListener('pageshow', refreshIosHint);
+  }
+
   function makeBubbles() {
     const ocean = $('#ocean');
     for (let i = 0; i < 16; i++) {
@@ -1415,6 +1450,7 @@
   state.profile = loadProfile();
   applyNativeInsets();
   applyMotion();
+  wireIosHint();
   makeBubbles();
   wireEvents();
   wireOnlineEvents();

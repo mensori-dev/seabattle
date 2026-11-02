@@ -22,7 +22,11 @@ for (const file of FILES) {
 for (const dir of DIRS) {
   const src = path.join(root, dir);
   if (!fs.existsSync(src)) throw new Error(`нет папки: ${dir}`);
-  fs.cpSync(src, path.join(out, dir), { recursive: true });
+  fs.cpSync(src, path.join(out, dir), {
+    recursive: true,
+    // заставки apple-touch-startup-image нужны только Safari на iPhone
+    filter: (p) => !(dir === 'assets' && p.includes(`${path.sep}splash`))
+  });
 }
 
 console.log('www готова →', out);

@@ -25,6 +25,7 @@
 html{-webkit-text-size-adjust:100%}
 html,body{margin:0;padding:0}
 body{
+  min-height:100vh;
   min-height:100dvh;
   font-family:'Nunito',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   font-weight:700;
@@ -265,6 +266,29 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   border-bottom:1px solid transparent;
 }
 .privacy-link:hover,.privacy-link:focus-visible{color:var(--aqua);border-bottom-color:currentColor}
+
+/* подсказка про установку на iPhone */
+.ios-install{
+  position:relative;
+  width:100%;max-width:540px;
+  margin-top:14px;padding:12px 38px 12px 14px;
+  border-radius:16px;
+  background:rgba(53,224,210,.08);
+  border:1px dashed rgba(53,224,210,.45);
+  text-align:left;
+  font-size:12px;line-height:1.45;color:#c9ecff;
+}
+.ios-install[hidden]{display:none}
+.ios-install b{display:block;font-size:13px;font-weight:800;color:#eaffff;margin-bottom:3px}
+.ios-install span{display:block}
+.ios-install-close{
+  position:absolute;top:4px;right:4px;
+  width:32px;height:32px;padding:0;
+  border:0;border-radius:10px;
+  background:transparent;color:var(--muted);
+  font-size:20px;line-height:1;cursor:pointer;
+}
+.ios-install-close:hover,.ios-install-close:focus-visible{color:#fff;background:rgba(255,255,255,.08)}
 
 /* ---------- онлайн ---------- */
 .btn-online{margin-top:12px}

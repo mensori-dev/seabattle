@@ -117,6 +117,54 @@ test('бот добивает флот и не стреляет в одну кл
   }
 });
 
+test('уровни бота: лёгкий не добивает, сложный целится по плотности', () => {
+  const board = E.randomBoard();
+  const easy = new E.Bot('easy');
+  const normal = new E.Bot('normal');
+  const hard = new E.Bot('hard');
+
+  // «лёгкий» после попадания не ставит соседние клетки в очередь
+  const hit = E.fire(board, board.ships[0].cells[0].x, board.ships[0].cells[0].y);
+  easy.report(board.ships[0].cells[0].x, board.ships[0].cells[0].y, hit);
+  normal.report(board.ships[0].cells[0].x, board.ships[0].cells[0].y, hit);
+  assert.equal(easy.queue.length, 0, 'лёгкий бот не должен добивать');
+  assert.ok(normal.queue.length > 0, 'обычный бот добивает');
+
+  // «сложный» на свежем поле выбирает клетку с максимальной плотностью
+  const fresh = E.createBoard();
+  fresh.ships = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1].map((size, i) => ({ id: i, size, sunk: false, cells: [] }));
+  const pick = hard.choose(fresh);
+  assert.ok(pick, 'сложный бот должен найти клетку');
+  let best = -1;
+  for (let y = 0; y < E.SIZE; y++) {
+    for (let x = 0; x < E.SIZE; x++) best = Math.max(best, hard.density(x, y, [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]));
+  }
+  assert.equal(hard.density(pick.x, pick.y, [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]), best);
+});
+
+test('все уровни бота добивают флот без повторных выстрелов', () => {
+  for (const level of ['easy', 'normal', 'hard']) {
+    for (let game = 0; game < 6; game++) {
+      const board = E.randomBoard();
+      const bot = new E.Bot(level);
+      const seen = new Set();
+      let moves = 0;
+      while (!E.allSunk(board) && moves < 130) {
+        const move = bot.choose(board);
+        assert.ok(move, level + ': бот должен находить клетку');
+        const key = move.x + ',' + move.y;
+        assert.ok(!seen.has(key), level + ': повтор выстрела');
+        seen.add(key);
+        const shot = E.fire(board, move.x, move.y);
+        assert.ok(shot, level + ': выстрел должен быть валидным');
+        bot.report(move.x, move.y, shot);
+        moves++;
+      }
+      assert.equal(E.allSunk(board), true, level + ': флот не добит');
+    }
+  }
+});
+
 test('ELO: равные рейтинги, андердог и фаворит', () => {
   assert.equal(E.eloExpected(1000, 1000), 0.5);
   assert.equal(E.eloDelta(1000, 1000, 1), 16);

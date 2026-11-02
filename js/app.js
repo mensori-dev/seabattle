@@ -15,7 +15,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v6';
+  const SW_VERSION = 'sb-v8';
 
   const state = {
     profile: null,
@@ -33,7 +33,8 @@
     locked: true,
     gameOver: false,
     matchSeq: 0,
-    ghost: []
+    ghost: [],
+    hover: null            // последняя клетка под курсором при расстановке
   };
 
   const boards = {
@@ -53,7 +54,10 @@
       best: 1000,
       streak: 0,
       history: [],
-      muted: false
+      muted: false,
+      volume: 0.7,          // 0…1, громкость эффектов
+      motion: 'on',         // 'on' | 'off' — анимации
+      difficulty: 'normal'  // 'easy' | 'normal' | 'hard'
     };
   }
 
@@ -83,6 +87,11 @@
   /* ---------------- Звук ---------------- */
   const Sfx = {
     ctx: null,
+    vol() {
+      const p = state.profile;
+      const v = p && typeof p.volume === 'number' ? p.volume : 0.7;
+      return clamp(v, 0, 1);
+    },
     init() {
       if (this.ctx) return;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -95,6 +104,8 @@
     tone(freq, dur, type, gain, to, delay) {
       const ctx = this.ctx;
       if (!ctx) return;
+      const vol = this.vol();
+      if (vol <= 0) return;
       const t = ctx.currentTime + (delay || 0);
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -102,7 +113,7 @@
       o.frequency.setValueAtTime(freq, t);
       if (to) o.frequency.exponentialRampToValueAtTime(Math.max(30, to), t + dur);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain || 0.05), t + 0.015);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, (gain || 0.05) * vol), t + 0.015);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(g);
       g.connect(ctx.destination);
@@ -112,6 +123,8 @@
     noise(dur, gain, freq, delay) {
       const ctx = this.ctx;
       if (!ctx) return;
+      const vol = this.vol();
+      if (vol <= 0) return;
       const t = ctx.currentTime + (delay || 0);
       const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
       const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -123,7 +136,7 @@
       filter.type = 'lowpass';
       filter.frequency.value = freq || 900;
       const g = ctx.createGain();
-      g.gain.value = gain || 0.07;
+      g.gain.value = (gain || 0.07) * vol;
       src.connect(filter);
       filter.connect(g);
       g.connect(ctx.destination);
@@ -149,6 +162,62 @@
       }
     }
   };
+
+  /* Android 15+ рисует приложение под системными полосами, а WebView не
+     всегда отдаёт env(safe-area-inset-top). Подстраховываемся в нативной сборке. */
+  function applyNativeInsets() {
+    const cap = window.Capacitor;
+    if (!cap || typeof cap.isNativePlatform !== 'function' || !cap.isNativePlatform()) return;
+    document.documentElement.classList.add('is-native');
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    const inset = probe.getBoundingClientRect().height;
+    probe.remove();
+    if (!inset || inset < 8) {
+      document.documentElement.style.setProperty('--safe-top', '28px');
+      document.documentElement.style.setProperty('--safe-bottom', '14px');
+    }
+  }
+
+  /* ---------------- Настройки ---------------- */
+  const DIFFICULTY = {
+    easy: { name: 'Легко', boost: -140 },
+    normal: { name: 'Обычно', boost: 0 },
+    hard: { name: 'Сложно', boost: 160 }
+  };
+
+  function difficultyOf() {
+    const d = state.profile && state.profile.difficulty;
+    return DIFFICULTY[d] ? d : 'normal';
+  }
+
+  function applyMotion() {
+    const off = !!state.profile && state.profile.motion === 'off';
+    document.documentElement.classList.toggle('reduce-motion', off);
+  }
+
+  function syncSettings() {
+    const p = state.profile;
+    if (!p) return;
+    const vol = Math.round(clamp(typeof p.volume === 'number' ? p.volume : 0.7, 0, 1) * 100);
+    const range = $('#set-volume');
+    if (range) range.value = vol;
+    const volVal = $('#set-volume-val');
+    if (volVal) volVal.textContent = vol + '%';
+
+    const motion = $('#set-motion');
+    if (motion) {
+      const on = p.motion !== 'off';
+      motion.classList.toggle('is-on', on);
+      motion.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    const d = difficultyOf();
+    $$('#set-difficulty button').forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.level === d);
+    });
+  }
 
   /* ---------------- Меню ---------------- */
   function updateMenu() {
@@ -180,6 +249,7 @@
     $('#stat-streak').style.color = p.streak > 0 ? '#5ff0b8' : p.streak < 0 ? '#ff8b80' : '';
     $('#stat-best').textContent = Math.round(p.best);
     $('#btn-sound').textContent = p.muted ? '🔇' : '🔊';
+    syncSettings();
     renderHistory();
   }
 
@@ -276,10 +346,13 @@
   /* ---------------- Матч / расстановка ---------------- */
   function startMatch() {
     state.matchSeq += 1;
+    const level = difficultyOf();
+    const boost = DIFFICULTY[level].boost;
+    state.botLevel = level;
     state.botName = Engine.randomName();
-    state.botRating = clamp(Math.round(state.profile.rating + randInt(-130, 130)), 250, 2600);
+    state.botRating = clamp(Math.round(state.profile.rating + randInt(-130, 130) + boost), 250, 2600);
     state.botAvatar = ['🤖', '👾', '🦈', '🐙', '🦑', '🐡', '🦀'][randInt(0, 6)];
-    state.bot = new Engine.Bot();
+    state.bot = new Engine.Bot(level);
     state.enemyBoard = null;
     state.playerBoard = Engine.createBoard();
     state.gameOver = false;
@@ -298,13 +371,15 @@
       remaining: { 4: 1, 3: 2, 2: 3, 1: 4 }
     };
     state.ghost = [];
+    state.hover = null;
     buildBoard(boards.place);
     paintBoard(boards.place, state.playerBoard, true);
     renderDock();
     updateRotateLabel();
     setErase(false);
     const oppRank = Engine.rankFor(state.botRating);
-    $('#place-opp').textContent = 'Противник: ' + state.botName + ' · ' + state.botRating + ' (' + oppRank.name + ')';
+    $('#place-opp').textContent = 'Противник: ' + state.botName + ' · ' + state.botRating +
+      ' (' + oppRank.name + ') · ' + DIFFICULTY[difficultyOf()].name;
     updateReady();
   }
 
@@ -323,7 +398,8 @@
       chip.type = 'button';
       chip.className = 'ship-chip' +
         (state.placement.size === size ? ' is-selected' : '') +
-        (left <= 0 ? ' is-done' : '');
+        (left <= 0 ? ' is-done' : '') +
+        (!state.placement.horizontal && size > 1 ? ' is-vertical' : '');
       chip.disabled = left <= 0;
       chip.innerHTML =
         '<span class="ship-blocks">' + new Array(size).fill('<i></i>').join('') + '</span>' +
@@ -355,7 +431,9 @@
   }
 
   function updateRotateLabel() {
-    $('#btn-rotate').textContent = state.placement.horizontal ? '↔️ Горизонтально' : '↕️ Вертикально';
+    const h = state.placement.horizontal;
+    $('#btn-rotate').textContent = (h ? '↔️' : '↕️') + ' Повернуть';
+    $('#btn-rotate').title = h ? 'Корабль лежит — повернуть вертикально (R)' : 'Корабль стоит — повернуть горизонтально (R)';
   }
 
   function setErase(on) {
@@ -365,13 +443,13 @@
   }
 
   function clearGhost() {
-    state.ghost.forEach((c) => c.classList.remove('ghost-ok', 'ghost-bad'));
+    state.ghost.forEach((c) => c.classList.remove('ghost-ok', 'ghost-bad', 'ghost-flip'));
     state.ghost = [];
   }
 
-  function showGhost(x, y) {
+  function showGhost(x, y, animate) {
     clearGhost();
-    if (!state.placement.size) return;
+    if (!state.placement || !state.placement.size) return;
     const { size, horizontal } = state.placement;
     const ok = Engine.canPlace(state.playerBoard, x, y, size, horizontal);
     for (let i = 0; i < size; i++) {
@@ -380,7 +458,12 @@
       if (gx < 0 || gy < 0 || gx >= Engine.SIZE || gy >= Engine.SIZE) continue;
       const cell = boards.place.children[gy * Engine.SIZE + gx];
       cell.classList.add(ok ? 'ghost-ok' : 'ghost-bad');
+      if (animate) cell.classList.add('ghost-flip');
       state.ghost.push(cell);
+    }
+    if (animate) {
+      const cells = state.ghost.slice();
+      setTimeout(() => cells.forEach((c) => c.classList.remove('ghost-flip')), 280);
     }
   }
 
@@ -411,6 +494,8 @@
     paintBoard(boards.place, state.playerBoard, true);
     renderDock();
     updateReady();
+    // призрак следующего корабля остаётся под курсором — не «пропадает» после клика
+    if (state.hover) showGhost(state.hover.x, state.hover.y, false);
     Sfx.play('place');
   }
 
@@ -440,7 +525,7 @@
   /* ---------------- Бой ---------------- */
   function beginBattle() {
     state.enemyBoard = Engine.randomBoard();
-    state.bot = new Engine.Bot();
+    state.bot = new Engine.Bot(difficultyOf());
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = true;
@@ -552,10 +637,31 @@
     });
   }
 
+  /* Яркая метка последнего выстрела: подсветка клетки, лёгкое затемнение
+     остального поля и всплывающий значок — сразу видно, куда прилетело. */
+  function markShot(targetEl, cell, result) {
+    if (!targetEl || !cell) return;
+    const miss = result === 'miss';
+    cell.classList.add(miss ? 'is-last-miss' : 'is-last-hit');
+    targetEl.classList.add('is-spotlight');
+    const flag = document.createElement('span');
+    flag.className = 'shot-flag ' + (miss ? 'is-miss' : 'is-hit');
+    flag.textContent = miss ? '🌊' : '💥';
+    flag.style.left = (cell.offsetLeft + cell.offsetWidth / 2) + 'px';
+    flag.style.top = (cell.offsetTop + cell.offsetHeight / 2) + 'px';
+    targetEl.appendChild(flag);
+    setTimeout(() => targetEl.classList.remove('is-spotlight'), 850);
+    setTimeout(() => {
+      cell.classList.remove('is-last-miss', 'is-last-hit');
+      flag.remove();
+    }, 1500);
+  }
+
   function applyShotVisual(targetEl, x, y, result, shipCells) {
     const cell = targetEl.children[y * Engine.SIZE + x];
     if (!cell) return;
     cell.classList.remove('incoming');
+    markShot(targetEl, cell, result);
     if (result === 'miss') {
       cell.classList.add('miss');
       Sfx.play('splash');
@@ -711,6 +817,26 @@
     boards.enemy.classList.toggle('is-locked', !mine);
   }
 
+  function motionOn() {
+    return state.profile.motion !== 'off' &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /* На телефоне поля не помещаются на экран: перед выстрелом бота
+     прокручиваем к твоему флоту, перед твоим ходом — к чужому. */
+  function ensureVisible(el, smooth) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    if (r.top >= 8 && r.bottom <= vh - 8) return false;
+    try {
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+    } catch (e) {
+      el.scrollIntoView();
+    }
+    return true;
+  }
+
   function shake(big) {
     const grid = $('#battle-grid');
     grid.classList.remove('is-shaking', 'is-shaking-soft');
@@ -728,14 +854,15 @@
     });
   }
 
-  async function doShot(targetEl, board, x, y) {
+  async function doShot(targetEl, board, x, y, slow) {
     const cell = targetEl.children[y * Engine.SIZE + x];
     if (!cell) return null;
     cell.classList.add('incoming');
-    await sleep(190);
+    await sleep(slow ? 400 : 230);
     cell.classList.remove('incoming');
     const shot = Engine.fire(board, x, y);
     if (!shot) return null;
+    markShot(targetEl, cell, shot.result);
 
     if (shot.result === 'miss') {
       cell.classList.add('miss');
@@ -802,11 +929,13 @@
     while (!state.gameOver) {
       await sleep(randInt(480, 820));
       if (seq !== state.matchSeq || state.gameOver) return;
+      if (ensureVisible(boards.own, motionOn())) await sleep(280);
+      if (seq !== state.matchSeq || state.gameOver) return;
 
-      const move = state.bot.choose();
+      const move = state.bot.choose(state.playerBoard);
       if (!move) break;
 
-      const shot = await doShot(boards.own, state.playerBoard, move.x, move.y);
+      const shot = await doShot(boards.own, state.playerBoard, move.x, move.y, true);
       if (seq !== state.matchSeq || state.gameOver) return;
       if (!shot) continue;
 
@@ -835,6 +964,7 @@
     setTurn(true);
     toast('🎯 Твой ход', 'turn');
     Sfx.play('turn');
+    ensureVisible(boards.enemy, motionOn());
   }
 
   /* ---------------- Конец боя ---------------- */
@@ -971,6 +1101,22 @@
     }, 340);
   }
 
+  /* ---------------- Сброс прогресса ---------------- */
+  function resetProgress(keepSettings) {
+    const p = state.profile || defaultProfile();
+    const keep = {
+      name: p.name,
+      muted: p.muted,
+      volume: p.volume,
+      motion: p.motion,
+      difficulty: p.difficulty
+    };
+    state.profile = Object.assign(defaultProfile(), keepSettings ? keep : { name: keep.name });
+    saveProfile();
+    applyMotion();
+    updateMenu();
+  }
+
   /* ---------------- События ---------------- */
   function commitNickname() {
     const input = $('#nickname');
@@ -1072,12 +1218,64 @@
     });
 
     $('#btn-reset').addEventListener('click', () => {
-      if (!confirm('Сбросить рейтинг, статистику и историю боёв?')) return;
-      const name = state.profile.name;
-      const muted = state.profile.muted;
-      state.profile = Object.assign(defaultProfile(), { name: name, muted: muted });
+      if (!confirm('Сбросить рейтинг, статистику и историю боёв? Настройки останутся.')) return;
+      resetProgress(true);
+      Sfx.play('click');
+    });
+
+    /* --- настройки --- */
+    $('#btn-settings').addEventListener('click', () => {
+      Sfx.play('click');
+      syncSettings();
+      const modal = $('#modal-settings');
+      modal.hidden = false;
+      requestAnimationFrame(() => modal.classList.add('is-open'));
+    });
+    $('#btn-settings-close').addEventListener('click', () => {
+      Sfx.play('click');
+      closeOverlay($('#modal-settings'));
+    });
+    $('#modal-settings').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
+    });
+
+    $('#set-volume').addEventListener('input', (e) => {
+      state.profile.volume = clamp(Number(e.target.value) / 100, 0, 1);
+      $('#set-volume-val').textContent = Math.round(state.profile.volume * 100) + '%';
+      if (state.profile.muted && state.profile.volume > 0) {
+        state.profile.muted = false;
+        $('#btn-sound').textContent = '🔊';
+      }
       saveProfile();
-      updateMenu();
+    });
+    $('#set-volume').addEventListener('change', () => Sfx.play('click'));
+
+    $('#set-motion').addEventListener('click', () => {
+      state.profile.motion = state.profile.motion === 'off' ? 'on' : 'off';
+      applyMotion();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+    });
+
+    $('#set-difficulty').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-level]');
+      if (!btn) return;
+      state.profile.difficulty = btn.dataset.level;
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast('Сложность бота: ' + DIFFICULTY[btn.dataset.level].name, 'turn');
+    });
+
+    $('#btn-reset-stats').addEventListener('click', () => {
+      if (!confirm('Сбросить рейтинг, статистику и историю боёв? Настройки останутся.')) return;
+      resetProgress(true);
+      Sfx.play('click');
+    });
+    $('#btn-reset-all').addEventListener('click', () => {
+      if (!confirm('Сбросить всё: рейтинг, статистику, историю и настройки?')) return;
+      resetProgress(false);
       Sfx.play('click');
     });
 
@@ -1103,10 +1301,14 @@
     boards.place.addEventListener('pointermove', (e) => {
       if (e.pointerType === 'touch') return;
       const cell = e.target.closest('.cell');
-      if (!cell) { clearGhost(); return; }
-      showGhost(Number(cell.dataset.x), Number(cell.dataset.y));
+      if (!cell) { state.hover = null; clearGhost(); return; }
+      state.hover = { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+      showGhost(state.hover.x, state.hover.y, false);
     });
-    boards.place.addEventListener('pointerleave', clearGhost);
+    boards.place.addEventListener('pointerleave', () => {
+      state.hover = null;
+      clearGhost();
+    });
     boards.place.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       toggleRotate();
@@ -1172,6 +1374,8 @@
         if (state.screen === 'place') { toggleRotate(); Sfx.play('click'); }
       }
       if (e.key === 'Escape') {
+        const settings = $('#modal-settings');
+        if (!settings.hidden) closeOverlay(settings);
         const modal = $('#modal-rules');
         if (!modal.hidden) closeOverlay(modal);
       }
@@ -1187,7 +1391,10 @@
     if (!state.placement) return;
     state.placement.horizontal = !state.placement.horizontal;
     updateRotateLabel();
-    clearGhost();
+    // поворачиваем призрак на месте: не надо двигать мышью, чтобы увидеть результат
+    if (state.hover) showGhost(state.hover.x, state.hover.y, true);
+    else clearGhost();
+    renderDock();
   }
 
   /* ---------------- Старт ---------------- */
@@ -1206,6 +1413,8 @@
   }
 
   state.profile = loadProfile();
+  applyNativeInsets();
+  applyMotion();
   makeBubbles();
   wireEvents();
   wireOnlineEvents();

@@ -27,6 +27,7 @@
       <div class="brand-mini"><span class="brand-anchor">⚓</span> МОРСКОЙ БОЙ</div>
       <div class="topbar-actions">
         <button class="icon-btn" id="btn-sound" type="button" title="Звук" aria-label="Переключить звук">🔊</button>
+        <button class="icon-btn" id="btn-settings" type="button" title="Настройки" aria-label="Настройки">⚙️</button>
       </div>
     </header>
 
@@ -213,6 +214,52 @@
           <button class="btn btn-primary" id="btn-again" type="button">⚔️ Ещё бой</button>
           <button class="btn btn-ghost" id="btn-menu" type="button">В меню</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ================= НАСТРОЙКИ ================= -->
+    <div class="overlay" id="modal-settings" hidden>
+      <div class="overlay-card settings-card">
+        <h2 class="rules-title">⚙️ Настройки</h2>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <b>Громкость</b>
+            <small>Звуки выстрелов и кликов</small>
+          </div>
+          <div class="setting-control">
+            <input class="range" id="set-volume" type="range" min="0" max="100" step="5" value="70" aria-label="Громкость">
+            <span class="setting-value" id="set-volume-val">70%</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <b>Анимации</b>
+            <small>Тряска, конфетти, эффекты попаданий</small>
+          </div>
+          <button class="switch is-on" id="set-motion" type="button" role="switch" aria-checked="true"
+                  aria-label="Анимации"><i></i></button>
+        </div>
+
+        <div class="setting-row is-column">
+          <div class="setting-text">
+            <b>Сложность бота</b>
+            <small>Сильнее бот — выше его рейтинг и награда за победу</small>
+          </div>
+          <div class="segmented" id="set-difficulty">
+            <button type="button" data-level="easy">Легко</button>
+            <button type="button" data-level="normal" class="is-active">Обычно</button>
+            <button type="button" data-level="hard">Сложно</button>
+          </div>
+        </div>
+
+        <div class="settings-actions">
+          <button class="btn btn-ghost btn-small" id="btn-reset-stats" type="button">📉 Сбросить статистику</button>
+          <button class="btn btn-ghost btn-small" id="btn-reset-all" type="button">🧹 Сбросить всё</button>
+        </div>
+
+        <button class="btn btn-primary" id="btn-settings-close" type="button">Готово</button>
       </div>
     </div>
 

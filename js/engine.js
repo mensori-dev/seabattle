@@ -139,8 +139,11 @@
   }
 
   /* ---------------- Бот ---------------- */
+  const BOT_LEVELS = ['easy', 'normal', 'hard'];
+
   class Bot {
-    constructor() {
+    constructor(level) {
+      this.level = BOT_LEVELS.indexOf(level) >= 0 ? level : 'normal';
       this.tried = new Set();
       this.excluded = new Set();
       this.queue = [];
@@ -157,7 +160,46 @@
       if (front) this.queue.unshift(k);
       else this.queue.push(k);
     }
-    choose() {
+    free(x, y) {
+      if (!inBounds(x, y)) return false;
+      const k = this.key(x, y);
+      return !this.tried.has(k) && !this.excluded.has(k);
+    }
+    freeCells() {
+      const out = [];
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) if (this.free(x, y)) out.push({ x, y });
+      }
+      return out;
+    }
+    // «Сложно»: выбираем клетку, где помещается больше всего вариантов
+    // оставшихся кораблей — так бот быстрее находит флот.
+    density(x, y, sizes) {
+      let score = 0;
+      for (const size of sizes) {
+        for (let dir = 0; dir < 2; dir++) {
+          const horiz = dir === 0;
+          for (let i = 0; i < size; i++) {
+            const sx = x - (horiz ? i : 0);
+            const sy = y - (horiz ? 0 : i);
+            let fits = true;
+            for (let j = 0; j < size; j++) {
+              const cx = sx + (horiz ? j : 0);
+              const cy = sy + (horiz ? 0 : j);
+              if (!this.free(cx, cy)) { fits = false; break; }
+            }
+            if (fits) score++;
+          }
+        }
+      }
+      return score;
+    }
+    choose(board) {
+      // «Легко»: просто случайные выстрелы, без добивания
+      if (this.level === 'easy') {
+        const pool = this.freeCells();
+        return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      }
       while (this.queue.length) {
         const k = this.queue.shift();
         this.queued.delete(k);
@@ -177,6 +219,16 @@
       }
       const pool = even.length ? even : any;
       if (!pool.length) return null;
+      if (this.level === 'hard' && board) {
+        const sizes = board.ships.filter((s) => s && !s.sunk).map((s) => s.size);
+        let best = -1;
+        let pick = null;
+        for (const c of pool) {
+          const score = this.density(c.x, c.y, sizes);
+          if (score > best) { best = score; pick = c; }
+        }
+        if (pick && best > 0) return pick;
+      }
       return pool[Math.floor(Math.random() * pool.length)];
     }
     report(x, y, shot) {
@@ -197,6 +249,8 @@
         this.queued.clear();
         return;
       }
+
+      if (this.level === 'easy') return; // доблестный рандом
 
       const L = this.hits.has(this.key(x - 1, y));
       const R = this.hits.has(this.key(x + 1, y));

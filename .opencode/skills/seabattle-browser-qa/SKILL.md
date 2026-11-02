@@ -27,7 +27,18 @@ description: Проверка UI «Морского боя» в браузере
 })()
 ```
 
-Затем перезагрузить вкладки.
+Затем обновить HTTP-кэш и перезагрузить (иначе GitHub Pages отдаст файлы
+из кэша с `max-age=600`):
+
+```js
+(async () => {
+  for (const f of ['./js/app.js', './js/online.js', './js/engine.js', './sw.js'])
+    await fetch(f, { cache: 'reload' });
+})()
+```
+
+Проверка, что клиент видит боевой сервер: `window.Online.available()` → `true`,
+`(await caches.keys())` содержит актуальную версию (`sb-v6` и т. п.).
 
 ## Правила работы с инструментом
 

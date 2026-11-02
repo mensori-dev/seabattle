@@ -21,8 +21,10 @@ GitHub Releases, при жалобах «у меня старая версия �
 
 1. `npm test` — 9/9.
 2. Смоук в браузере: бот-бой и (если трогали) онлайн по skill `seabattle-online`.
-3. `VERSION` в `sw.js` поднят, если менялись `index.html`, `style.css`, `js/*` —
-   иначе установленные PWA останутся на старом кэше.
+3. Версия кэша поднята, если менялись `index.html`, `style.css`, `js/*`:
+   `VERSION` в `sw.js` **и** `SW_VERSION` в `js/app.js` — значения должны совпадать.
+   Без второго CDN GitHub Pages может ещё 10 минут отдавать старый `sw.js`,
+   и установленная PWA останется на старом кэше.
 4. Версия в `package.json` и `android/app/build.gradle` (`versionName`/`versionCode`)
    согласованы; для стора `versionCode` увеличивается.
 5. `privacy.html` отражает реальность: если появились новые сетевые запросы

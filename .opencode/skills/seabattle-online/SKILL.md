@@ -16,6 +16,8 @@ description: Онлайн-игра «Морского боя»: WebSocket-сер
 - `js/online.js` — классический IIFE, `window.Online`: `connect`, `create`,
   `join`, `fleet`, `shot`, `surrender`, `leave`, `on/off`. Адрес берётся из
   `PROD_URL`, локально — `ws://127.0.0.1:8000/ws`.
+- Прод: `wss://mensori-seabattle.mensori-dev.deno.net/ws`, приложение
+  `mensori-seabattle` в org `mensori-dev` (Deno Deploy EA).
 - `server/main.ts` — Deno, `Deno.serve` + `Deno.upgradeWebSocket`. Комнаты
   в `Map`, TTL 2 часа, код из 4 цифр.
 - **Сервер авторитетный**: он проверяет флот, хранит оба поля, считает
@@ -83,8 +85,11 @@ npm run dev      # http://localhost:5173
   })()
   ```
 
-- `PROD_URL` должен быть `wss://<project>.deno.dev/ws` — именно `wss` и `/ws`.
-- После правок `index.html`, `style.css`, `js/*` поднять `VERSION` в `sw.js`.
+- `PROD_URL` — `wss://mensori-seabattle.mensori-dev.deno.net/ws`: именно `wss`
+  и обязательный `/ws`. Локально, если `PROD_URL` пуст, идёт
+  `ws://127.0.0.1:8000/ws`.
+- После правок `index.html`, `style.css`, `js/*` поднять `VERSION` в `sw.js`
+  и `SW_VERSION` в `js/app.js` (одинаково) — иначе CDN отдаст старый клиент.
 - Второй игрок не подключается: сервер не запущен/упал, порт 8000 занят,
   или вкладка держит старое соединение — перезапустить сервер и вкладки.
 - Комната живёт в памяти инстанса: перезапуск Deno рвёт активные партии.

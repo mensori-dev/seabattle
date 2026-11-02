@@ -43,7 +43,9 @@
 - UI на русском, mobile-first, тач-цели не меньше 32px.
 - Новые анимации уважают `prefers-reduced-motion`.
 - Ключ localStorage `seabattle.profile.v2` не менять без миграции.
-- Меняя `index.html`/`style.css`/`js/*`, поднимать версию кэша в `sw.js` (`VERSION`), иначе офлайн-копия останется старой.
+- Меняя `index.html`/`style.css`/`js/*`, поднимать версию кэша: `VERSION` в `sw.js`
+  **и** `SW_VERSION` в `js/app.js` (должны совпадать). Иначе офлайн-копия останется
+  старой, а CDN GitHub Pages может отдать прежний service worker (кэш 10 минут).
 - Не коммитить `node_modules`, логи, временные файлы.
 - После изменений: `npm test` + смоук (меню → случайная расстановка → бой → выстрел).
   Трогал онлайн — ещё `npm run server` + `npm run test:online`.

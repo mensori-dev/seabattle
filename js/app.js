@@ -13,6 +13,10 @@
   const STORE_KEY = 'seabattle.profile.v2';
   let memoryStore = null;
 
+  /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
+     не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
+  const SW_VERSION = 'sb-v6';
+
   const state = {
     profile: null,
     screen: 'menu',
@@ -1212,7 +1216,7 @@
      На file:// service worker недоступен, в Capacitor он не нужен — пропускаем. */
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !window.Capacitor) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js').catch(function () { /* не критично */ });
+      navigator.serviceWorker.register('./sw.js?v=' + SW_VERSION).catch(function () { /* не критично */ });
     });
   }
 

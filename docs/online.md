@@ -72,34 +72,52 @@ npm run dev
 (100 000 запросов в сутки) хватает с большим запасом: одна партия — это
 несколько десятков сообщений.
 
-### Вариант 1 — через сайт (без установки)
+Используется Deno Deploy EA и CLI `deno deploy` (входит в Deno 2.9+).
 
-1. Открой https://dash.deno.com и войди.
-2. **New Project** → **Playground** (или «Deploy from playground»).
-3. Вставь содержимое `server/main.ts` целиком.
-4. Нажми **Deploy**, дай проекту имя, например `seabattle-online`.
-5. Получишь адрес вида `https://seabattle-online.deno.dev`.
-6. Проверь `https://seabattle-online.deno.dev/health` — должно вернуться
-   `{"ok":true,"rooms":0}`.
+### Один раз: организация и токен
 
-### Вариант 2 — через CLI
+1. Войди на https://console.deno.com через GitHub.
+2. Создай организацию (например, `mensori-dev`).
+3. **Account settings → Personal access tokens → Create a new token**,
+   срок — 24 часа или неделя.
 
+### Создать приложение и задеплоить
+
+```powershell
+$env:DENO_DEPLOY_TOKEN='<токен>'
+deno deploy create server --org mensori-dev --app mensori-seabattle `
+  --source local --runtime-mode dynamic --entrypoint main.ts --region eu `
+  --build-timeout 5 --build-memory-limit 1024 --json --non-interactive
 ```
-deno install -gArf jsr:@deno/deployctl
-deployctl deploy --project=seabattle-online server/main.ts
+
+Получится `https://mensori-seabattle.deno.dev`. Проверка:
+`https://mensori-seabattle.deno.dev/health` → `{"ok":true,"rooms":0}`.
+
+### Обновить сервер после правок
+
+```powershell
+deno deploy server --org mensori-dev --app mensori-seabattle --prod --json --non-interactive
 ```
+
+Entrypoint запоминается в настройках приложения, повторно указывать не нужно.
+
+Для интерактивной работы без токена: `deno deploy create` (мастер) и
+`deno deploy --prod` — CLI сам откроет браузер и сохранит сессию.
 
 ### Подключить адрес в игре
 
 В `js/online.js` заполни константу:
 
 ```js
-var PROD_URL = 'wss://seabattle-online.deno.dev/ws';
+var PROD_URL = 'wss://mensori-seabattle.mensori-dev.deno.net/ws';
 ```
 
 Важно: `wss://` (не `https://`) и обязательный `/ws` на конце. После правки
 подними версию кэша в `sw.js` (`VERSION`), иначе у установленных PWA останется
 старый клиент.
+
+После деплоя токен можно отозвать: **Account settings → Personal access
+tokens → Delete**. Токен даёт доступ ко всему аккаунту Deno Deploy.
 
 ## Что важно помнить
 

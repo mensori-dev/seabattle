@@ -5,9 +5,8 @@
 (function (global) {
   'use strict';
 
-  /* Адрес сервера после деплоя на Deno Deploy, например:
-     var PROD_URL = 'wss://seabattle-online.deno.dev/ws';            */
-  var PROD_URL = '';
+  /* Адрес сервера после деплоя на Deno Deploy. */
+  var PROD_URL = 'wss://mensori-seabattle.mensori-dev.deno.net/ws';
 
   var ws = null;
   var handlers = {};

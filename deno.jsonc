@@ -1,0 +1,7 @@
+{
+  "deploy": {
+    "org": "mensori-dev",
+    "app": "mensori-seabattle"
+  }
+}
+

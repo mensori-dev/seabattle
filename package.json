@@ -6,6 +6,7 @@
   "description": "Морской бой против бота с ELO-рейтингом — vanilla HTML/CSS/JS",
   "scripts": {
     "dev": "node scripts/serve.mjs",
+    "server": "deno run --allow-net --allow-env server/main.ts",
     "test": "node --test tests/",
     "icons": "python scripts/make-icons.py",
     "www": "node scripts/build-www.mjs",

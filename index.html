@@ -68,6 +68,7 @@
         </div>
 
         <button class="btn btn-primary btn-big" id="btn-play" type="button"><span>⚔️ В БОЙ</span></button>
+        <button class="btn btn-ghost btn-big btn-online" id="btn-online" type="button"><span>🌐 Играть с другом</span></button>
 
         <div class="menu-links">
           <button class="btn btn-ghost btn-small" id="btn-rules" type="button">📖 Правила</button>
@@ -81,6 +82,37 @@
           <div id="history-list"></div>
         </div>
       </section>
+      <!-- ================= ОНЛАЙН ================= -->
+      <section id="screen-online" class="screen">
+        <div class="place-head">
+          <button class="icon-btn back-btn" id="btn-online-back" type="button" aria-label="В меню">←</button>
+          <div class="place-title">
+            <h2>Игра с другом</h2>
+            <p class="muted">Одна комната — два телефона</p>
+          </div>
+        </div>
+
+        <div class="panel online-card">
+          <button class="btn btn-primary btn-big" id="btn-create-room" type="button"><span>🎮 Создать комнату</span></button>
+
+          <div class="online-sep"><span>или войди по коду</span></div>
+
+          <div class="online-join">
+            <input id="room-code" class="code-input" type="text" inputmode="numeric" maxlength="4"
+                   placeholder="0000" autocomplete="off" spellcheck="false" aria-label="Код комнаты">
+            <button class="btn btn-ghost" id="btn-join-room" type="button">Войти</button>
+          </div>
+
+          <div class="online-wait" id="online-wait" hidden>
+            <div class="online-wait-label">Код комнаты</div>
+            <div class="online-code" id="online-code">0000</div>
+            <div class="online-wait-hint" id="online-hint">Скинь код другу — ждём второго игрока…</div>
+          </div>
+
+          <p class="online-status" id="online-status"></p>
+        </div>
+      </section>
+
       <!-- ================= РАССТАНОВКА ================= -->
       <section id="screen-place" class="screen">
         <div class="place-head">
@@ -201,6 +233,7 @@
     </div>
   </div>
   <script src="js/engine.js"></script>
+  <script src="js/online.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

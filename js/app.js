@@ -23,6 +23,8 @@
     botName: '',
     botRating: 1000,
     botAvatar: '🤖',
+    mode: 'bot',            // 'bot' | 'online'
+    net: null,              // { code, you, foeShips, fleetSent }
     playerTurn: false,
     locked: true,
     gameOver: false,
@@ -204,7 +206,7 @@
   }
 
   function showScreen(name) {
-    Object.keys({ menu: 1, place: 1, battle: 1 }).forEach((key) => {
+    Object.keys({ menu: 1, online: 1, place: 1, battle: 1 }).forEach((key) => {
       const screen = $('#screen-' + key);
       if (screen) screen.classList.toggle('is-active', key === name);
     });
@@ -460,9 +462,236 @@
     setTimeout(() => toast('🎯 Тапни по полю противника', 'turn'), 500);
   }
 
+  /* ---------------- Онлайн: комната и бой ---------------- */
+
+  function setOnlineStatus(text, isError) {
+    const el = $('#online-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('is-error', !!isError);
+  }
+
+  function startOnlineMatch(foe) {
+    state.matchSeq += 1;
+    state.mode = 'online';
+    state.net = state.net || {};
+    state.net.foeShips = 10;
+    state.net.fleetSent = false;
+    state.botName = (foe && foe.name) || 'Соперник';
+    state.botRating = (foe && foe.rating) || 1000;
+    state.botAvatar = '🌐';
+    state.bot = null;
+    state.enemyBoard = null;
+    state.playerBoard = Engine.createBoard();
+    state.gameOver = false;
+    state.locked = true;
+    state.playerTurn = false;
+    setupPlacement();
+    showScreen('place');
+    Sfx.play('start');
+    toast('🌐 Игра с ' + state.botName, 'turn');
+  }
+
+  function sendFleetOnline() {
+    if (!state.net || state.net.fleetSent) return;
+    const ships = state.playerBoard.ships.filter(Boolean).map((s) => ({
+      size: s.size,
+      cells: s.cells.map((c) => [c.x, c.y])
+    }));
+    Online.fleet(ships);
+    state.net.fleetSent = true;
+    $('#btn-ready').disabled = true;
+    $('#place-hint').textContent = 'Ждём соперника…';
+    $('#place-opp').textContent = 'Противник: ' + state.botName + ' · расставляется';
+    toast('⏳ Ждём соперника', 'turn');
+  }
+
+  function beginOnlineBattle(first) {
+    state.enemyBoard = Engine.createBoard();
+    state.net.foeShips = 10;
+    state.gameOver = false;
+    state.locked = !first;
+    state.playerTurn = !!first;
+
+    buildBoard(boards.enemy);
+    buildBoard(boards.own);
+    paintBoard(boards.enemy, state.enemyBoard, false);
+    paintBoard(boards.own, state.playerBoard, true);
+
+    const pRank = Engine.rankFor(state.profile.rating);
+    const fRank = Engine.rankFor(state.botRating);
+    $('#b-you-name').textContent = state.profile.name;
+    $('#b-you-rate').textContent = Math.round(state.profile.rating) + ' · ' + pRank.name;
+    $('#b-foe-name').textContent = state.botName;
+    $('#b-foe-rate').textContent = Math.round(state.botRating) + ' · ' + fRank.name;
+    $('#b-you-avatar').textContent = pRank.icon;
+    $('#b-foe-avatar').textContent = '🌐';
+
+    updateFleet();
+    showScreen('battle');
+    setTurn(state.playerTurn);
+    state.locked = !state.playerTurn;
+    Sfx.play('start');
+    toast(state.playerTurn ? '🎯 Твой ход — стреляй!' : '⏳ Первый ход у соперника', 'turn');
+  }
+
+  function revealNetShip(targetEl, cells) {
+    const list = cells.map((c) => ({ x: c[0], y: c[1] }));
+    const horizontal = list.length === 1 ? true : list.every((c) => c.y === list[0].y);
+    const ship = { size: list.length, cells: list, horizontal: horizontal };
+    list.forEach((c, i) => {
+      const cell = targetEl.children[c.y * Engine.SIZE + c.x];
+      if (!cell) return;
+      cell.style.setProperty('--sd', (i * 70) + 'ms');
+      applyShipLook(cell, ship, c.x, c.y);
+      cell.classList.add('sunk', 'ship-reveal');
+    });
+  }
+
+  function applyShotVisual(targetEl, x, y, result, shipCells) {
+    const cell = targetEl.children[y * Engine.SIZE + x];
+    if (!cell) return;
+    cell.classList.remove('incoming');
+    if (result === 'miss') {
+      cell.classList.add('miss');
+      Sfx.play('splash');
+      return;
+    }
+    cell.classList.add('hit');
+    if (result === 'sunk' && Array.isArray(shipCells)) {
+      revealNetShip(targetEl, shipCells);
+      Sfx.play('sunk');
+      shake(true);
+    } else {
+      Sfx.play('boom');
+      shake(false);
+    }
+  }
+
+  function onNetShot(msg) {
+    if (state.mode !== 'online' || !state.enemyBoard || !state.playerBoard) return;
+    const x = Number(msg.x);
+    const y = Number(msg.y);
+    if (x < 0 || y < 0 || x >= Engine.SIZE || y >= Engine.SIZE) return;
+
+    if (msg.mine) {
+      state.enemyBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
+      applyShotVisual(boards.enemy, x, y, msg.result, msg.ship);
+      if (msg.result === 'sunk') state.net.foeShips -= 1;
+      updateFleet();
+      if (msg.result === 'miss') {
+        toast('🌊 Мимо', 'miss');
+      } else if (msg.result === 'sunk') {
+        toast('☠️ Корабль потоплен!', 'sunk');
+        state.locked = false;
+      } else {
+        toast('💥 Попадание!', 'hit');
+        state.locked = false;
+      }
+      return;
+    }
+
+    state.playerBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
+    applyShotVisual(boards.own, x, y, msg.result, msg.ship);
+    updateFleet();
+    if (msg.result === 'miss') toast('🌊 Соперник промахнулся', 'miss');
+    else toast('💢 Соперник попал', 'miss');
+  }
+
+  function onNetTurn(msg) {
+    if (state.mode !== 'online') return;
+    state.playerTurn = !!msg.you;
+    state.locked = !msg.you;
+    setTurn(state.playerTurn);
+    if (msg.you) {
+      Sfx.play('turn');
+      toast('🎯 Твой ход', 'turn');
+    }
+  }
+
+  function leaveOnline(silent) {
+    if (state.mode === 'online') {
+      try { Online.leave(); } catch (e) { /* ignore */ }
+    }
+    state.mode = 'bot';
+    state.net = null;
+    if (!silent) setOnlineStatus('');
+  }
+
+  function resetOnlineRoom() {
+    const wait = $('#online-wait');
+    if (wait) wait.hidden = true;
+    const code = $('#online-code');
+    if (code) code.textContent = '0000';
+    const input = $('#room-code');
+    if (input) input.value = '';
+    setOnlineStatus('');
+  }
+
+  function wireOnlineEvents() {
+    Online.on('room', (msg) => {
+      state.net = state.net || {};
+      state.net.code = msg.code;
+      state.net.you = msg.you;
+      $('#online-wait').hidden = false;
+      $('#online-code').textContent = msg.code;
+      $('#online-hint').textContent = 'Скинь код другу — ждём второго игрока…';
+      setOnlineStatus('');
+    });
+
+    Online.on('wait', () => {
+      setOnlineStatus('Комната создана. Ждём друга…');
+    });
+
+    Online.on('start', (msg) => {
+      startOnlineMatch(msg.foe);
+    });
+
+    Online.on('begin', (msg) => {
+      if (state.screen !== 'place') return;
+      beginOnlineBattle(!!msg.first);
+    });
+
+    Online.on('shot', onNetShot);
+    Online.on('turn', onNetTurn);
+
+    Online.on('end', (msg) => {
+      if (state.mode !== 'online' || state.gameOver) return;
+      endGame(!!msg.win, msg.reason || 'online');
+    });
+
+    Online.on('foeLeft', () => {
+      toast('👋 Соперник вышел', 'miss');
+      if (state.mode === 'online' && !state.gameOver) {
+        state.gameOver = true;
+        state.locked = true;
+        setTimeout(() => {
+          leaveOnline(true);
+          updateMenu();
+          showScreen('menu');
+        }, 1200);
+      }
+    });
+
+    Online.on('error', (msg) => {
+      const text = (msg && msg.msg) || 'Ошибка соединения';
+      toast('⚠️ ' + text, 'miss');
+      if (state.screen === 'online') setOnlineStatus(text, true);
+    });
+
+    Online.on('closed', () => {
+      if (state.mode !== 'online' || state.gameOver) return;
+      toast('📡 Связь с сервером потеряна', 'miss');
+    });
+  }
+
+
   function updateFleet() {
     if (!state.enemyBoard || !state.playerBoard) return;
-    $('#foe-fleet').textContent = Engine.shipsLeft(state.enemyBoard) + ' / ' + Engine.totalShips(state.enemyBoard);
+    const online = state.mode === 'online';
+    const foeLeft = online ? state.net.foeShips : Engine.shipsLeft(state.enemyBoard);
+    const foeTotal = online ? 10 : Engine.totalShips(state.enemyBoard);
+    $('#foe-fleet').textContent = foeLeft + ' / ' + foeTotal;
     $('#you-fleet').textContent = Engine.shipsLeft(state.playerBoard) + ' / ' + Engine.totalShips(state.playerBoard);
   }
 
@@ -474,7 +703,7 @@
       return;
     }
     pill.classList.add(mine ? 'is-mine' : 'is-bot');
-    pill.textContent = mine ? 'ТВОЙ ХОД' : 'ХОД БОТА';
+    pill.textContent = mine ? 'ТВОЙ ХОД' : (state.mode === 'online' ? 'ХОД СОПЕРНИКА' : 'ХОД БОТА');
     boards.enemy.classList.toggle('is-locked', !mine);
   }
 
@@ -524,6 +753,12 @@
   async function playerShoot(x, y) {
     if (state.locked || !state.playerTurn || state.gameOver || !state.enemyBoard) return;
     if (state.enemyBoard.shots[y][x]) return;
+
+    if (state.mode === 'online') {
+      state.locked = true;
+      Online.shot(x, y);
+      return;
+    }
 
     const seq = state.matchSeq;
     state.locked = true;
@@ -612,13 +847,19 @@
     pill.textContent = playerWon ? 'ПОБЕДА' : 'ПОРАЖЕНИЕ';
     boards.enemy.classList.add('is-locked');
 
-    paintBoard(boards.enemy, state.enemyBoard, true);
+    if (state.mode !== 'online') paintBoard(boards.enemy, state.enemyBoard, true);
     updateFleet();
     Sfx.play(playerWon ? 'win' : 'lose');
 
     await sleep(800);
     if (seq !== state.matchSeq) return;
     if (state.screen !== 'battle') return;
+
+    if (state.mode === 'online') {
+      const same = Math.round(state.profile.rating);
+      showResult(playerWon, same, same, 0, reason);
+      return;
+    }
 
     const oldRating = Math.round(state.profile.rating);
     const delta = Engine.eloDelta(oldRating, Math.round(state.botRating), playerWon ? 1 : 0);
@@ -667,10 +908,16 @@
 
     $('#result-emblem').textContent = win ? '🏆' : '💥';
     $('#result-title').textContent = win ? 'Победа!' : 'Поражение';
+    const online = state.mode === 'online';
     $('#result-sub').textContent = win
-      ? 'Флот противника отправлен на дно'
+      ? (reason === 'surrender' ? 'Соперник сдался — победа твоя' : 'Флот противника отправлен на дно')
       : (reason === 'surrender' ? 'Ты покинул бой' : 'Твой флот уничтожен');
-    $('#result-opp').textContent = 'против ' + state.botName + ' · ' + Math.round(state.botRating);
+    $('#result-opp').textContent = (online ? 'онлайн · ' : 'против ') + state.botName +
+      (state.botRating ? ' · ' + Math.round(state.botRating) : '');
+
+    const eloRow = document.querySelector('.result-card .elo-row');
+    if (eloRow) eloRow.hidden = online;
+    $('#btn-again').textContent = online ? '🔁 Новая комната' : '⚔️ Ещё бой';
 
     $('#elo-before').textContent = oldRating;
     $('#elo-after').textContent = oldRating;
@@ -733,7 +980,64 @@
   function wireEvents() {
     $('#btn-play').addEventListener('click', () => {
       Sfx.play('click');
+      state.mode = 'bot';
       startMatch();
+    });
+
+    $('#btn-online').addEventListener('click', () => {
+      Sfx.play('click');
+      if (!Online.available()) {
+        toast('⚠️ Онлайн ещё не настроен', 'miss');
+        return;
+      }
+      $('#online-wait').hidden = true;
+      $('#room-code').value = '';
+      setOnlineStatus('');
+      showScreen('online');
+    });
+
+    $('#btn-online-back').addEventListener('click', () => {
+      Sfx.play('click');
+      leaveOnline();
+      updateMenu();
+      showScreen('menu');
+    });
+
+    $('#btn-create-room').addEventListener('click', () => {
+      Sfx.play('click');
+      Online.connect()
+        .then(() => {
+          setOnlineStatus('Создаём комнату…');
+          Online.create(state.profile.name, Math.round(state.profile.rating));
+        })
+        .catch((err) => {
+          setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
+        });
+    });
+
+    function joinRoom() {
+      const code = ($('#room-code').value || '').replace(/\D/g, '');
+      if (code.length !== 4) {
+        setOnlineStatus('Введи 4 цифры кода', true);
+        return;
+      }
+      Sfx.play('click');
+      Online.connect()
+        .then(() => {
+          setOnlineStatus('Подключаемся…');
+          Online.join(code, state.profile.name, Math.round(state.profile.rating));
+        })
+        .catch((err) => {
+          setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
+        });
+    }
+
+    $('#btn-join-room').addEventListener('click', joinRoom);
+    $('#room-code').addEventListener('input', (e) => {
+      e.target.value = (e.target.value || '').replace(/\D/g, '').slice(0, 4);
+    });
+    $('#room-code').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); joinRoom(); }
     });
 
     $('#btn-sound').addEventListener('click', () => {
@@ -775,6 +1079,12 @@
 
     $('#btn-back').addEventListener('click', () => {
       Sfx.play('click');
+      if (state.mode === 'online') {
+        leaveOnline();
+        resetOnlineRoom();
+        showScreen('online');
+        return;
+      }
       showScreen('menu');
       updateMenu();
     });
@@ -810,6 +1120,7 @@
     $('#btn-ready').addEventListener('click', () => {
       if (totalLeft() > 0) return;
       Sfx.play('click');
+      if (state.mode === 'online') { sendFleetOnline(); return; }
       beginBattle();
     });
 
@@ -822,6 +1133,13 @@
 
     $('#btn-surrender').addEventListener('click', () => {
       if (state.gameOver) return;
+      if (state.mode === 'online') {
+        if (confirm('Сдаться? Соперник получит победу.')) {
+          state.locked = true;
+          Online.surrender();
+        }
+        return;
+      }
       if (confirm('Сдаться и засчитать поражение?')) endGame(false, 'surrender');
     });
 
@@ -829,11 +1147,18 @@
     $('#btn-again').addEventListener('click', () => {
       Sfx.play('click');
       closeOverlay($('#overlay'));
+      if (state.mode === 'online') {
+        leaveOnline();
+        resetOnlineRoom();
+        showScreen('online');
+        return;
+      }
       startMatch();
     });
     $('#btn-menu').addEventListener('click', () => {
       Sfx.play('click');
       closeOverlay($('#overlay'));
+      if (state.mode === 'online') leaveOnline();
       updateMenu();
       showScreen('menu');
     });
@@ -879,6 +1204,7 @@
   state.profile = loadProfile();
   makeBubbles();
   wireEvents();
+  wireOnlineEvents();
   updateMenu();
   showScreen('menu');
 

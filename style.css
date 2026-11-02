@@ -258,6 +258,36 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   border-bottom:1px solid transparent;
 }
 .privacy-link:hover,.privacy-link:focus-visible{color:var(--aqua);border-bottom-color:currentColor}
+
+/* ---------- онлайн ---------- */
+.btn-online{margin-top:12px}
+.online-card{
+  width:100%;max-width:540px;margin-top:18px;padding:18px;
+  display:flex;flex-direction:column;align-items:stretch;
+}
+.online-card .btn-big{margin-top:0}
+.online-sep{
+  margin:16px 0 12px;text-align:center;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+}
+.online-join{display:flex;gap:10px}
+.code-input{
+  flex:1;min-width:0;padding:13px 16px;border-radius:14px;
+  background:rgba(6,26,44,.65);border:1px solid rgba(120,200,255,.22);
+  color:var(--text);font-family:'Rubik',sans-serif;font-weight:800;
+  font-size:20px;letter-spacing:.28em;text-align:center;
+}
+.code-input::placeholder{color:rgba(143,176,201,.45)}
+.code-input:focus{outline:none;border-color:var(--aqua);box-shadow:0 0 0 3px rgba(53,224,210,.18)}
+.online-wait{margin-top:20px;text-align:center}
+.online-wait-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.online-code{
+  font-family:'Rubik',sans-serif;font-weight:900;font-size:46px;letter-spacing:.18em;
+  color:#fff;text-shadow:0 0 26px rgba(53,224,210,.55);margin:4px 0 6px;
+}
+.online-wait-hint{font-size:13px;color:#a8c6dc}
+.online-status{margin:16px 0 0;min-height:18px;font-size:13px;text-align:center;color:var(--muted)}
+.online-status.is-error{color:#ff8fa3}
 .history-panel{margin-top:16px;padding:14px 16px}
 .history-title{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .history-row{

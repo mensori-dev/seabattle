@@ -8,6 +8,7 @@
     "dev": "node scripts/serve.mjs",
     "server": "deno run --allow-net --allow-env server/main.ts",
     "test": "node --test tests/",
+    "test:online": "node scripts/online-smoke.mjs",
     "icons": "python scripts/make-icons.py",
     "www": "node scripts/build-www.mjs",
     "android:sync": "npm run www && cap sync android",

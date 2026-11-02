@@ -1,6 +1,6 @@
 ---
 name: Seabattle Dev
-description: Правила, проверка и релиз браузерной игры «Морской бой» (vanilla JS, ELO, PWA)
+description: Правила, проверка и релиз браузерной игры «Морской бой» (vanilla JS, ELO, PWA, онлайн)
 ---
 
 # Seabattle Dev
@@ -9,10 +9,14 @@ description: Правила, проверка и релиз браузерной
 
 Любая работа в этом репозитории: правки движка, UI, тестов, деплой.
 
+Смежные навыки: `seabattle-online` (комнаты и сервер), `seabattle-browser-qa`
+(смоук в браузере), `seabattle-release` (PWA/APK/RuStore).
+
 ## Контекст
 
 Игра без сборки: `index.html` + `style.css` + `js/engine.js` + `js/app.js`.
 Открывается как `file://`, поэтому браузерные скрипты — классические IIFE, без `import`.
+Онлайн — отдельный режим (`js/online.js` + `server/main.ts`), офлайн-игра от него не зависит.
 
 ## Проверка изменений
 
@@ -20,6 +24,10 @@ description: Правила, проверка и релиз браузерной
 2. `npm run dev` → http://localhost:5173
 3. Смоук: меню → «В БОЙ» → «Случайно» → «В БОЙ» → выстрел → ход бота.
 4. Консоль без ошибок, мобильная ширина 390px.
+5. Если трогал онлайн: `npm run server` + `npm run test:online` и две вкладки.
+
+Если правки не видны в браузере — виноват service worker: снять регистрацию
+и очистить кэш (см. `seabattle-browser-qa`).
 
 ## Движок
 
@@ -38,9 +46,12 @@ description: Правила, проверка и релиз браузерной
 ## Релиз
 
 - Только после подтверждения пользователя.
-- PWA: `manifest.webmanifest`, `sw.js`, иконки 192/512.
+- PWA: `manifest.webmanifest`, `sw.js`, иконки 192/512. Меняешь `js/*`,
+  `style.css` или `index.html` — подними `VERSION` в `sw.js`.
 - GitHub Pages: ветка `main`, папка `/`.
-- APK (позже): Capacitor, `npx cap add android`.
+- APK/AAB: Capacitor, `npm run www` → `npx cap sync android` →
+  `gradlew assembleRelease bundleRelease`; подробности в `seabattle-release`.
+- Онлайн-сервер: Deno Deploy, `docs/online.md`, адрес в `PROD_URL` (`wss://.../ws`).
 
 ## Чего не делать
 

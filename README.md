@@ -31,6 +31,7 @@ npm run dev
 ```
 npm run server   # Deno-сервер на http://127.0.0.1:8000
 npm run dev      # сайт на http://localhost:5173
+npm run test:online  # протокол-смоук против запущенного сервера
 ```
 
 Деплой на бесплатный Deno Deploy, настройка `PROD_URL` и описание протокола —

@@ -15,7 +15,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v9';
+  const SW_VERSION = 'sb-v13';
 
   const state = {
     profile: null,
@@ -87,6 +87,7 @@
   /* ---------------- Звук ---------------- */
   const Sfx = {
     ctx: null,
+    noiseCache: {},
     vol() {
       const p = state.profile;
       const v = p && typeof p.volume === 'number' ? p.volume : 0.7;
@@ -127,9 +128,14 @@
       if (vol <= 0) return;
       const t = ctx.currentTime + (delay || 0);
       const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      // буфер шума не пересоздаём на каждый выстрел — экономим CPU и батарею
+      let buf = this.noiseCache[len];
+      if (!buf) {
+        buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+        this.noiseCache[len] = buf;
+      }
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const filter = ctx.createBiquadFilter();
@@ -366,7 +372,7 @@
   function setupPlacement() {
     state.placement = {
       size: 4,
-      horizontal: true,
+      dir: 'right',      // куда «растёт» корабль от клетки под курсором
       erase: false,
       remaining: { 4: 1, 3: 2, 2: 3, 1: 4 }
     };
@@ -399,7 +405,7 @@
       chip.className = 'ship-chip' +
         (state.placement.size === size ? ' is-selected' : '') +
         (left <= 0 ? ' is-done' : '') +
-        (!state.placement.horizontal && size > 1 ? ' is-vertical' : '');
+        (!isHorizontal(state.placement.dir) && size > 1 ? ' is-vertical' : '');
       chip.disabled = left <= 0;
       chip.innerHTML =
         '<span class="ship-blocks">' + new Array(size).fill('<i></i>').join('') + '</span>' +
@@ -430,10 +436,51 @@
       : 'Флот готов — в бой!';
   }
 
+  /* Направления роста корабля от клетки под курсором.
+     right/left — горизонталь, down/up — вертикаль. */
+  const DIR_ARROW = { right: '→', left: '←', down: '↓', up: '↑' };
+  const DIR_NAME = { right: 'Вправо', left: 'Влево', down: 'Вниз', up: 'Вверх' };
+  const DIR_ORDER = ['right', 'down', 'left', 'up'];
+
+  function isHorizontal(dir) {
+    return dir !== 'down' && dir !== 'up';
+  }
+
+  function oppositeDir(dir) {
+    return { right: 'left', left: 'right', down: 'up', up: 'down' }[dir] || 'right';
+  }
+
+  /* Верхний левый угол корабля, который растёт из (x,y) в направлении dir. */
+  function anchorFor(x, y, size, dir) {
+    if (dir === 'left') return { x: x - (size - 1), y: y };
+    if (dir === 'up') return { x: x, y: y - (size - 1) };
+    return { x: x, y: y };
+  }
+
+  /* Пробует основное направление, затем противоположное — так корабль
+     сам разворачивается у края поля. Возвращает и клетку-якорь, и флаг. */
+  function resolvePlacement(x, y, size, dir) {
+    const primary = dir || 'right';
+    const horizontal = isHorizontal(primary);
+    const tries = [primary, oppositeDir(primary)];
+    for (let i = 0; i < tries.length; i++) {
+      const base = anchorFor(x, y, size, tries[i]);
+      if (Engine.canPlace(state.playerBoard, base.x, base.y, size, horizontal)) {
+        return { dir: tries[i], x: base.x, y: base.y, horizontal: horizontal, ok: true };
+      }
+    }
+    const base = anchorFor(x, y, size, primary);
+    return { dir: primary, x: base.x, y: base.y, horizontal: horizontal, ok: false };
+  }
+
   function updateRotateLabel() {
-    const h = state.placement.horizontal;
-    $('#btn-rotate').textContent = (h ? '↔️' : '↕️') + ' Повернуть';
-    $('#btn-rotate').title = h ? 'Корабль лежит — повернуть вертикально (R)' : 'Корабль стоит — повернуть горизонтально (R)';
+    const dir = (state.placement && state.placement.dir) || 'right';
+    const btn = $('#btn-rotate');
+    btn.textContent = DIR_ARROW[dir] + ' ' + DIR_NAME[dir];
+    btn.title = 'Направление: ' + DIR_NAME[dir].toLowerCase() +
+      '. Нажми, чтобы повернуть (R), Shift — в другую сторону';
+    btn.setAttribute('aria-label', 'Направление корабля: ' + DIR_NAME[dir] +
+      '. Нажми, чтобы повернуть');
   }
 
   function setErase(on) {
@@ -450,14 +497,16 @@
   function showGhost(x, y, animate) {
     clearGhost();
     if (!state.placement || !state.placement.size) return;
-    const { size, horizontal } = state.placement;
-    const ok = Engine.canPlace(state.playerBoard, x, y, size, horizontal);
+    const size = state.placement.size;
+    // направление не меняем: у края призрак просто развернётся,
+    // а выбранный режим останется прежним
+    const p = resolvePlacement(x, y, size, state.placement.dir);
     for (let i = 0; i < size; i++) {
-      const gx = x + (horizontal ? i : 0);
-      const gy = y + (horizontal ? 0 : i);
+      const gx = p.x + (p.horizontal ? i : 0);
+      const gy = p.y + (p.horizontal ? 0 : i);
       if (gx < 0 || gy < 0 || gx >= Engine.SIZE || gy >= Engine.SIZE) continue;
       const cell = boards.place.children[gy * Engine.SIZE + gx];
-      cell.classList.add(ok ? 'ghost-ok' : 'ghost-bad');
+      cell.classList.add(p.ok ? 'ghost-ok' : 'ghost-bad');
       if (animate) cell.classList.add('ghost-flip');
       state.ghost.push(cell);
     }
@@ -482,12 +531,17 @@
     }
     const size = state.placement.size;
     if (!size) return;
-    if (!Engine.canPlace(state.playerBoard, x, y, size, state.placement.horizontal)) {
+    const p = resolvePlacement(x, y, size, state.placement.dir);
+    if (!p.ok) {
       toast('Тут не помещается 😅', 'error');
       Sfx.play('error');
       return;
     }
-    Engine.placeShip(state.playerBoard, x, y, size, state.placement.horizontal);
+    if (p.dir !== state.placement.dir) {
+      state.placement.dir = p.dir;
+      updateRotateLabel();
+    }
+    Engine.placeShip(state.playerBoard, p.x, p.y, size, p.horizontal);
     state.placement.remaining[size] -= 1;
     selectNextSize();
     clearGhost();
@@ -1080,7 +1134,8 @@
     const layer = $('#confetti');
     layer.innerHTML = '';
     const colors = ['#ffd166', '#35e0d2', '#ff6b5e', '#8b9cff', '#45e0a8', '#ff9ecd', '#7fe0ff'];
-    for (let i = 0; i < 46; i++) {
+    const count = window.innerWidth < 700 ? 26 : 46;
+    for (let i = 0; i < count; i++) {
       const bit = document.createElement('i');
       bit.style.left = (Math.random() * 100) + '%';
       bit.style.background = colors[i % colors.length];
@@ -1311,10 +1366,24 @@
     });
     boards.place.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      toggleRotate();
+      toggleRotate(e.shiftKey);
     });
+    // колесо над полем — тоже поворот, страница при этом не скроллится
+    let lastWheel = 0;
+    boards.place.addEventListener('wheel', (e) => {
+      if (!state.placement) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheel < 220) return;   // трекпад сыплет событиями — не крутим 10 раз
+      lastWheel = now;
+      toggleRotate(e.shiftKey);
+      Sfx.play('click');
+    }, { passive: false });
 
-    $('#btn-rotate').addEventListener('click', () => { Sfx.play('click'); toggleRotate(); });
+    $('#btn-rotate').addEventListener('click', (e) => {
+      Sfx.play('click');
+      toggleRotate(e.shiftKey);
+    });
     $('#btn-random').addEventListener('click', randomPlacement);
     $('#btn-clear').addEventListener('click', clearPlacement);
     $('#btn-erase').addEventListener('click', () => {
@@ -1371,7 +1440,11 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
-        if (state.screen === 'place') { toggleRotate(); Sfx.play('click'); }
+        if (state.screen === 'place') {
+          e.preventDefault();
+          toggleRotate(e.shiftKey);
+          Sfx.play('click');
+        }
       }
       if (e.key === 'Escape') {
         const settings = $('#modal-settings');
@@ -1387,9 +1460,14 @@
     }, { once: true });
   }
 
-  function toggleRotate() {
-    if (!state.placement) return;
-    state.placement.horizontal = !state.placement.horizontal;
+  /* Поворот: обычный шаг — следующее направление по кругу (4 стороны),
+     с Shift — сразу в противоположную сторону. */
+  function toggleRotate(flipSide) {
+    const p = state.placement;
+    if (!p) return;
+    p.dir = flipSide
+      ? oppositeDir(p.dir)
+      : DIR_ORDER[(DIR_ORDER.indexOf(p.dir) + 1) % DIR_ORDER.length];
     updateRotateLabel();
     // поворачиваем призрак на месте: не надо двигать мышью, чтобы увидеть результат
     if (state.hover) showGhost(state.hover.x, state.hover.y, true);

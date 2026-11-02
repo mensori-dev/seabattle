@@ -1,5 +1,11 @@
-// Собирает debug APK одной командой: www → cap sync → gradle → dist/
-// Использование: node scripts/build-apk.mjs
+// Собирает APK/AAB для раздачи и магазинов: www → cap sync → gradle → dist/
+//
+//   node scripts/build-apk.mjs           # подписанный release APK + AAB
+//   node scripts/build-apk.mjs --apk     # только APK (быстрее)
+//   node scripts/build-apk.mjs --debug   # debug APK для локальных проверок
+//
+// Важно: раздавать друзьям можно только release-сборку. Debug-APK подписан
+// другим ключом и не ставится поверх release-версии (Android откажет).
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,6 +14,9 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const androidDir = path.join(root, 'android');
 const distDir = path.join(root, 'dist');
+const args = process.argv.slice(2);
+const debug = args.includes('--debug');
+const apkOnly = args.includes('--apk');
 
 function firstExisting(paths) {
   return paths.find((p) => p && fs.existsSync(p)) || null;
@@ -31,13 +40,30 @@ function findSdk() {
   return firstExisting([process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, 'C:\\Android\\sdk']);
 }
 
-function run(cmd, args, cwd) {
+function run(cmd, args, cwd, useShell) {
   console.log(`\n→ ${cmd} ${args.join(' ')}`);
-  const res = spawnSync(cmd, args, { cwd, stdio: 'inherit', env: process.env, shell: process.platform === 'win32' });
+  const shell = typeof useShell === 'boolean' ? useShell : process.platform === 'win32';
+  const res = spawnSync(cmd, args, { cwd, stdio: 'inherit', env: process.env, shell });
   if (res.status !== 0) {
     console.error(`\n✖ команда завершилась с кодом ${res.status}`);
     process.exit(res.status || 1);
   }
+}
+
+function gradleValue(name) {
+  const file = path.join(androidDir, 'app', 'build.gradle');
+  const text = fs.readFileSync(file, 'utf8');
+  const m = name === 'versionName'
+    ? text.match(/versionName\s+["']([^"']+)["']/)
+    : text.match(new RegExp(name + '\\s+(\\d+)'));
+  return m ? m[1] : '0.0.0';
+}
+
+function copy(from, to) {
+  fs.mkdirSync(distDir, { recursive: true });
+  fs.copyFileSync(from, to);
+  const mb = (fs.statSync(to).size / 1024 / 1024).toFixed(1);
+  console.log(`✔ ${to} (${mb} МБ)`);
 }
 
 const jdk = findJdk();
@@ -57,17 +83,35 @@ process.env.Path = [
 console.log('JDK:', jdk);
 console.log('SDK:', sdk);
 
-run(process.execPath, [path.join(root, 'scripts', 'build-www.mjs')], root);
+run(process.execPath, [path.join(root, 'scripts', 'build-www.mjs')], root, false);
 run('npx', ['cap', 'sync', 'android'], root);
 
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-run(gradlew, ['assembleDebug'], androidDir);
 
-const apk = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+if (debug) {
+  run(gradlew, ['assembleDebug'], androidDir);
+  const apk = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+  if (!fs.existsSync(apk)) throw new Error('APK не найден после сборки: ' + apk);
+  copy(apk, path.join(distDir, 'seabattle-debug.apk'));
+  console.log('\n⚠ Debug-APK не ставится поверх release-версии — только для локальных тестов.');
+  process.exit(0);
+}
+
+if (!fs.existsSync(path.join(androidDir, 'keystore.properties'))) {
+  throw new Error('Нет android/keystore.properties — release-сборка не подпишется');
+}
+
+run(gradlew, apkOnly ? ['assembleRelease'] : ['assembleRelease', 'bundleRelease'], androidDir);
+
+const version = gradleValue('versionName');
+const code = gradleValue('versionCode');
+const apk = path.join(androidDir, 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+const aab = path.join(androidDir, 'app', 'build', 'outputs', 'bundle', 'release', 'app-release.aab');
+
+console.log(`\nВерсия ${version} (versionCode ${code}), подпись — release keystore.`);
 if (!fs.existsSync(apk)) throw new Error('APK не найден после сборки: ' + apk);
-
-fs.mkdirSync(distDir, { recursive: true });
-const out = path.join(distDir, 'seabattle-debug.apk');
-fs.copyFileSync(apk, out);
-const mb = (fs.statSync(out).size / 1024 / 1024).toFixed(1);
-console.log(`\n✔ Готово: ${out} (${mb} МБ)`);
+copy(apk, path.join(distDir, `seabattle-${version}-release.apk`));
+if (!apkOnly) {
+  if (!fs.existsSync(aab)) throw new Error('AAB не найден после сборки: ' + aab);
+  copy(aab, path.join(distDir, `seabattle-${version}-release.aab`));
+}

@@ -29,7 +29,8 @@
 - `node --test tests/` — то же напрямую
 - `npm run icons` — перегенерировать иконки (Python + Pillow)
 - `npm run www` — собрать `www/` для Capacitor
-- `npm run android:apk` — sync + debug APK
+- `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
+  (`-- --apk` только APK, `-- --debug` debug-сборка)
 - `cd android; gradlew.bat assembleRelease bundleRelease` — подписанные APK/AAB для магазинов
   (нужен `android/keystore.properties` + `android/keystore/seabattle-release.jks`, оба в git не идут)
 

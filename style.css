@@ -12,8 +12,8 @@
   --coral:#ff6b5e;
   --coral-deep:#b83a33;
   --gold:#ffd166;
-  --panel-a:rgba(21,60,98,.55);
-  --panel-b:rgba(7,25,45,.78);
+  --panel-a:rgba(18,54,90,.92);
+  --panel-b:rgba(6,22,40,.95);
   --line:rgba(120,200,255,.14);
   --radius:24px;
   --shadow:0 18px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
@@ -200,8 +200,6 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   border:1px solid var(--line);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
 }
 .profile-card{padding:16px 18px 14px}
 .profile-main{display:flex;align-items:center;gap:14px}
@@ -360,6 +358,7 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
 .board::after{
   content:'';
   position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  z-index:2;
   background:
     linear-gradient(180deg,rgba(140,225,255,.06),transparent 30%),
     repeating-linear-gradient(0deg,transparent 0 22px,rgba(120,200,255,.018) 22px 23px);
@@ -420,14 +419,16 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   100%{transform:none}
 }
 
-/* последний выстрел: яркая рамка + вспышка, всё поле на секунду притухает */
+/* последний выстрел: яркая рамка + вспышка, всё поле на секунду притухает.
+   Затемнение — один слой ::after вместо filter у каждой клетки:
+   на телефоне это в разы дешевле и не греет GPU. */
 .cell.is-last-hit{
-  z-index:2;
+  z-index:3;
   box-shadow:0 0 0 3px rgba(255,235,170,.95), 0 0 26px rgba(255,170,60,.85) !important;
   animation:lastShot .9s ease-out both;
 }
 .cell.is-last-miss{
-  z-index:2;
+  z-index:3;
   box-shadow:0 0 0 3px rgba(175,235,255,.9), 0 0 22px rgba(90,190,255,.65) !important;
   animation:lastShot .9s ease-out both;
 }
@@ -436,8 +437,7 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   55%{transform:scale(.97)}
   100%{transform:none}
 }
-.board.is-spotlight .cell:not(.is-last-hit):not(.is-last-miss){filter:brightness(.55) saturate(.65)}
-.board .cell{transition:filter .2s ease, background .18s ease, box-shadow .18s ease, transform .12s ease}
+.board.is-spotlight::after{background:rgba(3,12,24,.62)}
 
 /* всплывающий значок попадания/промаха над клеткой */
 .shot-flag{
@@ -608,7 +608,6 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
 .turn-pill.is-mine{
   background:rgba(53,224,210,.15);border-color:rgba(53,224,210,.5);color:#8ff8ee;
   box-shadow:0 0 26px rgba(53,224,210,.22);
-  animation:pillGlow 2s ease-in-out infinite;
 }
 .turn-pill.is-bot{
   background:rgba(255,107,94,.14);border-color:rgba(255,107,94,.45);color:#ffb3ab;
@@ -645,9 +644,7 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   position:fixed;inset:0;z-index:50;
   display:grid;place-items:center;
   padding:18px;
-  background:rgba(2,8,16,.74);
-  backdrop-filter:blur(7px);
-  -webkit-backdrop-filter:blur(7px);
+  background:rgba(2,8,16,.86);
   opacity:0;
   transition:opacity .35s ease;
 }
@@ -892,6 +889,8 @@ h1,h2,h3{font-family:'Rubik','Nunito',sans-serif;margin:0}
   .turn-pill{padding:7px 10px;font-size:9px;letter-spacing:.1em}
   .fighter-avatar{width:36px;height:36px;font-size:18px;border-radius:12px}
   .battle-head{gap:6px}
+  /* на телефоне меньше анимированных слоёв — меньше нагрузка на GPU */
+  .bubble:nth-child(n+7){display:none}
 }
 @media (max-width:420px){
   .stats-row b{font-size:14px}

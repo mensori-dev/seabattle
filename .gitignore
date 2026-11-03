@@ -24,6 +24,7 @@ dist/
 
 # Capacitor iOS (генерируется на macOS/в CI)
 ios/
+ios-assets/
 
 # Python
 __pycache__/

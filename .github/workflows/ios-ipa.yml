@@ -36,11 +36,17 @@ jobs:
       - name: Sync iOS
         run: npx cap sync ios
 
-      - name: Generate iOS icons and splash
-        run: npx capacitor-assets generate --ios --assetPath resources
+      - name: Generate iOS icons
+        run: |
+          mkdir -p ios-assets
+          cp assets/icon-1024.png ios-assets/icon-only.png
+          npx capacitor-assets generate --ios --assetPath ios-assets
+          rm -rf ios-assets
 
       - name: Inspect iOS project
-        run: ls -la ios/App
+        run: |
+          ls -la ios/App
+          ls -la ios/App/App/Assets.xcassets/AppIcon.appiconset
 
       - name: Set iOS version
         working-directory: ios/App

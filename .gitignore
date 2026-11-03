@@ -21,6 +21,8 @@ android/app/release/
 *.jks
 *.keystore
 dist/
+# РїСЂРѕРјРѕРјР°С‚РµСЂРёР°Р»С‹ РґР»СЏ РЇРЅРґРµРєСЃ РРіСЂ: РіРµРЅРµСЂРёСЂСѓСЋС‚СЃСЏ npm run yandex:promo
+/yandex-promo/
 
 # Capacitor iOS (РіРµРЅРµСЂРёСЂСѓРµС‚СЃСЏ РЅР° macOS/РІ CI)
 ios/
@@ -30,5 +32,5 @@ ios-assets/
 __pycache__/
 *.pyc
 
-# superpowers: локальные артефакты исполнения планов
+# superpowers: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 .superpowers/

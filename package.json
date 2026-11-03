@@ -14,6 +14,7 @@
     "shots": "node scripts/screenshots.mjs",
     "www": "node scripts/build-www.mjs",
     "yandex": "node scripts/build-yandex.mjs",
+    "yandex:promo": "node scripts/make-yandex-promo.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "android:sync": "npm run www && cap sync android",
     "android:apk": "node scripts/build-apk.mjs",

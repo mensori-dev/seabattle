@@ -15,6 +15,12 @@
 - `server/main.ts` — Deno-сервер комнат: проверяет флот и сам считает выстрелы.
 - `docs/online.md` — деплой сервера на Deno Deploy и протокол сообщений.
 - `docs/yandex.md` — сборка для Яндекс Игр, чек-лист модерации, выплаты.
+- `docs/yandex-promo/` — тексты полей карточки (`TEXTS.md`) и пошаговая
+  инструкция публикации (`README.md`).
+- `scripts/make-yandex-promo.mjs` — промоматериалы для консоли:
+  `yandex-promo/` (иконка, обложка, hero, скриншоты, два MP4, тексты, архив игры).
+- `scripts/promo-picker.mjs` — вероятностный прицел для промо-автоигры:
+  стабильно выигрывает у лёгкого бота, чтобы скриншот результата был «Победа!».
 - `tests/` — unit-тесты движка (node:test, без зависимостей).
 - `scripts/serve.mjs` — локальный статический сервер.
 - `site/` — витрина для друзей на GitHub Pages (`/site/`): скриншоты и кнопки
@@ -49,6 +55,8 @@
 - `npm run www` — собрать `www/` для Capacitor
 - `npm run yandex` — сборка для Яндекс Игр: `dist/yandex/` и архив
   `dist/seabattle-yandex-<версия>.zip` (`-- --no-zip` — только папка)
+- `npm run yandex:promo` — промоматериалы в `yandex-promo/` (нужен Chrome;
+  `-- --no-video` — без MP4, `-- --no-build` — не пересобирать `dist/yandex`).
 - `npm run fonts` — перегенерировать локальные шрифты в `assets/fonts`
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)

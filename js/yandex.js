@@ -7,12 +7,17 @@
 (function () {
   'use strict';
 
+  /* Игра переведена только на русский: другие языки показываем по-русски. */
+  const LANGS = ['ru'];
+  const DEFAULT_LANG = 'ru';
+
   let ysdk = null;
   let initPromise = null;
   let pendingReady = false;      // LoadingAPI.ready() просили до инициализации
   let gameplayActive = false;    // игрок сейчас в бою
   let paused = false;            // платформа просит паузу: реклама, чужая вкладка
   let rewardedBusy = false;
+  let platformLang = '';         // environment.i18n.lang, как его отдал SDK
   const pauseHandlers = [];
   const resumeHandlers = [];
 
@@ -53,6 +58,27 @@
     resumeHandlers.forEach(run);
   }
 
+  /* Автоопределение языка (требование 2.14): читаем environment.i18n.lang
+     сразу при инициализации SDK, а не по ходу игры. Индикатор 文 в
+     debug-панели становится зелёным именно после этого чтения. */
+  function detectLanguage(sdk) {
+    let lang = '';
+    try {
+      lang = sdk && sdk.environment && sdk.environment.i18n
+        ? String(sdk.environment.i18n.lang || '')
+        : '';
+    } catch (e) {
+      console.warn('[Яндекс Игры] язык платформы недоступен:', e);
+    }
+    platformLang = lang.toLowerCase();
+    const supported = LANGS.indexOf(platformLang) >= 0;
+    try {
+      document.documentElement.lang = supported ? platformLang : DEFAULT_LANG;
+      document.documentElement.setAttribute('data-lang', platformLang || DEFAULT_LANG);
+      document.documentElement.setAttribute('data-lang-supported', supported ? '1' : '0');
+    } catch (_e) { /* игнорируем: разметка не критична */ }
+  }
+
   function bindEvents() {
     if (!ysdk || typeof ysdk.on !== 'function') return;
     try {
@@ -78,6 +104,7 @@
     initPromise = window.YaGames.init()
       .then(function (sdk) {
         ysdk = sdk;
+        detectLanguage(sdk);
         bindEvents();
         if (pendingReady) {
           pendingReady = false;
@@ -150,6 +177,9 @@
     whenReady: init,
     available: function () { return !!ysdk; },
     isPaused: function () { return paused; },
+    /* Язык, который отдала платформа ('' до инициализации SDK). */
+    lang: function () { return platformLang; },
+    languages: function () { return LANGS.slice(); },
 
     /* Игра загрузилась и готова к взаимодействию — обязательный вызов. */
     ready: function () {

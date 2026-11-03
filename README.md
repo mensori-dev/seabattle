@@ -108,6 +108,7 @@ npm run ios:ipa
 IPA собран **без подписи Apple**: обычная установка с телефона не сработает.
 Файл ставят через AltStore/Sideloadly (нужен Apple ID) или подписывают
 в Apple Developer Account. Для друзей проще PWA: Safari → «На экран Домой».
+Подробнее: [docs/ios.md](docs/ios.md).
 
 ## Публикация
 

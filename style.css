@@ -793,6 +793,10 @@ html.no-bubbles .bubble{display:none}
 .rank-change.down{background:rgba(255,107,94,.1);color:#ffb0a7;border-color:rgba(255,107,94,.3)}
 .bonus-line{margin-top:8px;font-size:12px;font-weight:800;color:#ffe3a1;letter-spacing:.02em;line-height:1.4}
 .overlay-actions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:20px}
+.overlay-bonus{
+  width:100%;margin-top:16px;color:#ffe08a;
+  background:rgba(255,209,102,.12);border-color:rgba(255,209,102,.45);
+}
 .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
 .confetti i{
   position:absolute;top:-12vh;left:50%;

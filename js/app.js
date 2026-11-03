@@ -7,15 +7,23 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+  /* Бот замирает, пока платформа показывает рекламу или вкладка скрыта. */
+  async function waitWhilePaused() {
+    while (state.paused) await sleep(200);
+  }
   const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   const STORE_KEY = 'seabattle.profile.v2';
   let memoryStore = null;
 
+  /* Платформа Яндекс Игр. В обычной сборке js/yandex.js не подключён,
+     поэтому YG остаётся null и все хуки платформы пропускаются. */
+  const YG = window.YandexGame || null;
+
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v18';
+  const SW_VERSION = 'sb-v19';
 
   const state = {
     profile: null,
@@ -31,6 +39,7 @@
     net: null,              // { code, you, foeShips, fleetSent }
     playerTurn: false,
     locked: true,
+    paused: false,          // платформа попросила паузу (реклама, чужая вкладка)
     gameOver: false,
     matchSeq: 0,
     ghost: [],
@@ -67,7 +76,10 @@
       daily: { date: '', streak: 0 },   // последний день с победой и серия
       achievements: {},     // id → когда получено
       stats: { shots: 0, hits: 0 },
-      cup: null             // активный «Кубок моря»
+      cup: null,            // активный «Кубок моря»
+      adMatches: 0,         // боёв с последней межстраничной рекламы (Яндекс Игры)
+      lastAdAt: 0,          // когда последний раз показывали рекламу
+      adBonusDate: ''       // день, когда уже брали награду за rewarded-видео
     };
   }
 
@@ -121,6 +133,12 @@
     resume() {
       if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
     },
+    /* Пауза от платформы (реклама, чужая вкладка) — глушим весь звук. */
+    suspend() {
+      if (this.ctx && this.ctx.state === 'running') {
+        try { this.ctx.suspend(); } catch (e) { /* не критично */ }
+      }
+    },
     tone(freq, dur, type, gain, to, delay) {
       const ctx = this.ctx;
       if (!ctx) return;
@@ -169,6 +187,7 @@
     },
     play(name) {
       if (state.profile && state.profile.muted) return;
+      if (state.paused) return;
       this.init();
       this.resume();
       if (!this.ctx) return;
@@ -815,6 +834,7 @@
 
     updateFleet();
     showScreen('battle');
+    if (YG) YG.gameplayStart();
     setTurn(true);
     state.locked = false;
     Sfx.play('start');
@@ -1278,6 +1298,7 @@
   }
 
   async function playerShoot(x, y) {
+    if (state.paused) return;
     if (state.locked || !state.playerTurn || state.gameOver || !state.enemyBoard) return;
     if (state.enemyBoard.shots[y][x]) return;
 
@@ -1335,7 +1356,10 @@
     while (!state.gameOver) {
       await sleep(randInt(480, 820));
       if (seq !== state.matchSeq || state.gameOver) return;
+      await waitWhilePaused();
+      if (seq !== state.matchSeq || state.gameOver) return;
       if (ensureVisible(boards.own, motionOn())) await sleep(280);
+      await waitWhilePaused();
       if (seq !== state.matchSeq || state.gameOver) return;
 
       const move = state.bot.choose(state.playerBoard);
@@ -1380,6 +1404,7 @@
     state.gameOver = true;
     state.locked = true;
     state.playerTurn = false;
+    if (YG) YG.gameplayStop();
 
     const pill = $('#turn-pill');
     pill.classList.remove('is-mine', 'is-bot');
@@ -1481,6 +1506,9 @@
     if (playerWon && fleetKey() === 'admiral') unlock('admiral');
     if (cupInfo && cupInfo.done && cupInfo.won) unlock('cup');
 
+    // Яндекс Игры: считаем бои для показа рекламы между матчами
+    if (YG) p.adMatches = (p.adMatches || 0) + 1;
+
     saveProfile();
     updateMenu();
 
@@ -1563,6 +1591,64 @@
     requestAnimationFrame(() => overlay.classList.add('is-open'));
     setTimeout(() => animateNumber($('#elo-after'), oldRating, newRating, 900), 550);
     if (win) confetti();
+    updateBonusButton();
+  }
+
+  /* ---------------- Реклама (только Яндекс Игры) ---------------- */
+
+  /* Награда за rewarded-видео: раз в день, +25 к рейтингу. */
+  function canShowAdBonus() {
+    return !!YG && state.profile.adBonusDate !== dayKey();
+  }
+
+  function updateBonusButton() {
+    const btn = $('#btn-bonus');
+    if (!btn) return;
+    btn.hidden = true;
+    if (!YG || !canShowAdBonus()) return;
+    // SDK инициализируется асинхронно — показываем кнопку, когда он готов
+    YG.whenReady().then(function (sdk) {
+      if (!sdk || !canShowAdBonus()) return;
+      const overlay = $('#overlay');
+      if (overlay && !overlay.hidden) btn.hidden = false;
+    });
+  }
+
+  function applyAdBonus() {
+    const p = state.profile;
+    if (p.adBonusDate === dayKey()) return;
+    const before = Math.round(p.rating);
+    p.rating = before + 25;
+    p.best = Math.max(p.best || 0, p.rating);
+    p.adBonusDate = dayKey();
+    saveProfile();
+    updateMenu();
+    const btn = $('#btn-bonus');
+    if (btn) btn.hidden = true;
+    animateNumber($('#elo-after'), before, p.rating, 700);
+    const bonusEl = $('#bonus-line');
+    if (bonusEl) {
+      const prev = bonusEl.hidden ? '' : bonusEl.textContent + ' · ';
+      bonusEl.hidden = false;
+      bonusEl.textContent = prev + '🎁 Реклама +25';
+    }
+    toast('🎁 +25 к рейтингу за просмотр', 'turn');
+    Sfx.play('win');
+  }
+
+  /* Полноэкранная реклама между боями: не чаще раза в 90 секунд
+     и не раньше третьего боя, чтобы не мешать новичку. */
+  function showInterstitialBetweenMatches(done) {
+    const p = state.profile;
+    const ready = !!YG && (p.adMatches || 0) >= 2 && Date.now() - (p.lastAdAt || 0) >= 90000;
+    if (!ready) { done(); return; }
+    YG.showInterstitial().then(function (wasShown) {
+      // даже неудачный показ считаем попыткой: иначе будем дёргать SDK каждый бой
+      p.lastAdAt = Date.now();
+      if (wasShown) p.adMatches = 0;
+      saveProfile();
+      done();
+    }, done);
   }
 
   function confetti() {
@@ -1986,12 +2072,31 @@
         showScreen('online');
         return;
       }
-      if (state.cupMatch && state.cup && state.cup.finished) {
-        startCup();
-        return;
-      }
-      state.cupMatch = !!(state.cup && !state.cup.finished);
-      startMatch();
+      const next = () => {
+        if (state.cupMatch && state.cup && state.cup.finished) {
+          startCup();
+          return;
+        }
+        state.cupMatch = !!(state.cup && !state.cup.finished);
+        startMatch();
+      };
+      showInterstitialBetweenMatches(next);
+    });
+
+    /* Награда за просмотр рекламы (только Яндекс Игры). */
+    const bonusBtn = $('#btn-bonus');
+    if (bonusBtn) bonusBtn.addEventListener('click', () => {
+      if (bonusBtn.disabled || !canShowAdBonus()) return;
+      Sfx.play('click');
+      bonusBtn.disabled = true;
+      YG.showRewarded().then(function (ok) {
+        bonusBtn.disabled = false;
+        if (!ok) {
+          toast('Реклама не загрузилась — попробуй позже', 'miss');
+          return;
+        }
+        applyAdBonus();
+      });
     });
     $('#btn-menu').addEventListener('click', () => {
       Sfx.play('click');
@@ -2083,6 +2188,21 @@
     window.addEventListener('pageshow', refreshIosHint);
   }
 
+  /* ---------------- Яндекс Игры ---------------- */
+  /* Пауза платформы (реклама, окно покупок, чужая вкладка): глушим звук
+     и останавливаем бота, чтобы бой не шёл за спиной у игрока. */
+  function wireYandex() {
+    if (!YG) return;
+    const setPaused = (on) => {
+      state.paused = on;
+      if (on) Sfx.suspend();
+      else Sfx.resume();
+    };
+    YG.onPause(() => setPaused(true));
+    YG.onResume(() => setPaused(false));
+    if (YG.isPaused()) setPaused(true);
+  }
+
   function makeBubbles() {
     const ocean = $('#ocean');
     for (let i = 0; i < 16; i++) {
@@ -2107,8 +2227,11 @@
   makeBubbles();
   wireEvents();
   wireOnlineEvents();
+  wireYandex();
   updateMenu();
   showScreen('menu');
+  // Яндекс Игры: игра загрузилась и готова к взаимодействию
+  if (YG) YG.ready();
 
   /* Приглашение по ссылке: ?room=1234 — сразу заходим в комнату. */
   const invite = inviteCode();

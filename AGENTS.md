@@ -10,8 +10,11 @@
 - `js/engine.js` — правила, генерация флота, выстрелы, бот, ELO. Без DOM.
 - `js/app.js` — UI, звук, ход игры, localStorage, экраны.
 - `js/online.js` — клиент онлайн-игры: WebSocket, комнаты (`window.Online`).
+- `js/yandex.js` — платформа Яндекс Игр: SDK, реклама, пауза (`window.YandexGame`).
+  Подключается только в сборке для Яндекс Игр.
 - `server/main.ts` — Deno-сервер комнат: проверяет флот и сам считает выстрелы.
 - `docs/online.md` — деплой сервера на Deno Deploy и протокол сообщений.
+- `docs/yandex.md` — сборка для Яндекс Игр, чек-лист модерации, выплаты.
 - `tests/` — unit-тесты движка (node:test, без зависимостей).
 - `scripts/serve.mjs` — локальный статический сервер.
 - `site/` — витрина для друзей на GitHub Pages (`/site/`): скриншоты и кнопки
@@ -23,6 +26,9 @@
 - `.github/workflows/ios-ipa.yml` — сборка unsigned IPA на macOS-раннере GitHub Actions.
 - `scripts/build-ipa.mjs` — запуск этой сборки и скачивание IPA в `dist/` и OneDrive.
 - `capacitor.config.json`, `www/` — мобильная обёртка: `www` собирается из корня `scripts/build-www.mjs`.
+- `scripts/build-yandex.mjs` — сборка для Яндекс Игр: `dist/yandex/` и архив
+  `dist/seabattle-yandex-<версия>.zip` (онлайн, Google Fonts и PWA вырезаны).
+- `scripts/fetch-fonts.mjs` — локальные Nunito и Rubik в `assets/fonts` для Яндекс Игр.
 - `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
   Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
   Из-за кириллицы в пути нужен `android.overridePathCheck=true` в `android/gradle.properties`.
@@ -41,6 +47,9 @@
 - `npm run icons` — перегенерировать иконки PWA и Android (Python + Pillow)
 - `npm run android:icons` — только adaptive-иконки Android
 - `npm run www` — собрать `www/` для Capacitor
+- `npm run yandex` — сборка для Яндекс Игр: `dist/yandex/` и архив
+  `dist/seabattle-yandex-<версия>.zip` (`-- --no-zip` — только папка)
+- `npm run fonts` — перегенерировать локальные шрифты в `assets/fonts`
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)
 - `npm run ios:ipa` — unsigned IPA через GitHub Actions → `dist/` и OneDrive
@@ -55,6 +64,8 @@
 - Правила игры и бот — только в `engine.js`; DOM и звук — только в `app.js`.
 - Онлайн: истина на сервере (`server/main.ts`). Клиент не должен получать чужой флот,
   а ELO за онлайн-матчи не начисляется.
+- Сборка для Яндекс Игр не форкает код: `scripts/build-yandex.mjs` вырезает онлайн и PWA
+  из тех же исходников. Правя общий код, не ломай её — `npm test` собирает и проверяет.
 - UI на русском, mobile-first, тач-цели не меньше 32px.
 - Новые анимации уважают `prefers-reduced-motion`.
 - Ключ localStorage `seabattle.profile.v2` не менять без миграции.

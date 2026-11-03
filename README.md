@@ -5,6 +5,9 @@
 
 **Играть онлайн:** https://mensori-dev.github.io/seabattle/
 
+**Витрина для друзей:** https://mensori-dev.github.io/seabattle/site/ — скриншоты
+и кнопки «Скачать APK» / «Скачать для iPhone».
+
 ## Запуск
 
 Просто открой **`index.html`** двойным кликом — всё работает без сборки и установки.
@@ -110,10 +113,33 @@ IPA собран **без подписи Apple**: обычная установ�
 в Apple Developer Account. Для друзей проще PWA: Safari → «На экран Домой».
 Подробнее: [docs/ios.md](docs/ios.md).
 
+## Сайт-витрина и релиз
+
+`site/` — отдельная страница для друзей и знакомых: она не играет, а показывает
+скриншоты, фичи и кнопки **«Скачать APK»** и **«Скачать для iPhone»**.
+Живёт рядом с игрой на GitHub Pages: https://mensori-dev.github.io/seabattle/site/.
+Версия и ссылки на файлы берутся из `site/version.json` — его пишет релизный скрипт.
+
+```
+npm run release          # план: что и куда обновится, ничего не меняет
+npm run release -- --yes # публикация
+```
+
+С `--yes` скрипт:
+
+- пишет `site/version.json` (версия, дата, три пункта из `dist/RELEASE_NOTES.md`);
+- создаёт или обновляет GitHub-релиз `v<версия>` и заливает APK, AAB и IPA;
+- копирует APK/IPA в OneDrive и удаляет оттуда артефакты прошлых версий.
+
+Пуш сайта скрипт не делает: проверь diff и запушь сам. Перед запуском собери
+`npm run android:apk` и `npm run ios:ipa` — без файлов в `dist/` публикация остановится.
+Открыть витрину локально: `npm run dev`, затем http://localhost:5173/site/.
+
 ## Публикация
 
 - **PWA / GitHub Pages**: https://mensori-dev.github.io/seabattle/
-- **APK для друзей**: https://github.com/mensori-dev/seabattle/releases/latest/download/seabattle-1.0.0.apk
+- **Витрина**: https://mensori-dev.github.io/seabattle/site/
+- **APK для друзей**: https://github.com/mensori-dev/seabattle/releases/latest
 - **Политика конфиденциальности**: https://mensori-dev.github.io/seabattle/privacy.html
 - **Скриншоты для магазина**: `docs/screenshots/` (1080×1920)
 
@@ -170,4 +196,6 @@ js/app.js       — интерфейс, звук, ход игры, сохран�
 js/online.js    — клиент онлайн-игры (WebSocket, комнаты)
 server/main.ts  — сервер комнат для Deno Deploy
 docs/online.md  — деплой сервера и протокол онлайн-игры
+site/           — витрина: index.html, site.css, site.js, version.json, img/
+scripts/release.mjs — релиз: site/version.json + GitHub Releases + OneDrive
 ```

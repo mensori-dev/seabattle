@@ -14,6 +14,9 @@
 - `docs/online.md` — деплой сервера на Deno Deploy и протокол сообщений.
 - `tests/` — unit-тесты движка (node:test, без зависимостей).
 - `scripts/serve.mjs` — локальный статический сервер.
+- `site/` — витрина для друзей на GitHub Pages (`/site/`): скриншоты и кнопки
+  скачивания APK/IPA. Версия и ссылки — в `site/version.json`.
+- `scripts/release.mjs` — релиз: `version.json`, GitHub Releases и OneDrive.
 - `manifest.webmanifest`, `sw.js` — PWA: установка на телефон и офлайн-кэш.
 - `assets/` — иконки PWA (генерируются `scripts/make-icons.py`).
 - `scripts/make-android-icons.py` — adaptive-иконки Android: фон, якорь, monochrome.
@@ -30,6 +33,8 @@
 - `npm run server` — онлайн-сервер на http://127.0.0.1:8000 (нужен Deno)
 - `npm run test:online` — смоук онлайн-протокола (сервер должен быть запущен)
 - `npm run shots` — скриншоты 1080×1920 в `docs/screenshots/` (нужны dev + server)
+- `npm run release` — план релиза; `npm run release -- --yes` — публикация:
+  `site/version.json`, релиз на GitHub, OneDrive (старые версии удаляются)
 - `npm test` — тесты движка
 - `node --test tests/` — то же напрямую
 - `npm run icons` — перегенерировать иконки PWA и Android (Python + Pillow)
@@ -60,6 +65,9 @@
   Трогал онлайн — ещё `npm run server` + `npm run test:online`.
 - При каждом релизе обновляй комплект: `dist/RELEASE_NOTES.md`, `docs/rustore.md`,
   подписанные `dist/seabattle-<версия>-release.apk`/`.aab`; скриншоты — если менялся UI.
+- Каждый релиз обновляет три места: `site/version.json` (витрина), GitHub Releases
+  и OneDrive. `npm run release -- --yes` делает это сам и удаляет из OneDrive
+  артефакты прошлых версий; пуш сайта — после подтверждения пользователя.
 - Каждый релиз кладём в OneDrive: `seabattle-<версия>.apk`,
   `seabattle-<версия>-unsigned.ipa` и папку `seabattle-rustore-<версия>/`
   (APK, AAB, иконка, скриншоты, тексты).

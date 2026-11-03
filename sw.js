@@ -1,7 +1,7 @@
 /* ============================================================
    Service worker «Морского боя»: офлайн-кэш и мгновенный старт
    ============================================================ */
-const VERSION = 'sb-v16';
+const VERSION = 'sb-v17';
 const CORE = [
   './',
   './index.html',
@@ -46,6 +46,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // шрифты и прочее — мимо
+
+  // витрина (/site/) — отдельная страница: не подменяем ею офлайн-кэш игры
+  if (url.pathname.includes('/site/')) return;
 
   // навигация: сеть, при офлайне — из кэша
   if (req.mode === 'navigate') {

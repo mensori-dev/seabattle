@@ -29,3 +29,6 @@ ios-assets/
 # Python
 __pycache__/
 *.pyc
+
+# superpowers: локальные артефакты исполнения планов
+.superpowers/

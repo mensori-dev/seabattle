@@ -22,6 +22,8 @@ server/main.ts      сервер: комнаты, проверка флота, �
    10 кораблей. Комната после боя удаляется.
 7. Онлайн-матчи не меняют ELO и не попадают в историю: рейтинг начисляется
    только в боях с ботом.
+8. Победы для таблицы «Лучшие в онлайне» считает сервер: ник и число побед
+   хранятся в Deno KV (`GET /api/leaderboard`). Клиент только рисует список.
 
 Сообщения (JSON, поле `t`):
 
@@ -48,8 +50,10 @@ server/main.ts      сервер: комнаты, проверка флота, �
 Терминал 1 — сервер:
 
 ```
-deno run --allow-net --allow-env server/main.ts
+npm run server
 ```
+
+(или вручную: `deno run --unstable-kv --allow-net --allow-env --allow-read --allow-write server/main.ts`)
 
 Терминал 2 — сайт:
 
@@ -57,14 +61,23 @@ deno run --allow-net --allow-env server/main.ts
 npm run dev
 ```
 
+На `localhost` клиент сам ходит на `ws://127.0.0.1:8000`; на сайте и в `file://`
+используется прод-сервер из `PROD_URL`. Поэтому для локальной проверки онлайна
+не нужно ничего менять в коде.
+
 Проверка протокола без браузера — `npm run test:online` (сервер должен быть
 запущен; скрипт `scripts/online-smoke.mjs`, можно указать свой URL аргументом).
 
 Открой http://localhost:5173 в двух вкладках (или на двух устройствах в одной
 сети — тогда замени `127.0.0.1` в `js/online.js` на IP компьютера).
 Первая вкладка: «Играть с другом» → «Создать комнату». Вторая: ввести код.
+Ссылка `http://localhost:5173/index.html?room=1234` заходит в комнату сразу.
 
-Проверка сервера: http://127.0.0.1:8000/health → `{"ok":true,"rooms":0}`.
+Проверка сервера: http://127.0.0.1:8000/health → `{"ok":true,"rooms":0,"kv":true}`.
+Рейтинг: http://127.0.0.1:8000/api/leaderboard → `{"top":[{"name":"…","wins":1}]}`.
+
+Если локальный Deno собран без KV, сервер автоматически считает победы в памяти
+(до перезапуска) — матчи от этого не ломаются.
 
 ## Деплой на Deno Deploy (бесплатно)
 
@@ -91,7 +104,8 @@ deno deploy create server --org mensori-dev --app mensori-seabattle `
 ```
 
 Получится `https://mensori-seabattle.deno.dev`. Проверка:
-`https://mensori-seabattle.deno.dev/health` → `{"ok":true,"rooms":0}`.
+`https://mensori-seabattle.deno.dev/health` → `{"ok":true,"rooms":0,"kv":true}`.
+KV на Deno Deploy включается сам, отдельная база создавать не нужно.
 
 ### Обновить сервер после правок
 

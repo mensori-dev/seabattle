@@ -21,3 +21,7 @@ android/app/release/
 *.jks
 *.keystore
 dist/
+
+# Python
+__pycache__/
+*.pyc

@@ -173,6 +173,22 @@ def render(size, scale=1.0):
     return Image.composite(body, bg, mask).convert("RGBA")
 
 
+def render_anchor(size, scale=1.0):
+    """Якорь со свечением на прозрачном фоне — foreground для adaptive icon."""
+    mask = anchor_mask(size, scale)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+    glow = mask.filter(ImageFilter.GaussianBlur(size / 40)).point(lambda v: int(v * 0.55))
+    tint = Image.new("RGBA", (size, size), AQUA + (255,))
+    out = Image.composite(tint, out, glow)
+
+    hl = Image.new("RGB", (1, 2))
+    hl.putpixel((0, 0), (255, 255, 255))
+    hl.putpixel((0, 1), (150, 226, 250))
+    body = hl.resize((size, size), Image.BICUBIC).convert("RGBA")
+    return Image.composite(body, out, mask)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     base = render(1024)

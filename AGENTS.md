@@ -16,6 +16,7 @@
 - `scripts/serve.mjs` — локальный статический сервер.
 - `manifest.webmanifest`, `sw.js` — PWA: установка на телефон и офлайн-кэш.
 - `assets/` — иконки PWA (генерируются `scripts/make-icons.py`).
+- `scripts/make-android-icons.py` — adaptive-иконки Android: фон, якорь, monochrome.
 - `capacitor.config.json`, `www/` — мобильная обёртка: `www` собирается из корня `scripts/build-www.mjs`.
 - `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
   Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
@@ -25,9 +26,12 @@
 
 - `npm run dev` — сервер на http://localhost:5173
 - `npm run server` — онлайн-сервер на http://127.0.0.1:8000 (нужен Deno)
+- `npm run test:online` — смоук онлайн-протокола (сервер должен быть запущен)
+- `npm run shots` — скриншоты 1080×1920 в `docs/screenshots/` (нужны dev + server)
 - `npm test` — тесты движка
 - `node --test tests/` — то же напрямую
-- `npm run icons` — перегенерировать иконки (Python + Pillow)
+- `npm run icons` — перегенерировать иконки PWA и Android (Python + Pillow)
+- `npm run android:icons` — только adaptive-иконки Android
 - `npm run www` — собрать `www/` для Capacitor
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)
@@ -50,6 +54,8 @@
 - Не коммитить `node_modules`, логи, временные файлы.
 - После изменений: `npm test` + смоук (меню → случайная расстановка → бой → выстрел).
   Трогал онлайн — ещё `npm run server` + `npm run test:online`.
+- При каждом релизе обновляй комплект: `dist/RELEASE_NOTES.md`, `docs/rustore.md`,
+  подписанные `dist/seabattle-<версия>-release.apk`/`.aab`; скриншоты — если менялся UI.
 - Деплой и `git push` — только после подтверждения пользователя.
 
 ## Известные нюансы

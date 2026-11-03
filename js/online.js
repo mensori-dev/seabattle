@@ -12,10 +12,20 @@
   var handlers = {};
 
   function target() {
-    if (PROD_URL) return PROD_URL;
     var loc = global.location;
-    var local = loc.protocol === 'file:' || loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
-    return local ? 'ws://127.0.0.1:8000/ws' : null;
+    // На локальной машине — локальный сервер (`npm run server`),
+    // на сайте и в file:// — прод. Так разработка не зависит от деплоя.
+    var local = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
+    if (local) return 'ws://127.0.0.1:8000/ws';
+    return PROD_URL || null;
+  }
+
+  /* HTTP-адрес того же сервера (рейтинг, служебные ручки). */
+  function httpUrl(path) {
+    var ws = target();
+    if (!ws) return null;
+    var base = ws.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:').replace(/\/ws$/, '');
+    return base + path;
   }
 
   function emit(type, payload) {
@@ -32,11 +42,14 @@
         reject(new Error('Онлайн ещё не настроен'));
         return;
       }
-      if (ws && ws.readyState <= 1) { resolve(); return; }
+      if (ws && ws.readyState === 1) { resolve(); return; }
 
-      var sock;
-      try { sock = new WebSocket(url); } catch (e) { reject(e); return; }
-      ws = sock;
+      // Если сокет ещё подключается — ждём его open, а не создаём второй.
+      var sock = ws && ws.readyState === 0 ? ws : null;
+      if (!sock) {
+        try { sock = new WebSocket(url); } catch (e) { reject(e); return; }
+        ws = sock;
+      }
 
       var settled = false;
       var timer = setTimeout(function () {
@@ -46,18 +59,27 @@
         reject(new Error('Сервер не отвечает'));
       }, 8000);
 
-      sock.onopen = function () {
+      var onOpen = function () {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        sock.removeEventListener('open', onOpen);
+        sock.removeEventListener('error', onError);
         resolve();
       };
-      sock.onerror = function () {
+      var onError = function () {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        sock.removeEventListener('open', onOpen);
+        sock.removeEventListener('error', onError);
         reject(new Error('Не удалось подключиться'));
       };
+
+      if (sock.readyState === 1) { onOpen(); return; }
+      sock.addEventListener('open', onOpen);
+      sock.addEventListener('error', onError);
+
       sock.onclose = function () {
         if (!settled) {
           settled = true;
@@ -81,6 +103,7 @@
   global.Online = {
     connect: connect,
     available: function () { return !!target(); },
+    httpUrl: httpUrl,
     isOpen: function () { return !!(ws && ws.readyState === 1); },
     on: function (type, fn) { (handlers[type] = handlers[type] || []).push(fn); },
     off: function (type, fn) {

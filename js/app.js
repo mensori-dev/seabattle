@@ -15,7 +15,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v13';
+  const SW_VERSION = 'sb-v15';
 
   const state = {
     profile: null,
@@ -34,7 +34,9 @@
     gameOver: false,
     matchSeq: 0,
     ghost: [],
-    hover: null            // последняя клетка под курсором при расстановке
+    hover: null,           // последняя клетка под курсором при расстановке
+    matchStats: { shots: 0, hits: 0, firstShot: true, firstShotSunk: false },
+    cup: null              // «Кубок моря»: { round, wins }
   };
 
   const boards = {
@@ -57,7 +59,14 @@
       muted: false,
       volume: 0.7,          // 0…1, громкость эффектов
       motion: 'on',         // 'on' | 'off' — анимации
-      difficulty: 'normal'  // 'easy' | 'normal' | 'hard'
+      bubbles: true,        // пузыри в фоне (на телефоне их можно выключить)
+      theme: 'dark',        // 'dark' | 'light'
+      difficulty: 'normal', // 'easy' | 'normal' | 'hard'
+      fleet: 'classic',     // 'classic' | 'admiral'
+      daily: { date: '', streak: 0 },   // последний день с победой и серия
+      achievements: {},     // id → когда получено
+      stats: { shots: 0, hits: 0 },
+      cup: null             // активный «Кубок моря»
     };
   }
 
@@ -66,10 +75,19 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const p = JSON.parse(raw);
-        return Object.assign(defaultProfile(), p, {
+        const prof = Object.assign(defaultProfile(), p, {
           rating: Number(p.rating) || 1000,
           history: Array.isArray(p.history) ? p.history.slice(0, 8) : []
         });
+        // вложенные объекты нормализуем отдельно: старые профили их не знают
+        prof.daily = Object.assign({ date: '', streak: 0 }, p.daily || {});
+        prof.stats = Object.assign({ shots: 0, hits: 0 }, p.stats || {});
+        prof.achievements = (p.achievements && typeof p.achievements === 'object')
+          ? p.achievements : {};
+        const cup = p.cup;
+        prof.cup = (cup && cup.date === dayKey() && cup.round >= 1 && cup.round <= 3 && !cup.finished)
+          ? cup : null;
+        return prof;
       }
     } catch (e) { /* ignore */ }
     return defaultProfile();
@@ -193,14 +211,79 @@
     hard: { name: 'Сложно', boost: 160 }
   };
 
+  // адмиральский флот крупнее и плотнее — соперник чуть сильнее
+  const FLEET_BOOST = { classic: 0, admiral: 80 };
+
+  const ACHIEVEMENTS = [
+    { id: 'first_win', icon: '🥇', name: 'Первая победа', desc: 'Выиграй свой первый бой' },
+    { id: 'win5', icon: '🔥', name: 'Пять подряд', desc: 'Выиграй 5 боёв подряд' },
+    { id: 'perfect', icon: '🎯', name: 'Снайпер', desc: 'Победи без единого промаха' },
+    { id: 'first_blood', icon: '💥', name: 'С первого выстрела', desc: 'Потопи линкор первым выстрелом' },
+    { id: 'win10', icon: '⚓', name: 'Десятка', desc: 'Одержи 10 побед' },
+    { id: 'win50', icon: '👑', name: 'Ветеран', desc: 'Одержи 50 побед' },
+    { id: 'rank1500', icon: '🗺️', name: 'Капитан', desc: 'Подними рейтинг до 1500' },
+    { id: 'online', icon: '🌐', name: 'Морской волк', desc: 'Сыграй онлайн с другом' },
+    { id: 'daily3', icon: '📅', name: 'Три дня в море', desc: '3 дня подряд с победой' },
+    { id: 'admiral', icon: '🛳️', name: 'Адмирал', desc: 'Победи в адмиральском флоте' },
+    { id: 'cup', icon: '🏆', name: 'Обладатель кубка', desc: 'Пройди кубок моря без поражений' }
+  ];
+
+  /* Локальная дата в виде YYYY-MM-DD: серия считается по календарю телефона. */
+  function dayKey(ts) {
+    const d = ts === undefined ? new Date() : new Date(ts);
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+
+  function achievementById(id) {
+    return ACHIEVEMENTS.find((a) => a.id === id) || null;
+  }
+
+  function unlockAchievement(id, delay) {
+    const p = state.profile;
+    if (!p.achievements) p.achievements = {};
+    if (p.achievements[id]) return false;
+    p.achievements[id] = Date.now();
+    saveProfile();
+    const a = achievementById(id);
+    if (a) {
+      setTimeout(() => toast(a.icon + ' Достижение: ' + a.name, 'turn'), delay || 0);
+    }
+    return true;
+  }
+
   function difficultyOf() {
     const d = state.profile && state.profile.difficulty;
     return DIFFICULTY[d] ? d : 'normal';
   }
 
+  function fleetKey() {
+    // Онлайн — только классический флот: сервер проверяет ровно 10 кораблей.
+    if (state.mode === 'online') return 'classic';
+    const f = state.profile && state.profile.fleet;
+    return Engine.FLEETS[f] ? f : 'classic';
+  }
+
+  function fleetSizes() {
+    return Engine.FLEETS[fleetKey()] || Engine.FLEET;
+  }
+
   function applyMotion() {
     const off = !!state.profile && state.profile.motion === 'off';
     document.documentElement.classList.toggle('reduce-motion', off);
+  }
+
+  function applyBubbles() {
+    const on = !state.profile || state.profile.bubbles !== false;
+    document.documentElement.classList.toggle('no-bubbles', !on);
+  }
+
+  function applyTheme() {
+    const light = !!state.profile && state.profile.theme === 'light';
+    document.documentElement.classList.toggle('theme-light', light);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', light ? '#cfe9f8' : '#04101f');
   }
 
   function syncSettings() {
@@ -218,6 +301,23 @@
       motion.classList.toggle('is-on', on);
       motion.setAttribute('aria-checked', on ? 'true' : 'false');
     }
+
+    const bubbles = $('#set-bubbles');
+    if (bubbles) {
+      const on = p.bubbles !== false;
+      bubbles.classList.toggle('is-on', on);
+      bubbles.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    const theme = p.theme === 'light' ? 'light' : 'dark';
+    $$('#set-theme button').forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.theme === theme);
+    });
+
+    const fleet = fleetKey();
+    $$('#set-fleet button').forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.fleet === fleet);
+    });
 
     const d = difficultyOf();
     $$('#set-difficulty button').forEach((b) => {
@@ -254,9 +354,63 @@
     $('#stat-streak').textContent = (p.streak > 0 ? '+' : '') + (p.streak || 0);
     $('#stat-streak').style.color = p.streak > 0 ? '#5ff0b8' : p.streak < 0 ? '#ff8b80' : '';
     $('#stat-best').textContent = Math.round(p.best);
+    const st = p.stats || { shots: 0, hits: 0 };
+    const acc = st.shots ? Math.round((st.hits / st.shots) * 100) : 0;
+    $('#accuracy-line').textContent = '🎯 Точность ' + acc + '% · ' + st.shots + ' выстрелов';
     $('#btn-sound').textContent = p.muted ? '🔇' : '🔊';
     syncSettings();
+    updateDailyCard();
+    updateSideCards();
     renderHistory();
+  }
+
+  /* Серия дней: если победа была вчера — она продолжится, иначе начнётся заново. */
+  function nextDailyStreak() {
+    const p = state.profile;
+    const d = p.daily || {};
+    if (d.date === dayKey()) return d.streak || 1;
+    if (d.date === dayKey(Date.now() - 86400000)) return (d.streak || 0) + 1;
+    return 1;
+  }
+
+  function dailyBonusFor(streak) {
+    return Math.min(15 + (Math.max(1, streak) - 1) * 5, 40);
+  }
+
+  function updateDailyCard() {
+    const card = $('#daily-card');
+    if (!card) return;
+    const p = state.profile;
+    const done = p.daily && p.daily.date === dayKey();
+    const streak = (p.daily && p.daily.streak) || 0;
+    if (done) {
+      card.classList.add('is-done');
+      $('#daily-icon').textContent = '✅';
+      $('#daily-title').textContent = 'Бонус дня получен';
+      $('#daily-sub').textContent = 'Серия: ' + streak + ' дн. · возвращайся завтра';
+    } else {
+      card.classList.remove('is-done');
+      const bonus = dailyBonusFor(nextDailyStreak());
+      $('#daily-icon').textContent = '🎁';
+      $('#daily-title').textContent = 'Ежедневный бонус';
+      $('#daily-sub').textContent = 'Победи сегодня — +' + bonus + ' к рейтингу' +
+        (streak ? ' · серия ' + streak : '');
+    }
+  }
+
+  function updateSideCards() {
+    const p = state.profile;
+    const count = $('#ach-count');
+    if (count) {
+      const got = Object.keys(p.achievements || {}).length;
+      count.textContent = got + ' / ' + ACHIEVEMENTS.length;
+    }
+    const cup = $('#cup-status');
+    if (cup) {
+      cup.textContent = (state.cup && !state.cup.finished)
+        ? 'Раунд ' + state.cup.round + ' из 3 — продолжить'
+        : '3 боя подряд без поражений';
+    }
   }
 
   function escapeHtml(s) {
@@ -275,14 +429,29 @@
       return;
     }
     panel.hidden = false;
-    list.innerHTML = hist.slice(0, 4).map((h) => (
-      '<div class="history-row">' +
+    list.innerHTML = hist.slice(0, 4).map((h) => {
+      const delta = Number(h.delta) || 0;
+      return '<div class="history-row">' +
         '<span class="h-dot ' + (h.win ? 'win' : 'lose') + '"></span>' +
         '<span class="h-name">' + escapeHtml(h.name) + '</span>' +
         '<span class="h-res">' + (h.win ? 'победа' : 'поражение') + '</span>' +
-        '<span class="h-delta ' + (h.delta >= 0 ? 'plus' : 'minus') + '">' + (h.delta >= 0 ? '+' : '') + h.delta + '</span>' +
-      '</div>'
-    )).join('');
+        '<span class="h-delta ' + (delta >= 0 ? 'plus' : 'minus') + '">' + (delta >= 0 ? '+' : '') + delta + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderAchievements() {
+    const grid = $('#ach-grid');
+    if (!grid) return;
+    const got = state.profile.achievements || {};
+    grid.innerHTML = ACHIEVEMENTS.map((a) => {
+      const done = !!got[a.id];
+      return '<div class="ach-item' + (done ? ' is-done' : '') + '">' +
+        '<span class="ach-icon">' + (done ? a.icon : '🔒') + '</span>' +
+        '<span class="ach-text"><b>' + escapeHtml(a.name) + '</b>' +
+        '<small>' + escapeHtml(a.desc) + '</small></span>' +
+        '</div>';
+    }).join('');
   }
 
   function showScreen(name) {
@@ -291,6 +460,12 @@
       if (screen) screen.classList.toggle('is-active', key === name);
     });
     state.screen = name;
+    if (name === 'online') {
+      // ссылка-приглашение имеет смысл только в браузере (не file://)
+      const share = $('#btn-share-room');
+      if (share) share.hidden = location.protocol === 'file:';
+      loadLeaderboard();
+    }
     window.scrollTo(0, 0);
   }
 
@@ -352,8 +527,20 @@
   /* ---------------- Матч / расстановка ---------------- */
   function startMatch() {
     state.matchSeq += 1;
+    // Завершённый/просроченный кубок не тянется в обычный бой:
+    // чистим и состояние, и сохранение (loadProfile мог его отбросить).
+    if (!state.cup) {
+      state.profile.cup = null;
+      saveProfile();
+    } else if (state.cup.finished) {
+      state.cup = null;
+      state.profile.cup = null;
+      saveProfile();
+    }
     const level = difficultyOf();
-    const boost = DIFFICULTY[level].boost;
+    const boost = DIFFICULTY[level].boost +
+      (FLEET_BOOST[fleetKey()] || 0) +
+      (state.cup ? Math.max(0, state.cup.round - 1) * 90 : 0);
     state.botLevel = level;
     state.botName = Engine.randomName();
     state.botRating = clamp(Math.round(state.profile.rating + randInt(-130, 130) + boost), 250, 2600);
@@ -364,17 +551,30 @@
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = false;
+    state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
     setupPlacement();
     showScreen('place');
     Sfx.play('start');
   }
 
+  /* ---------------- Кубок моря ---------------- */
+  function startCup() {
+    state.mode = 'bot';
+    state.cup = { round: 1, wins: 0, date: dayKey() };
+    state.profile.cup = state.cup;
+    saveProfile();
+    startMatch();
+    setTimeout(() => toast('🏆 Кубок моря: 3 боя без поражения', 'turn'), 320);
+  }
+
+  /* ---------------- Расстановка ---------------- */
   function setupPlacement() {
+    const remaining = remainingFromFleet();
     state.placement = {
-      size: 4,
+      size: biggestLeft(remaining),
       dir: 'right',      // куда «растёт» корабль от клетки под курсором
       erase: false,
-      remaining: { 4: 1, 3: 2, 2: 3, 1: 4 }
+      remaining: remaining
     };
     state.ghost = [];
     state.hover = null;
@@ -384,21 +584,34 @@
     updateRotateLabel();
     setErase(false);
     const oppRank = Engine.rankFor(state.botRating);
+    const fleetName = fleetKey() === 'admiral' ? ' · адмиральский флот' : '';
     $('#place-opp').textContent = 'Противник: ' + state.botName + ' · ' + state.botRating +
-      ' (' + oppRank.name + ') · ' + DIFFICULTY[difficultyOf()].name;
+      ' (' + oppRank.name + ') · ' + DIFFICULTY[difficultyOf()].name + fleetName;
     updateReady();
+  }
+
+  function remainingFromFleet() {
+    const rem = {};
+    fleetSizes().forEach((s) => { rem[s] = (rem[s] || 0) + 1; });
+    return rem;
+  }
+
+  function biggestLeft(rem) {
+    const sizes = Object.keys(rem).map(Number).filter((s) => rem[s] > 0).sort((a, b) => b - a);
+    return sizes[0] || null;
   }
 
   function totalLeft() {
     const r = state.placement.remaining;
-    return r[4] + r[3] + r[2] + r[1];
+    return Object.keys(r).reduce((sum, k) => sum + (r[k] || 0), 0);
   }
 
   function renderDock() {
     const dock = $('#dock-ships');
     const rem = state.placement.remaining;
+    const sizes = Object.keys(rem).map(Number).sort((a, b) => b - a);
     dock.innerHTML = '';
-    [4, 3, 2, 1].forEach((size) => {
+    sizes.forEach((size) => {
       const left = rem[size];
       const chip = document.createElement('button');
       chip.type = 'button';
@@ -423,9 +636,7 @@
   }
 
   function selectNextSize() {
-    const order = [4, 3, 2, 1];
-    const rem = state.placement.remaining;
-    state.placement.size = order.find((s) => rem[s] > 0) || null;
+    state.placement.size = biggestLeft(state.placement.remaining);
   }
 
   function updateReady() {
@@ -486,7 +697,9 @@
   function setErase(on) {
     if (!state.placement) return;
     state.placement.erase = on;
-    $('#btn-erase').classList.toggle('is-active', on);
+    const btn = $('#btn-erase');
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
   function clearGhost() {
@@ -520,7 +733,7 @@
     if (state.placement.erase) {
       const ship = Engine.removeShipAt(state.playerBoard, x, y);
       if (ship) {
-        state.placement.remaining[ship.size] += 1;
+        state.placement.remaining[ship.size] = (state.placement.remaining[ship.size] || 0) + 1;
         if (!state.placement.size) state.placement.size = ship.size;
         paintBoard(boards.place, state.playerBoard, true);
         renderDock();
@@ -554,8 +767,9 @@
   }
 
   function randomPlacement() {
-    state.playerBoard = Engine.randomBoard();
-    state.placement.remaining = { 4: 0, 3: 0, 2: 0, 1: 0 };
+    state.playerBoard = Engine.randomBoard(fleetSizes());
+    state.placement.remaining = remainingFromFleet();
+    Object.keys(state.placement.remaining).forEach((k) => { state.placement.remaining[k] = 0; });
     state.placement.size = null;
     clearGhost();
     paintBoard(boards.place, state.playerBoard, true);
@@ -566,8 +780,8 @@
 
   function clearPlacement() {
     state.playerBoard = Engine.createBoard();
-    state.placement.remaining = { 4: 1, 3: 2, 2: 3, 1: 4 };
-    state.placement.size = 4;
+    state.placement.remaining = remainingFromFleet();
+    state.placement.size = biggestLeft(state.placement.remaining);
     setErase(false);
     clearGhost();
     paintBoard(boards.place, state.playerBoard, true);
@@ -578,7 +792,7 @@
 
   /* ---------------- Бой ---------------- */
   function beginBattle() {
-    state.enemyBoard = Engine.randomBoard();
+    state.enemyBoard = Engine.randomBoard(fleetSizes());
     state.bot = new Engine.Bot(difficultyOf());
     state.gameOver = false;
     state.locked = true;
@@ -655,6 +869,7 @@
     state.gameOver = false;
     state.locked = !first;
     state.playerTurn = !!first;
+    state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
 
     buildBoard(boards.enemy);
     buildBoard(boards.own);
@@ -741,6 +956,10 @@
     if (msg.mine) {
       state.enemyBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
       applyShotVisual(boards.enemy, x, y, msg.result, msg.ship);
+      if (state.matchStats) {
+        state.matchStats.shots += 1;
+        if (msg.result !== 'miss') state.matchStats.hits += 1;
+      }
       if (msg.result === 'sunk') state.net.foeShips -= 1;
       updateFleet();
       if (msg.result === 'miss') {
@@ -792,6 +1011,84 @@
     setOnlineStatus('');
   }
 
+  /* Ссылка-приглашение: друг открывает её и сразу попадает в комнату. */
+  function shareRoom() {
+    const code = state.net && state.net.code;
+    if (!code || location.protocol === 'file:') {
+      toast('Ссылка работает в браузере', 'miss');
+      return;
+    }
+    const url = location.origin + location.pathname + '?room=' + code;
+    const done = (ok) => toast(ok ? '🔗 Ссылка скопирована' : url, ok ? 'turn' : 'miss');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      done(ok);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => done(true)).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function inviteCode() {
+    try {
+      const v = new URLSearchParams(location.search).get('room');
+      return v && /^\d{4}$/.test(v) ? v : null;
+    } catch (e) { return null; }
+  }
+
+  function joinInvite(code) {
+    $('#room-code').value = code;
+    showScreen('online');
+    setOnlineStatus('Тебя пригласили в комнату ' + code + ' — подключаемся…');
+    Online.connect()
+      .then(() => {
+        setOnlineStatus('Заходим в комнату ' + code + '…');
+        Online.join(code, state.profile.name, Math.round(state.profile.rating));
+      })
+      .catch((err) => setOnlineStatus((err && err.message) || 'Сервер недоступен', true));
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* не критично */ }
+  }
+
+  /* Топ игроков онлайн-режима: сервер считает победы сам, клиент только рисует. */
+  function loadLeaderboard() {
+    const list = $('#lb-list');
+    if (!list) return;
+    const url = Online.httpUrl('/api/leaderboard');
+    if (!url) {
+      list.innerHTML = '<li class="lb-empty">Сервер не настроен</li>';
+      return;
+    }
+    list.innerHTML = '<li class="lb-empty">Загрузка…</li>';
+    fetch(url, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((data) => {
+        const rows = (data && data.top) || [];
+        if (!rows.length) {
+          list.innerHTML = '<li class="lb-empty">Пока нет сыгранных матчей</li>';
+          return;
+        }
+        list.innerHTML = rows.slice(0, 8).map((row, i) => (
+          '<li class="lb-row">' +
+            '<span class="lb-place">' + (i + 1) + '</span>' +
+            '<span class="lb-name">' + escapeHtml(row.name) + '</span>' +
+            '<span class="lb-wins">' + (Number(row.wins) || 0) + ' 🏆</span>' +
+          '</li>'
+        )).join('');
+      })
+      .catch(() => {
+        list.innerHTML = '<li class="lb-empty">Рейтинг недоступен</li>';
+      });
+  }
+
   function wireOnlineEvents() {
     Online.on('room', (msg) => {
       state.net = state.net || {};
@@ -841,11 +1138,28 @@
       const text = (msg && msg.msg) || 'Ошибка соединения';
       toast('⚠️ ' + text, 'miss');
       if (state.screen === 'online') setOnlineStatus(text, true);
+      // Сервер не принял флот (например, расстановка неполная) —
+      // разблокируем «В бой», чтобы можно было отправить заново.
+      if (state.mode === 'online' && state.screen === 'place' &&
+          state.net && state.net.fleetSent && !state.gameOver) {
+        state.net.fleetSent = false;
+        const ready = $('#btn-ready');
+        if (ready) ready.disabled = false;
+        const hint = $('#place-hint');
+        if (hint) hint.textContent = 'Флот не принят — проверь расстановку';
+      }
     });
 
     Online.on('closed', () => {
       if (state.mode !== 'online' || state.gameOver) return;
       toast('📡 Связь с сервером потеряна', 'miss');
+      state.gameOver = true;
+      state.locked = true;
+      state.net = null;
+      setTimeout(() => {
+        showScreen('online');
+        setOnlineStatus('Связь с сервером потеряна. Подключись заново.', true);
+      }, 1300);
     });
   }
 
@@ -862,6 +1176,7 @@
   function setTurn(mine) {
     const pill = $('#turn-pill');
     pill.classList.remove('is-mine', 'is-bot');
+    boards.enemy.classList.toggle('is-yours', mine === true);
     if (mine === null) {
       pill.textContent = 'БОЙ';
       return;
@@ -953,6 +1268,16 @@
       state.locked = false;
       return;
     }
+    if (state.matchStats) {
+      state.matchStats.shots += 1;
+      if (shot.result !== 'miss') state.matchStats.hits += 1;
+      if (state.matchStats.firstShot) {
+        state.matchStats.firstShot = false;
+        if (shot.result === 'sunk' && shot.ship && shot.ship.size >= 4) {
+          state.matchStats.firstShotSunk = true;
+        }
+      }
+    }
     updateFleet();
 
     if (Engine.allSunk(state.enemyBoard)) {
@@ -1043,17 +1368,55 @@
     if (seq !== state.matchSeq) return;
     if (state.screen !== 'battle') return;
 
+    const ms = state.matchStats || { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
+    const p = state.profile;
+
     if (state.mode === 'online') {
-      const same = Math.round(state.profile.rating);
-      showResult(playerWon, same, same, 0, reason);
+      const same = Math.round(p.rating);
+      p.stats = p.stats || { shots: 0, hits: 0 };
+      p.stats.shots += ms.shots;
+      p.stats.hits += ms.hits;
+      unlockAchievement('online', 700);
+      saveProfile();
+      updateMenu();
+      showResult(playerWon, same, same, 0, reason, null);
       return;
     }
 
-    const oldRating = Math.round(state.profile.rating);
+    const oldRating = Math.round(p.rating);
     const delta = Engine.eloDelta(oldRating, Math.round(state.botRating), playerWon ? 1 : 0);
-    const newRating = Math.max(0, oldRating + delta);
 
-    const p = state.profile;
+    // Ежедневный бонус: первая победа за календарный день.
+    let dailyGain = 0;
+    if (playerWon && (!p.daily || p.daily.date !== dayKey())) {
+      const streak = nextDailyStreak();
+      p.daily = { date: dayKey(), streak: streak };
+      dailyGain = dailyBonusFor(streak);
+    }
+
+    // «Кубок моря»: три боя подряд без поражения.
+    let cupInfo = null;
+    if (state.cup && !state.cup.finished) {
+      if (playerWon) {
+        state.cup.wins = (state.cup.wins || 0) + 1;
+        if (state.cup.round >= 3) {
+          state.cup.finished = true;
+          cupInfo = { done: true, won: true, gain: 60 };
+        } else {
+          state.cup.round += 1;
+          state.cup.date = dayKey();
+          cupInfo = { done: false, round: state.cup.round };
+        }
+      } else {
+        cupInfo = { done: true, won: false };
+        state.cup = null;
+      }
+    }
+    p.cup = state.cup;
+
+    const cupGain = cupInfo && cupInfo.done && cupInfo.won ? cupInfo.gain : 0;
+    const newRating = Math.max(0, oldRating + delta + dailyGain + cupGain);
+
     p.rating = newRating;
     p.games = (p.games || 0) + 1;
     if (playerWon) {
@@ -1064,17 +1427,36 @@
       p.streak = p.streak < 0 ? p.streak - 1 : -1;
     }
     p.best = Math.max(p.best || 0, newRating);
+    p.stats = p.stats || { shots: 0, hits: 0 };
+    p.stats.shots += ms.shots;
+    p.stats.hits += ms.hits;
     p.history = [{
       name: state.botName,
       rating: Math.round(state.botRating),
-      delta: delta,
+      delta: newRating - oldRating,
       win: !!playerWon,
       ts: Date.now()
     }].concat(p.history || []).slice(0, 8);
+
+    // достижения — проверяем после обновления статистики
+    let achOrder = 0;
+    const unlock = (id) => { unlockAchievement(id, 900 + (achOrder++) * 450); };
+    if (playerWon) unlock('first_win');
+    if (playerWon && ms.shots > 0 && ms.hits === ms.shots) unlock('perfect');
+    if (ms.firstShotSunk) unlock('first_blood');
+    if (p.streak >= 5) unlock('win5');
+    if ((p.wins || 0) >= 10) unlock('win10');
+    if ((p.wins || 0) >= 50) unlock('win50');
+    if (newRating >= 1500) unlock('rank1500');
+    if (p.daily && p.daily.streak >= 3) unlock('daily3');
+    if (playerWon && fleetKey() === 'admiral') unlock('admiral');
+    if (cupInfo && cupInfo.done && cupInfo.won) unlock('cup');
+
     saveProfile();
     updateMenu();
 
-    showResult(playerWon, oldRating, newRating, delta, reason);
+    showResult(playerWon, oldRating, newRating, delta + dailyGain + cupGain, reason,
+      { dailyGain: dailyGain, cupInfo: cupInfo });
   }
 
   function animateNumber(el, from, to, duration) {
@@ -1088,7 +1470,7 @@
     requestAnimationFrame(frame);
   }
 
-  function showResult(win, oldRating, newRating, delta, reason) {
+  function showResult(win, oldRating, newRating, delta, reason, extras) {
     const overlay = $('#overlay');
     overlay.classList.toggle('is-lose', !win);
     overlay.hidden = false;
@@ -1105,7 +1487,31 @@
 
     const eloRow = document.querySelector('.result-card .elo-row');
     if (eloRow) eloRow.hidden = online;
-    $('#btn-again').textContent = online ? '🔁 Новая комната' : '⚔️ Ещё бой';
+
+    if (online) {
+      $('#btn-again').textContent = '🔁 Новая комната';
+    } else if (state.cup && state.cup.finished) {
+      $('#btn-again').textContent = '🏆 Новый кубок';
+    } else if (state.cup && state.cup.round > 1) {
+      $('#btn-again').textContent = '▶️ Раунд ' + state.cup.round;
+    } else {
+      $('#btn-again').textContent = '⚔️ Ещё бой';
+    }
+
+    // бонусы дня и кубка — отдельной строкой, чтобы не путать с ELO
+    const bonusEl = $('#bonus-line');
+    if (bonusEl) {
+      const parts = [];
+      if (extras && extras.dailyGain > 0) parts.push('🎁 Бонус дня +' + extras.dailyGain);
+      if (extras && extras.cupInfo) {
+        const c = extras.cupInfo;
+        if (c.done && c.won) parts.push('🏆 Кубок моря твой! +' + c.gain);
+        else if (c.done) parts.push('🏆 Кубок упущен — начни заново из меню');
+        else parts.push('🏆 Кубок: раунд ' + c.round + ' из 3');
+      }
+      bonusEl.hidden = !parts.length;
+      bonusEl.textContent = parts.join(' · ');
+    }
 
     $('#elo-before').textContent = oldRating;
     $('#elo-after').textContent = oldRating;
@@ -1149,9 +1555,12 @@
   }
 
   function closeOverlay(el) {
+    if (!el) return;
+    if (el._closeTimer) clearTimeout(el._closeTimer);
     el.classList.remove('is-open');
-    setTimeout(() => {
-      el.hidden = true;
+    el._closeTimer = setTimeout(() => {
+      el._closeTimer = null;
+      if (!el.classList.contains('is-open')) el.hidden = true;
       el.classList.remove('is-lose');
     }, 340);
   }
@@ -1164,11 +1573,17 @@
       muted: p.muted,
       volume: p.volume,
       motion: p.motion,
-      difficulty: p.difficulty
+      bubbles: p.bubbles,
+      theme: p.theme,
+      difficulty: p.difficulty,
+      fleet: p.fleet
     };
     state.profile = Object.assign(defaultProfile(), keepSettings ? keep : { name: keep.name });
+    state.cup = null;
     saveProfile();
     applyMotion();
+    applyBubbles();
+    applyTheme();
     updateMenu();
   }
 
@@ -1206,6 +1621,16 @@
       leaveOnline();
       updateMenu();
       showScreen('menu');
+    });
+
+    $('#btn-share-room').addEventListener('click', () => {
+      Sfx.play('click');
+      shareRoom();
+    });
+
+    $('#btn-lb-refresh').addEventListener('click', () => {
+      Sfx.play('click');
+      loadLeaderboard();
     });
 
     $('#btn-create-room').addEventListener('click', () => {
@@ -1264,6 +1689,41 @@
       modal.hidden = false;
       requestAnimationFrame(() => modal.classList.add('is-open'));
     });
+
+    $('#btn-achievements').addEventListener('click', () => {
+      Sfx.play('click');
+      renderAchievements();
+      const modal = $('#modal-achievements');
+      modal.hidden = false;
+      requestAnimationFrame(() => modal.classList.add('is-open'));
+    });
+    $('#btn-ach-close').addEventListener('click', () => {
+      Sfx.play('click');
+      closeOverlay($('#modal-achievements'));
+    });
+    $('#modal-achievements').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
+    });
+
+    $('#btn-cup').addEventListener('click', () => {
+      Sfx.play('click');
+      state.mode = 'bot';
+      if (state.cup && !state.cup.finished) {
+        startMatch();
+        return;
+      }
+      startCup();
+    });
+
+    $('#daily-card').addEventListener('click', () => {
+      const p = state.profile;
+      if (p.daily && p.daily.date === dayKey()) {
+        toast('✅ Бонус дня уже получен — серия ' + p.daily.streak + ' дн.', 'turn');
+      } else {
+        toast('🎁 Победи сегодня и получи +' + dailyBonusFor(nextDailyStreak()) + ' к рейтингу', 'turn');
+      }
+      Sfx.play('click');
+    });
     $('#btn-rules-close').addEventListener('click', () => {
       Sfx.play('click');
       closeOverlay($('#modal-rules'));
@@ -1313,7 +1773,37 @@
       Sfx.play('click');
     });
 
+    $('#set-bubbles').addEventListener('click', () => {
+      state.profile.bubbles = state.profile.bubbles === false;
+      applyBubbles();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+    });
+
+    $('#set-theme').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-theme]');
+      if (!btn) return;
+      state.profile.theme = btn.dataset.theme === 'light' ? 'light' : 'dark';
+      applyTheme();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+    });
+
+    $('#set-fleet').addEventListener('click', (e) => {
+      if (state.screen !== 'menu') return;
+      const btn = e.target.closest('button[data-fleet]');
+      if (!btn) return;
+      state.profile.fleet = btn.dataset.fleet === 'admiral' ? 'admiral' : 'classic';
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast('Флот: ' + (state.profile.fleet === 'admiral' ? 'адмиральский 🛳️' : 'классический ⚓'), 'turn');
+    });
+
     $('#set-difficulty').addEventListener('click', (e) => {
+      if (state.screen !== 'menu') return;
       const btn = e.target.closest('button[data-level]');
       if (!btn) return;
       state.profile.difficulty = btn.dataset.level;
@@ -1347,7 +1837,42 @@
     });
 
     /* --- расстановка --- */
+    // Свайп по полю на телефоне: провёл пальцем — корабль повернулся
+    // в сторону свайпа. Обычный тап по-прежнему ставит корабль.
+    let swipe = null;
+    let ignoreClickUntil = 0;
+
+    boards.place.addEventListener('pointerdown', (e) => {
+      if (!state.placement || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      const cell = e.target.closest('.cell');
+      swipe = {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        cell: cell ? { x: Number(cell.dataset.x), y: Number(cell.dataset.y) } : null
+      };
+    });
+
+    boards.place.addEventListener('pointerup', (e) => {
+      if (!swipe || swipe.id !== e.pointerId) { swipe = null; return; }
+      const s = swipe;
+      swipe = null;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 24) return;   // это тап, не свайп
+      ignoreClickUntil = Date.now() + 400;
+      const dir = Math.abs(dx) > Math.abs(dy)
+        ? (dx > 0 ? 'right' : 'left')
+        : (dy > 0 ? 'down' : 'up');
+      setDirection(dir, s.cell);
+      Sfx.play('click');
+      try { if (navigator.vibrate) navigator.vibrate(8); } catch (err) { /* не критично */ }
+    });
+
+    boards.place.addEventListener('pointercancel', () => { swipe = null; });
+
     boards.place.addEventListener('click', (e) => {
+      if (Date.now() < ignoreClickUntil) return;
       const cell = e.target.closest('.cell');
       if (!cell) return;
       placeAt(Number(cell.dataset.x), Number(cell.dataset.y));
@@ -1428,6 +1953,10 @@
         showScreen('online');
         return;
       }
+      if (state.cup && state.cup.finished) {
+        startCup();
+        return;
+      }
       startMatch();
     });
     $('#btn-menu').addEventListener('click', () => {
@@ -1451,6 +1980,8 @@
         if (!settings.hidden) closeOverlay(settings);
         const modal = $('#modal-rules');
         if (!modal.hidden) closeOverlay(modal);
+        const ach = $('#modal-achievements');
+        if (!ach.hidden) closeOverlay(ach);
       }
     });
 
@@ -1462,17 +1993,24 @@
 
   /* Поворот: обычный шаг — следующее направление по кругу (4 стороны),
      с Shift — сразу в противоположную сторону. */
-  function toggleRotate(flipSide) {
+  function setDirection(dir, cell) {
     const p = state.placement;
-    if (!p) return;
-    p.dir = flipSide
-      ? oppositeDir(p.dir)
-      : DIR_ORDER[(DIR_ORDER.indexOf(p.dir) + 1) % DIR_ORDER.length];
+    if (!p || !DIR_ARROW[dir]) return;
+    p.dir = dir;
     updateRotateLabel();
-    // поворачиваем призрак на месте: не надо двигать мышью, чтобы увидеть результат
+    if (cell) state.hover = { x: cell.x, y: cell.y };
     if (state.hover) showGhost(state.hover.x, state.hover.y, true);
     else clearGhost();
     renderDock();
+  }
+
+  function toggleRotate(flipSide) {
+    const p = state.placement;
+    if (!p) return;
+    const dir = flipSide
+      ? oppositeDir(p.dir)
+      : DIR_ORDER[(DIR_ORDER.indexOf(p.dir) + 1) % DIR_ORDER.length];
+    setDirection(dir, state.hover);
   }
 
   /* ---------------- Старт ---------------- */
@@ -1526,14 +2064,23 @@
   }
 
   state.profile = loadProfile();
+  state.cup = state.profile.cup || null;
   applyNativeInsets();
   applyMotion();
+  applyBubbles();
+  applyTheme();
   wireIosHint();
   makeBubbles();
   wireEvents();
   wireOnlineEvents();
   updateMenu();
   showScreen('menu');
+
+  /* Приглашение по ссылке: ?room=1234 — сразу заходим в комнату. */
+  const invite = inviteCode();
+  if (invite && Online.available()) {
+    setTimeout(() => joinInvite(invite), 400);
+  }
 
   /* PWA: офлайн-режим и установка на домашний экран.
      На file:// service worker недоступен, в Capacitor он не нужен — пропускаем. */

@@ -57,7 +57,7 @@
           <div class="profile-main">
             <div class="avatar" id="avatar">⚓</div>
             <div class="profile-info">
-              <input id="nickname" class="nick-input" maxlength="16" spellcheck="false" autocomplete="off" title="Нажми, чтобы изменить ник">
+              <input id="nickname" class="nick-input" maxlength="16" spellcheck="false" autocomplete="off" title="Нажми, чтобы изменить ник" aria-label="Твой никнейм">
               <div class="rank-line">
                 <span id="rank-icon">⚓</span>
                 <span id="rank-name">Матрос</span>
@@ -70,6 +70,7 @@
           </div>
           <div class="progress"><div class="progress-fill" id="rank-progress"></div></div>
           <div class="rank-next" id="rank-next">до следующего ранга — 100</div>
+          <div class="accuracy-line" id="accuracy-line">🎯 Точность 0% · 0 выстрелов</div>
           <div class="stats-row">
             <div><b id="stat-games">0</b><span>боёв</span></div>
             <div><b id="stat-wr">0%</b><span>побед</span></div>
@@ -80,6 +81,25 @@
 
         <button class="btn btn-primary btn-big" id="btn-play" type="button"><span>⚔️ В БОЙ</span></button>
         <button class="btn btn-ghost btn-big btn-online" id="btn-online" type="button"><span>🌐 Играть с другом</span></button>
+
+        <div class="menu-cards">
+          <button class="mini-card" id="btn-cup" type="button">
+            <span class="mini-icon">🏆</span>
+            <span class="mini-text"><b>Кубок моря</b><small id="cup-status">3 боя подряд без поражений</small></span>
+          </button>
+          <button class="mini-card" id="btn-achievements" type="button">
+            <span class="mini-icon">🏅</span>
+            <span class="mini-text"><b>Достижения</b><small id="ach-count">0 / 11</small></span>
+          </button>
+        </div>
+
+        <button class="daily-card" id="daily-card" type="button">
+          <span class="daily-icon" id="daily-icon">🎁</span>
+          <span class="daily-text">
+            <b id="daily-title">Ежедневный бонус</b>
+            <small id="daily-sub">Победи сегодня — +15 к рейтингу</small>
+          </span>
+        </button>
 
         <div class="menu-links">
           <button class="btn btn-ghost btn-small" id="btn-rules" type="button">📖 Правила</button>
@@ -125,9 +145,18 @@
             <div class="online-wait-label">Код комнаты</div>
             <div class="online-code" id="online-code">0000</div>
             <div class="online-wait-hint" id="online-hint">Скинь код другу — ждём второго игрока…</div>
+            <button class="btn btn-ghost btn-small online-share" id="btn-share-room" type="button">🔗 Скопировать ссылку</button>
           </div>
 
           <p class="online-status" id="online-status"></p>
+
+          <div class="leaderboard" id="leaderboard">
+            <div class="lb-head">
+              <span>🏆 Лучшие в онлайне</span>
+              <button id="btn-lb-refresh" type="button" aria-label="Обновить рейтинг">↻</button>
+            </div>
+            <ol class="lb-list" id="lb-list"><li class="lb-empty">Загрузка…</li></ol>
+          </div>
         </div>
       </section>
 
@@ -154,7 +183,7 @@
               <button class="btn btn-ghost btn-small" id="btn-rotate" type="button" title="Направление корабля. Нажми, чтобы повернуть (R), Shift — в другую сторону">→ Вправо</button>
               <button class="btn btn-ghost btn-small" id="btn-random" type="button">🎲 Случайно</button>
               <button class="btn btn-ghost btn-small" id="btn-clear" type="button">🧽 Очистить</button>
-              <button class="btn btn-ghost btn-small" id="btn-erase" type="button">🗑️ Убрать корабль</button>
+              <button class="btn btn-ghost btn-small" id="btn-erase" type="button" aria-pressed="false">🗑️ Убрать корабль</button>
             </div>
             <button class="btn btn-primary" id="btn-ready" type="button" disabled>⚓ В БОЙ</button>
           </aside>
@@ -204,7 +233,7 @@
 
     <div id="toast-layer" class="toast-layer" aria-live="polite"></div>
     <!-- ================= РЕЗУЛЬТАТ ================= -->
-    <div class="overlay" id="overlay" hidden>
+    <div class="overlay" id="overlay" hidden role="dialog" aria-modal="true" aria-label="Результат боя">
       <div class="confetti" id="confetti" aria-hidden="true"></div>
       <div class="overlay-card result-card">
         <div class="result-emblem" id="result-emblem">🏆</div>
@@ -226,6 +255,7 @@
         </div>
 
         <div class="rank-change" id="rank-change" hidden></div>
+        <div class="bonus-line" id="bonus-line" hidden></div>
 
         <div class="overlay-actions">
           <button class="btn btn-primary" id="btn-again" type="button">⚔️ Ещё бой</button>
@@ -234,8 +264,17 @@
       </div>
     </div>
 
+    <!-- ================= ДОСТИЖЕНИЯ ================= -->
+    <div class="overlay" id="modal-achievements" hidden role="dialog" aria-modal="true" aria-label="Достижения">
+      <div class="overlay-card ach-card">
+        <h2 class="rules-title">🏅 Достижения</h2>
+        <div class="ach-grid" id="ach-grid"></div>
+        <button class="btn btn-primary" id="btn-ach-close" type="button">Готово</button>
+      </div>
+    </div>
+
     <!-- ================= НАСТРОЙКИ ================= -->
-    <div class="overlay" id="modal-settings" hidden>
+    <div class="overlay" id="modal-settings" hidden role="dialog" aria-modal="true" aria-label="Настройки">
       <div class="overlay-card settings-card">
         <h2 class="rules-title">⚙️ Настройки</h2>
 
@@ -259,6 +298,26 @@
                   aria-label="Анимации"><i></i></button>
         </div>
 
+        <div class="setting-row">
+          <div class="setting-text">
+            <b>Фон</b>
+            <small>Пузыри в фоне — можно выключить, чтобы телефон грелся меньше</small>
+          </div>
+          <button class="switch is-on" id="set-bubbles" type="button" role="switch" aria-checked="true"
+                  aria-label="Фон"><i></i></button>
+        </div>
+
+        <div class="setting-row is-column">
+          <div class="setting-text">
+            <b>Тема</b>
+            <small>Тёмная для вечера, светлая для солнца</small>
+          </div>
+          <div class="segmented is-two" id="set-theme">
+            <button type="button" data-theme="dark" class="is-active">🌙 Тёмная</button>
+            <button type="button" data-theme="light">☀️ Светлая</button>
+          </div>
+        </div>
+
         <div class="setting-row is-column">
           <div class="setting-text">
             <b>Сложность бота</b>
@@ -268,6 +327,17 @@
             <button type="button" data-level="easy">Легко</button>
             <button type="button" data-level="normal" class="is-active">Обычно</button>
             <button type="button" data-level="hard">Сложно</button>
+          </div>
+        </div>
+
+        <div class="setting-row is-column">
+          <div class="setting-text">
+            <b>Флот</b>
+            <small>Адмиральский — с флагманом на 5 клеток. Только против бота</small>
+          </div>
+          <div class="segmented is-two" id="set-fleet">
+            <button type="button" data-fleet="classic" class="is-active">⚓ Классический</button>
+            <button type="button" data-fleet="admiral">🛳️ Адмиральский</button>
           </div>
         </div>
 
@@ -281,15 +351,19 @@
     </div>
 
     <!-- ================= ПРАВИЛА ================= -->
-    <div class="overlay" id="modal-rules" hidden>
+    <div class="overlay" id="modal-rules" hidden role="dialog" aria-modal="true" aria-label="Правила боя">
       <div class="overlay-card rules-card">
         <h2 class="rules-title">📖 Правила боя</h2>
         <ul class="rules-list">
           <li><b>Поле 10×10.</b> У каждого флота 10 кораблей: линкор (4), два крейсера (3), три эсминца (2) и четыре катера (1).</li>
+          <li><b>Адмиральский флот</b> (в настройках): 11 кораблей, среди них флагман на 5 клеток — только против бота.</li>
           <li><b>Корабли не касаются</b> друг друга даже углами.</li>
           <li><b>Попадание</b> даёт ещё один выстрел. Промах — ход переходит к боту.</li>
           <li><b>Победа</b> — потопить все корабли противника.</li>
           <li><b>ELO.</b> Победа над сильным соперником даёт больше рейтинга, поражение от слабого отнимает больше.</li>
+          <li><b>Бонус дня:</b> первая победа за день даёт +15…+40 к рейтингу, серия растёт, если играть каждый день.</li>
+          <li><b>Кубок моря:</b> три боя подряд без поражения. Бот сильнее с каждым раундом, за прохождение +60.</li>
+          <li><b>Достижения:</b> 11 медалей за победы, точность, онлайн, адмиральский флот и кубок.</li>
           <li><b>Ранги:</b> Юнга → Матрос → Боцман → Штурман → Капитан → Адмирал → Легенда.</li>
         </ul>
         <button class="btn btn-primary" id="btn-rules-close" type="button">Понятно</button>

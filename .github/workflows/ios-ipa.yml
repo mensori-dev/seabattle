@@ -1,0 +1,70 @@
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run www
+
+      - name: Add iOS platform
+        run: npx cap add ios
+
+      - name: Sync iOS
+        run: npx cap sync ios
+
+      - name: Generate iOS icons and splash
+        run: npx capacitor-assets generate --ios
+
+      - name: Build unsigned app
+        working-directory: ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p ios/App/build/Payload
+          cp -R ios/App/build/Build/Products/Release-iphoneos/App.app ios/App/build/Payload/
+          cd ios/App/build
+          zip -r "seabattle-${VERSION}-unsigned.ipa" Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: seabattle-ipa
+          path: ios/App/build/seabattle-*-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30

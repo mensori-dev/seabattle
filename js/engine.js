@@ -6,7 +6,10 @@
 
   const SIZE = 10;
   const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
-  const SHIP_LABEL = { 4: 'Линкор', 3: 'Крейсер', 2: 'Эсминец', 1: 'Катер' };
+  // Адмиральский флот: тяжелее и плотнее, играется только против бота.
+  const ADMIRAL_FLEET = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1];
+  const FLEETS = { classic: FLEET, admiral: ADMIRAL_FLEET };
+  const SHIP_LABEL = { 5: 'Флагман', 4: 'Линкор', 3: 'Крейсер', 2: 'Эсминец', 1: 'Катер' };
 
   function createBoard() {
     return {
@@ -80,10 +83,13 @@
     return ship;
   }
 
-  function randomBoard() {
-    for (let attempt = 0; attempt < 400; attempt++) {
+  function randomBoard(fleet) {
+    const sizes = (Array.isArray(fleet) && fleet.length ? fleet : FLEET)
+      .slice().sort((a, b) => b - a);
+    // плотный флот ставится труднее — даём больше попыток
+    const attempts = sizes.length > 10 ? 900 : 400;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const board = createBoard();
-      const sizes = FLEET.slice().sort((a, b) => b - a);
       let ok = true;
       for (const size of sizes) {
         let placed = false;
@@ -328,7 +334,7 @@
   }
 
   global.Engine = {
-    SIZE, FLEET, SHIP_LABEL, RANKS,
+    SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS,
     createBoard, canPlace, placeShip, removeShipAt, randomBoard,
     fire, allSunk, shipsLeft, totalShips,
     Bot, rankFor, nextRank, eloExpected, eloDelta,

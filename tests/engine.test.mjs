@@ -26,6 +26,23 @@ test('состав флота: 10 кораблей по классическим
   assert.equal(E.SIZE, 10);
 });
 
+test('адмиральский флот: 11 кораблей, 24 клетки, флагман на 5', () => {
+  assert.deepEqual([...E.FLEETS.admiral], [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1]);
+  assert.equal(E.FLEETS.admiral.reduce((a, b) => a + b, 0), 24);
+  assert.equal(E.SHIP_LABEL[5], 'Флагман');
+
+  for (let i = 0; i < 40; i++) {
+    const board = E.randomBoard(E.FLEETS.admiral);
+    assert.equal(E.totalShips(board), 11);
+    assert.deepEqual(sortedSizes(board), [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1]);
+    for (let s = 0; s < board.ships.length; s++) {
+      for (let k = s + 1; k < board.ships.length; k++) {
+        assert.ok(shipsDoNotTouch(board.ships[s], board.ships[k]));
+      }
+    }
+  }
+});
+
 test('случайная расстановка всегда валидна: 10 кораблей, без касаний', () => {
   for (let i = 0; i < 120; i++) {
     const board = E.randomBoard();

@@ -17,6 +17,8 @@
 - `manifest.webmanifest`, `sw.js` — PWA: установка на телефон и офлайн-кэш.
 - `assets/` — иконки PWA (генерируются `scripts/make-icons.py`).
 - `scripts/make-android-icons.py` — adaptive-иконки Android: фон, якорь, monochrome.
+- `.github/workflows/ios-ipa.yml` — сборка unsigned IPA на macOS-раннере GitHub Actions.
+- `scripts/build-ipa.mjs` — запуск этой сборки и скачивание IPA в `dist/` и OneDrive.
 - `capacitor.config.json`, `www/` — мобильная обёртка: `www` собирается из корня `scripts/build-www.mjs`.
 - `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
   Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
@@ -35,6 +37,8 @@
 - `npm run www` — собрать `www/` для Capacitor
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)
+- `npm run ios:ipa` — unsigned IPA через GitHub Actions → `dist/` и OneDrive
+  (нужен `gh auth login`; подпись Apple не ставится)
 - `cd android; gradlew.bat assembleRelease bundleRelease` — подписанные APK/AAB для магазинов
   (нужен `android/keystore.properties` + `android/keystore/seabattle-release.jks`, оба в git не идут)
 
@@ -56,6 +60,9 @@
   Трогал онлайн — ещё `npm run server` + `npm run test:online`.
 - При каждом релизе обновляй комплект: `dist/RELEASE_NOTES.md`, `docs/rustore.md`,
   подписанные `dist/seabattle-<версия>-release.apk`/`.aab`; скриншоты — если менялся UI.
+- Каждый релиз кладём в OneDrive: `seabattle-<версия>.apk`,
+  `seabattle-<версия>-unsigned.ipa` и папку `seabattle-rustore-<версия>/`
+  (APK, AAB, иконка, скриншоты, тексты).
 - Деплой и `git push` — только после подтверждения пользователя.
 
 ## Известные нюансы

@@ -56,7 +56,10 @@ if (auth.status !== 0) {
   throw new Error('GitHub CLI не авторизован. Выполни: gh auth login');
 }
 
-const head = must(gh(['rev-parse', 'HEAD']), 'git rev-parse').stdout.trim();
+const head = must(
+  spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }),
+  'git rev-parse'
+).stdout.trim();
 const startedAt = Date.now();
 
 console.log(`→ gh workflow run ${workflow}`);

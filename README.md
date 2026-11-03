@@ -95,6 +95,20 @@ gradlew assembleRelease bundleRelease --no-daemon
 
 Готовые файлы для магазинов складываются в `dist/` (`*.apk`, `*.aab` — в git не идут).
 
+## iPhone (IPA)
+
+```
+npm run ios:ipa
+```
+
+Скрипт запускает сборку на macOS-раннере GitHub Actions, скачивает
+`dist/seabattle-<версия>-unsigned.ipa` и кладёт копию в OneDrive.
+Нужен авторизованный GitHub CLI (`gh auth status`).
+
+IPA собран **без подписи Apple**: обычная установка с телефона не сработает.
+Файл ставят через AltStore/Sideloadly (нужен Apple ID) или подписывают
+в Apple Developer Account. Для друзей проще PWA: Safari → «На экран Домой».
+
 ## Публикация
 
 - **PWA / GitHub Pages**: https://mensori-dev.github.io/seabattle/

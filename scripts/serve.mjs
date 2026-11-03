@@ -45,6 +45,11 @@ const server = http.createServer((req, res) => {
 
   fs.stat(file, (err, stat) => {
     if (!err && stat.isDirectory()) {
+      if (!pathname.endsWith('/')) {
+        const query = new URL(req.url, 'http://localhost').search;
+        res.writeHead(301, { Location: pathname + '/' + query, 'Cache-Control': 'no-store' });
+        return res.end();
+      }
       const index = path.join(file, 'index.html');
       return fs.stat(index, (err2, stat2) => {
         if (err2 || !stat2.isFile()) return send(res, 404, 'not found');

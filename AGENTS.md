@@ -34,7 +34,8 @@
 - `npm run test:online` — смоук онлайн-протокола (сервер должен быть запущен)
 - `npm run shots` — скриншоты 1080×1920 в `docs/screenshots/` (нужны dev + server)
 - `npm run release` — план релиза; `npm run release -- --yes` — публикация:
-  `site/version.json`, релиз на GitHub, OneDrive (старые версии удаляются)
+  `site/version.json`, релиз на GitHub, OneDrive (старые версии удаляются).
+  Нужны APK, AAB и IPA в `dist/` — `android:apk -- --apk` для релиза не хватит.
 - `npm test` — тесты движка
 - `node --test tests/` — то же напрямую
 - `npm run icons` — перегенерировать иконки PWA и Android (Python + Pillow)

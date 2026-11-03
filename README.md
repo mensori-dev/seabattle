@@ -132,8 +132,9 @@ npm run release -- --yes # публикация
 - копирует APK/IPA в OneDrive и удаляет оттуда артефакты прошлых версий.
 
 Пуш сайта скрипт не делает: проверь diff и запушь сам. Перед запуском собери
-`npm run android:apk` и `npm run ios:ipa` — без файлов в `dist/` публикация остановится.
-Открыть витрину локально: `npm run dev`, затем http://localhost:5173/site/.
+`npm run android:apk` (полную, без `--apk`: нужен ещё AAB) и `npm run ios:ipa` —
+без файлов в `dist/` публикация остановится. Открыть витрину локально:
+`npm run dev`, затем http://localhost:5173/site/.
 
 ## Публикация
 

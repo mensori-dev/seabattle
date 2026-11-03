@@ -69,12 +69,27 @@ export function buildVersion({ version, date, notes, previous }) {
 
 /**
  * Имя в OneDrive относится к прошлой версии?
- * Трогаем только `seabattle-<semver>…` и `seabattle-rustore-<semver>`.
+ * Трогаем только известные артефакты: `seabattle-<v>.apk`,
+ * `…-unsigned.ipa`, `…-RELEASE_NOTES.md`, папки `seabattle-<v>` и
+ * `seabattle-rustore-<v>`. Посторонние файлы рядом не удаляем.
  */
 export function isStaleEntry(name, version) {
-  const match = /^seabattle-(?:rustore-)?(\d+\.\d+\.\d+)(?=$|[-.])/.exec(name);
+  const match = /^seabattle-(?:rustore-)?(\d+\.\d+\.\d+)(?:\.apk|-release\.apk|-release\.aab|-unsigned\.ipa|-RELEASE_NOTES\.md)?$/.exec(name);
   if (!match) return false;
   return match[1] !== version;
+}
+
+/** Пункты для сайта + защита от пустого или чужого changelog. */
+export function checkNotes(version, markdown) {
+  const notes = pickNotes(markdown);
+  if (!notes.length) {
+    throw new Error('в dist/RELEASE_NOTES.md нет списка «- …» — нечего показывать на сайте');
+  }
+  const title = /Версия\s+([\d.]+)/.exec(String(markdown).split(/\r?\n/)[0] || '');
+  if (title && title[1] !== version) {
+    throw new Error(`RELEASE_NOTES.md описывает версию ${title[1]}, а в package.json ${version}`);
+  }
+  return notes;
 }
 
 function today() {
@@ -131,7 +146,8 @@ async function main() {
   const notesMarkdown = existsSync(files.notes)
     ? await readFile(files.notes, 'utf8')
     : '';
-  const notes = pickNotes(notesMarkdown);
+  let notes = pickNotes(notesMarkdown);
+  if (yes) notes = checkNotes(version, notesMarkdown);
 
   const versionFile = path.join(ROOT, 'site', 'version.json');
   const previous = await readJson(versionFile);
@@ -168,12 +184,12 @@ async function main() {
   }
 
   const auth = gh(['auth', 'status']);
+  if (auth.error) {
+    throw new Error(`не удалось запустить gh: ${auth.error.message} — установи GitHub CLI`);
+  }
   if (auth.status !== 0) {
     throw new Error('gh не авторизован: выполни gh auth login');
   }
-
-  await writeFile(versionFile, JSON.stringify(nextVersion, null, 2) + '\n', 'utf8');
-  console.log(`\n✓ site/version.json обновлён`);
 
   const assets = [files.apk, files.aab, files.ipa];
   const view = gh(['release', 'view', `v${version}`, '--repo', REPO]);
@@ -191,6 +207,11 @@ async function main() {
     run('gh', ['release', 'edit', `v${version}`, '--repo', REPO, '--notes-file', files.notes]);
     run('gh', ['release', 'upload', `v${version}`, '--repo', REPO, '--clobber', ...assets]);
   }
+
+  // version.json пишем только после успешного релиза: иначе сайт сошлётся
+  // на файлы, которых на GitHub ещё нет
+  await writeFile(versionFile, JSON.stringify(nextVersion, null, 2) + '\n', 'utf8');
+  console.log(`\n✓ site/version.json обновлён`);
 
   if (!existsSync(ONEDRIVE)) {
     console.warn(`\n! Нет папки OneDrive: ${ONEDRIVE} — пропускаю копирование`);

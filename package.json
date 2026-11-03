@@ -15,7 +15,8 @@
     "www": "node scripts/build-www.mjs",
     "android:sync": "npm run www && cap sync android",
     "android:apk": "node scripts/build-apk.mjs",
-    "ios:ipa": "node scripts/build-ipa.mjs"
+    "ios:ipa": "node scripts/build-ipa.mjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",

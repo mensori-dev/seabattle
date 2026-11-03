@@ -1,7 +1,7 @@
 /* ============================================================
    Service worker «Морского боя»: офлайн-кэш и мгновенный старт
    ============================================================ */
-const VERSION = 'sb-v17';
+const VERSION = 'sb-v18';
 const CORE = [
   './',
   './index.html',
@@ -50,16 +50,23 @@ self.addEventListener('fetch', (event) => {
   // витрина (/site/) — отдельная страница: не подменяем ею офлайн-кэш игры
   if (url.pathname.includes('/site/')) return;
 
-  // навигация: сеть, при офлайне — из кэша
+  // навигация: сеть, при офлайне — запрошенная страница, затем оболочка игры
   if (req.mode === 'navigate') {
+    // оболочкой считаем только сам корень: privacy.html и прочие страницы
+    // не должны подменять index.html в офлайн-кэше
+    const isShell = url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put('./index.html', copy)).catch(() => {});
+          if (isShell && res && res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put('./index.html', copy)).catch(() => {});
+          }
           return res;
         })
-        .catch(() => caches.match('./index.html').then((r) => r || caches.match('./')))
+        .catch(() => caches.match(req)
+          .then((r) => r || caches.match('./index.html'))
+          .then((r) => r || caches.match('./')))
     );
     return;
   }

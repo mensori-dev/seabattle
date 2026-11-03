@@ -44,12 +44,23 @@ const server = http.createServer((req, res) => {
   }
 
   fs.stat(file, (err, stat) => {
+    if (!err && stat.isDirectory()) {
+      const index = path.join(file, 'index.html');
+      return fs.stat(index, (err2, stat2) => {
+        if (err2 || !stat2.isFile()) return send(res, 404, 'not found');
+        serveFile(res, index, stat2);
+      });
+    }
     if (err || !stat.isFile()) return send(res, 404, 'not found');
-    const type = types[path.extname(file).toLowerCase()] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Cache-Control': 'no-store' });
-    fs.createReadStream(file).pipe(res);
+    serveFile(res, file, stat);
   });
 });
+
+function serveFile(res, file, stat) {
+  const type = types[path.extname(file).toLowerCase()] || 'application/octet-stream';
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Cache-Control': 'no-store' });
+  fs.createReadStream(file).pipe(res);
+}
 
 server.listen(port, '127.0.0.1', () => {
   console.log(`Морской бой: http://localhost:${port}`);

@@ -42,6 +42,17 @@ jobs:
       - name: Inspect iOS project
         run: ls -la ios/App
 
+      - name: Set iOS version
+        working-directory: ios/App
+        run: |
+          VERSION=$(node -p "require('../../package.json').version")
+          BUILD=$(node -e "const fs=require('fs');const t=fs.readFileSync('../../android/app/build.gradle','utf8');console.log((t.match(/versionCode\\s+(\\d+)/)||[])[1]||'1')")
+          echo "iOS version: $VERSION ($BUILD)"
+          agvtool new-marketing-version "$VERSION" || true
+          agvtool new-version -all "$BUILD" || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" App/Info.plist
+
       - name: Build unsigned app
         working-directory: ios/App
         run: |
@@ -67,6 +78,13 @@ jobs:
           cp -R ios/App/build/Build/Products/Release-iphoneos/App.app ios/App/build/Payload/
           cd ios/App/build
           zip -r "seabattle-${VERSION}-unsigned.ipa" Payload
+
+      - name: Verify IPA
+        run: |
+          IPA=$(ls ios/App/build/seabattle-*-unsigned.ipa)
+          unzip -p "$IPA" Payload/App.app/Info.plist > /tmp/AppInfo.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" /tmp/AppInfo.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" /tmp/AppInfo.plist
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4

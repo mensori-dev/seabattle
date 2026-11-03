@@ -103,8 +103,8 @@ deno deploy create server --org mensori-dev --app mensori-seabattle `
   --build-timeout 5 --build-memory-limit 1024 --json --non-interactive
 ```
 
-Получится `https://mensori-seabattle.deno.dev`. Проверка:
-`https://mensori-seabattle.deno.dev/health` → `{"ok":true,"rooms":0,"kv":true}`.
+Получится `https://mensori-seabattle.mensori-dev.deno.net`. Проверка:
+`https://mensori-seabattle.mensori-dev.deno.net/health` → `{"ok":true,"rooms":0}`.
 KV на Deno Deploy включается сам, отдельная база создавать не нужно.
 
 ### Обновить сервер после правок

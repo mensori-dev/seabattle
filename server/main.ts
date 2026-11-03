@@ -350,6 +350,12 @@ function handle(socket: WebSocket) {
     }
 
     if (type === 'surrender') {
+      // Сдаваться можно только в начавшемся бою: иначе победа засчитывается
+      // без единого выстрела (накрутка таблицы побед).
+      if (!room.started) {
+        send(me, { t: 'error', msg: 'Бой ещё не начался.' });
+        return;
+      }
       const idx = room.players.indexOf(me);
       const foe = room.players[1 - idx];
       if (foe) {

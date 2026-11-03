@@ -37,7 +37,7 @@ jobs:
         run: npx cap sync ios
 
       - name: Generate iOS icons and splash
-        run: npx capacitor-assets generate --ios
+        run: npx capacitor-assets generate --ios --assetPath resources
 
       - name: Inspect iOS project
         run: ls -la ios/App

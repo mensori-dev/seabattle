@@ -15,7 +15,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v15';
+  const SW_VERSION = 'sb-v16';
 
   const state = {
     profile: null,
@@ -36,7 +36,8 @@
     ghost: [],
     hover: null,           // последняя клетка под курсором при расстановке
     matchStats: { shots: 0, hits: 0, firstShot: true, firstShotSunk: false },
-    cup: null              // «Кубок моря»: { round, wins }
+    cup: null,             // «Кубок моря»: { round, wins }
+    cupMatch: false        // текущий бой идёт в зачёт кубка
   };
 
   const boards = {
@@ -540,7 +541,7 @@
     const level = difficultyOf();
     const boost = DIFFICULTY[level].boost +
       (FLEET_BOOST[fleetKey()] || 0) +
-      (state.cup ? Math.max(0, state.cup.round - 1) * 90 : 0);
+      (state.cupMatch && state.cup ? Math.max(0, state.cup.round - 1) * 90 : 0);
     state.botLevel = level;
     state.botName = Engine.randomName();
     state.botRating = clamp(Math.round(state.profile.rating + randInt(-130, 130) + boost), 250, 2600);
@@ -560,6 +561,7 @@
   /* ---------------- Кубок моря ---------------- */
   function startCup() {
     state.mode = 'bot';
+    state.cupMatch = true;
     state.cup = { round: 1, wins: 0, date: dayKey() };
     state.profile.cup = state.cup;
     saveProfile();
@@ -955,6 +957,17 @@
 
     if (msg.mine) {
       state.enemyBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
+      // Потопленный корабль раскрывается целиком — помечаем все его клетки,
+      // иначе клик по раскрытой клетке уходил на сервер и бой зависал.
+      if (msg.result === 'sunk' && Array.isArray(msg.ship)) {
+        msg.ship.forEach((c) => {
+          const cx = Number(c[0]);
+          const cy = Number(c[1]);
+          if (cx >= 0 && cy >= 0 && cx < Engine.SIZE && cy < Engine.SIZE) {
+            state.enemyBoard.shots[cy][cx] = 'hit';
+          }
+        });
+      }
       applyShotVisual(boards.enemy, x, y, msg.result, msg.ship);
       if (state.matchStats) {
         state.matchStats.shots += 1;
@@ -974,7 +987,10 @@
       return;
     }
 
-    state.playerBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
+    // Свой флот считаем тем же движком: он ставит hits/sunk, поэтому
+    // счётчик «твой флот» уменьшается так же, как у соперника.
+    const own = Engine.fire(state.playerBoard, x, y);
+    if (!own) state.playerBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
     applyShotVisual(boards.own, x, y, msg.result, msg.ship);
     updateFleet();
     if (msg.result === 'miss') toast('🌊 Соперник промахнулся', 'miss');
@@ -993,7 +1009,10 @@
   }
 
   function leaveOnline(silent) {
-    if (state.mode === 'online') {
+    // Выходим и из лобби: иначе комната остаётся на сервере «призраком»,
+    // а новый create на том же сокете сервер игнорирует.
+    const inRoom = !!(state.net && state.net.code) || state.mode === 'online';
+    if (inRoom || (Online.isOpen && Online.isOpen())) {
       try { Online.leave(); } catch (e) { /* ignore */ }
     }
     state.mode = 'bot';
@@ -1105,6 +1124,8 @@
     });
 
     Online.on('start', (msg) => {
+      // «start» из брошенной комнаты не должен телепортировать игрока в бой.
+      if (state.mode === 'online' || state.screen !== 'online') return;
       startOnlineMatch(msg.foe);
     });
 
@@ -1138,6 +1159,12 @@
       const text = (msg && msg.msg) || 'Ошибка соединения';
       toast('⚠️ ' + text, 'miss');
       if (state.screen === 'online') setOnlineStatus(text, true);
+      // Бой: отклонённый выстрел не должен навсегда блокировать доску.
+      if (state.mode === 'online' && state.screen === 'battle' &&
+          !state.gameOver && state.playerTurn) {
+        state.locked = false;
+        setTurn(true);
+      }
       // Сервер не принял флот (например, расстановка неполная) —
       // разблокируем «В бой», чтобы можно было отправить заново.
       if (state.mode === 'online' && state.screen === 'place' &&
@@ -1395,8 +1422,10 @@
     }
 
     // «Кубок моря»: три боя подряд без поражения.
+    // В зачёт идут только бои, начатые из карточки кубка, —
+    // обычное «В бой» кубок не двигает и не сбрасывает.
     let cupInfo = null;
-    if (state.cup && !state.cup.finished) {
+    if (state.cupMatch && state.cup && !state.cup.finished) {
       if (playerWon) {
         state.cup.wins = (state.cup.wins || 0) + 1;
         if (state.cup.round >= 3) {
@@ -1490,9 +1519,9 @@
 
     if (online) {
       $('#btn-again').textContent = '🔁 Новая комната';
-    } else if (state.cup && state.cup.finished) {
+    } else if (state.cupMatch && state.cup && state.cup.finished) {
       $('#btn-again').textContent = '🏆 Новый кубок';
-    } else if (state.cup && state.cup.round > 1) {
+    } else if (state.cupMatch && state.cup && state.cup.round > 1) {
       $('#btn-again').textContent = '▶️ Раунд ' + state.cup.round;
     } else {
       $('#btn-again').textContent = '⚔️ Ещё бой';
@@ -1580,6 +1609,7 @@
     };
     state.profile = Object.assign(defaultProfile(), keepSettings ? keep : { name: keep.name });
     state.cup = null;
+    state.cupMatch = false;
     saveProfile();
     applyMotion();
     applyBubbles();
@@ -1601,6 +1631,7 @@
     $('#btn-play').addEventListener('click', () => {
       Sfx.play('click');
       state.mode = 'bot';
+      state.cupMatch = false;
       startMatch();
     });
 
@@ -1619,6 +1650,7 @@
     $('#btn-online-back').addEventListener('click', () => {
       Sfx.play('click');
       leaveOnline();
+      resetOnlineRoom();
       updateMenu();
       showScreen('menu');
     });
@@ -1708,6 +1740,7 @@
     $('#btn-cup').addEventListener('click', () => {
       Sfx.play('click');
       state.mode = 'bot';
+      state.cupMatch = true;
       if (state.cup && !state.cup.finished) {
         startMatch();
         return;
@@ -1953,10 +1986,11 @@
         showScreen('online');
         return;
       }
-      if (state.cup && state.cup.finished) {
+      if (state.cupMatch && state.cup && state.cup.finished) {
         startCup();
         return;
       }
+      state.cupMatch = !!(state.cup && !state.cup.finished);
       startMatch();
     });
     $('#btn-menu').addEventListener('click', () => {

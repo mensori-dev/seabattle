@@ -22,6 +22,9 @@ android/app/release/
 *.keystore
 dist/
 
+# Capacitor iOS (генерируется на macOS/в CI)
+ios/
+
 # Python
 __pycache__/
 *.pyc

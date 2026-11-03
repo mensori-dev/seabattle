@@ -23,7 +23,22 @@
     var ua = navigator.userAgent || '';
     if (/android/i.test(ua)) return 'is-android';
     if (/iphone|ipad|ipod/i.test(ua)) return 'is-ios';
+    // iPadOS 13+ представляется как Macintosh, но с сенсорным экраном
+    if (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return 'is-ios';
     return '';
+  }
+
+  function parseDate(value) {
+    var parts = String(value).split('-');
+    if (parts.length !== 3) return null;
+    var year = Number(parts[0]);
+    var month = Number(parts[1]) - 1;
+    var day = Number(parts[2]);
+    var date = new Date(year, month, day);
+    if (isNaN(date.getTime())) return null;
+    // отсекаем 2026-13-40, которые Date молча переносит на другой день
+    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) return null;
+    return date;
   }
 
   function applyVersion(data) {
@@ -38,8 +53,8 @@
 
     var date = document.querySelector('[data-date]');
     if (date && data.date) {
-      var parsed = new Date(data.date);
-      if (!isNaN(parsed.getTime())) {
+      var parsed = parseDate(data.date);
+      if (parsed) {
         date.textContent = parsed.toLocaleDateString('ru-RU', {
           day: 'numeric', month: 'long', year: 'numeric'
         });
@@ -47,7 +62,7 @@
     }
 
     var list = document.querySelector('[data-notes]');
-    if (list && data.notes && data.notes.length) {
+    if (list && Array.isArray(data.notes) && data.notes.length) {
       list.innerHTML = '';
       for (var n = 0; n < data.notes.length; n++) {
         var li = document.createElement('li');
@@ -87,9 +102,14 @@
     });
   }
 
-  document.documentElement.className += ' ' + platform();
+  var visitor = platform();
+  if (visitor) document.documentElement.classList.add(visitor);
   setHrefs(null);
   initTabs();
+  if (visitor === 'is-ios') {
+    var iosTab = document.getElementById('tab-ios');
+    if (iosTab) iosTab.click();
+  }
 
   fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function (res) { return res.ok ? res.json() : null; })

@@ -117,7 +117,11 @@ a { color: var(--sea); }
 }
 
 @media (min-width: 1000px) {
-  .hero-inner { max-width: 54%; }
+  .hero-inner {
+    max-width: min(820px, calc(100% - 340px));
+    margin-left: max(24px, calc((100vw - var(--wrap)) / 2));
+    margin-right: auto;
+  }
   .hero-visual { display: block; }
 }
 
@@ -201,7 +205,9 @@ html.is-ios .btn-ios::after {
 }
 
 .ghost {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   color: var(--text);
   text-decoration: none;
   border-bottom: 1px solid rgba(234, 246, 255, 0.35);
@@ -224,10 +230,12 @@ html.is-ios .btn-ios::after {
   gap: 18px;
   padding: 10px max(20px, calc((100vw - var(--wrap)) / 2)) 26px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
   scrollbar-color: rgba(157, 182, 203, 0.35) transparent;
 }
+.shots-rail:focus-visible { outline: 2px solid var(--sea); outline-offset: -2px; }
 
 .shots-rail figure {
   flex: 0 0 auto;
@@ -282,11 +290,13 @@ h2 {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 6px;
   border: 1px solid var(--line);
   border-radius: 14px;
   width: fit-content;
+  max-width: 100%;
   margin-bottom: 22px;
   background: rgba(11, 36, 56, 0.7);
 }
@@ -339,7 +349,7 @@ h2 {
 .footer-inner { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; }
 .footer p { margin: 0; }
 .footer nav { display: flex; flex-wrap: wrap; gap: 18px; }
-.footer a { color: var(--muted); text-decoration: none; }
+.footer a { color: var(--muted); text-decoration: none; padding-block: 6px; }
 .footer a:hover { color: var(--text); }
 
 /* ---------- адаптив ---------- */
@@ -347,7 +357,9 @@ h2 {
 @media (max-width: 640px) {
   .wrap { width: min(100% - 32px, var(--wrap)); }
   .hero { padding: 84px 0 110px; }
-  .cta { flex-direction: column; align-items: stretch; }
+  .cta { flex-direction: column; align-items: stretch; gap: 34px; }
+  html.is-android .btn-android::after,
+  html.is-ios .btn-ios::after { top: -24px; right: 4px; }
   .btn { width: 100%; }
   .shots-rail figure { width: 68vw; }
   .features, .install, .release { padding: 44px 0; }

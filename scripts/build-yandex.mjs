@@ -59,8 +59,11 @@ function buildHtml() {
 
   const styleTag = '  <link rel="stylesheet" href="style.css">';
   must(s.includes(styleTag), 'не нашёл подключение style.css');
-  s = s.replace(styleTag,
-    '  <link rel="stylesheet" href="assets/fonts/fonts.css">\n' + styleTag);
+  // в основной игре шрифты уже локальные — не дублируем подключение
+  if (!s.includes('assets/fonts/fonts.css')) {
+    s = s.replace(styleTag,
+      '  <link rel="stylesheet" href="assets/fonts/fonts.css">\n' + styleTag);
+  }
 
   // онлайн: кнопка, экран, ссылка на политику и подсказка установки
   s = cut(s, '        <!-- подсказка только для Safari', '        <a class="privacy-link"', 'подсказка установки на iPhone');

@@ -1,8 +1,9 @@
 /* ============================================================
    Сервер «Морского боя»: комнаты по коду, 2 игрока, WebSocket.
    Считает попадания он — клиенты видят только свои корабли.
+   Персональные данные не хранит: комнаты и топ побед живут в памяти.
    Запуск локально:  deno run --allow-net --allow-env server/main.ts
-   Деплой:           https://dash.deno.com → New Project → этот файл
+   Деплой:           https://console.deno.com → приложение mensori-seabattle
    ============================================================ */
 
 type Cell = [number, number];
@@ -143,9 +144,10 @@ function dropRoom(room: Room) {
   rooms.delete(room.code);
 }
 
-/* ---------------- Рейтинг онлайн-побед (Deno KV) ----------------
-   На Deno Deploy KV доступен всегда. Локальный Deno может быть собран
-   без KV — тогда считаем победы в памяти (до перезапуска сервера). */
+/* ---------------- Рейтинг онлайн-побед ----------------
+   Считаем победы только в памяти инстанса. Сервер не пишет персональные
+   данные в базу: топ живёт, пока работает сервер, и обнуляется после
+   перезапуска. Это осознанное решение — см. privacy.html, раздел 3. */
 
 interface WinRow {
   name: string;
@@ -153,68 +155,15 @@ interface WinRow {
 }
 
 const memWins = new Map<string, number>();
-let kv: Deno.Kv | null = null;
-let kvReady: Promise<void> | null = null;
 
-function openKv(): Promise<void> {
-  if (kvReady) return kvReady;
-  kvReady = (async () => {
-    const open = (Deno as unknown as { openKv?: () => Promise<Deno.Kv> }).openKv;
-    if (typeof open !== 'function') return; // сборка без KV — память
-    try {
-      kv = await open();
-    } catch (e) {
-      console.warn('Deno KV недоступен, считаем победы в памяти:', e);
-      kv = null;
-    }
-  })();
-  return kvReady;
-}
-
-async function recordWin(name: string) {
+function recordWin(name: string) {
   const clean = cleanName(name);
-  await openKv();
-  if (!kv) {
-    memWins.set(clean, (memWins.get(clean) || 0) + 1);
-    return;
-  }
-  try {
-    const key = ['wins', clean];
-    // Атомарно: два одновременных матча не затирают счёт друг друга.
-    // sum работает с bigint; старые числовые записи переводим при первом же бою.
-    try {
-      const res = await kv.atomic()
-        .sum(key, 1n)
-        .commit();
-      if (res.ok) return;
-    } catch (_e) { /* старый KV или числовое значение — падаем в обычную запись */ }
-    const cur = await kv.get<number | bigint>(key);
-    await kv.set(key, BigInt(Number(cur.value || 0) + 1));
-  } catch (e) {
-    console.warn('Не удалось записать победу:', e);
-  }
+  memWins.set(clean, (memWins.get(clean) || 0) + 1);
 }
 
-async function topPlayers(limit: number): Promise<WinRow[]> {
-  await openKv();
+function topPlayers(limit: number): WinRow[] {
   const top: WinRow[] = [];
-
-  if (!kv) {
-    for (const [name, wins] of memWins) top.push({ name, wins });
-    return top.sort((a, b) => b.wins - a.wins).slice(0, limit);
-  }
-
-  try {
-    const iter = kv.list<number | bigint>({ prefix: ['wins'] }, { limit: 500 });
-    for await (const entry of iter) {
-      const name = String(entry.key[1] || '');
-      if (!name) continue;
-      top.push({ name, wins: Number(entry.value) || 0 });
-    }
-  } catch (e) {
-    console.warn('Не удалось прочитать рейтинг:', e);
-    return [];
-  }
+  for (const [name, wins] of memWins) top.push({ name, wins });
   return top.sort((a, b) => b.wins - a.wins).slice(0, limit);
 }
 
@@ -336,7 +285,7 @@ function handle(socket: WebSocket) {
       if (allSunk(foe.board)) {
         send(me, { t: 'end', win: true });
         send(foe, { t: 'end', win: false });
-        recordWin(me.name).catch(() => {});
+        recordWin(me.name);
         dropRoom(room);
         room = null;
         return;
@@ -360,7 +309,7 @@ function handle(socket: WebSocket) {
       const foe = room.players[1 - idx];
       if (foe) {
         send(foe, { t: 'end', win: true, reason: 'surrender' });
-        recordWin(foe.name).catch(() => {});
+        recordWin(foe.name);
       }
       send(me, { t: 'end', win: false, reason: 'surrender' });
       dropRoom(room);
@@ -438,12 +387,12 @@ Deno.serve({ port: PORT }, async (req: Request) => {
 
   if (url.pathname === '/api/leaderboard') {
     const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 10));
-    const top = await topPlayers(limit);
+    const top = topPlayers(limit);
     return json({ top, updated: Date.now() });
   }
 
   if (url.pathname === '/health') {
-    return json({ ok: true, rooms: rooms.size, kv: !!kv });
+    return json({ ok: true, rooms: rooms.size, top: memWins.size });
   }
 
   return new Response('Морской бой — онлайн-сервер работает. Комнат: ' + rooms.size, {

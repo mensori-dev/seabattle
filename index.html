@@ -24,9 +24,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Морской бой">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Rubik:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Шрифты лежат локально: ни одного запроса к Google, офлайн и без передачи IP. -->
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -149,6 +148,7 @@
           </div>
 
           <p class="online-status" id="online-status"></p>
+          <p class="online-mine" id="online-mine">🏆 Побед в онлайне пока нет — сыграй с другом</p>
 
           <div class="leaderboard" id="leaderboard">
             <div class="lb-head">
@@ -156,6 +156,7 @@
               <button id="btn-lb-refresh" type="button" aria-label="Обновить рейтинг">↻</button>
             </div>
             <ol class="lb-list" id="lb-list"><li class="lb-empty">Загрузка…</li></ol>
+            <p class="lb-note">Топ считается, пока работает сервер. Персональные данные не сохраняются.</p>
           </div>
         </div>
       </section>

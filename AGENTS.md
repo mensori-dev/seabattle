@@ -13,6 +13,7 @@
 - `js/yandex.js` — платформа Яндекс Игр: SDK, реклама, пауза (`window.YandexGame`).
   Подключается только в сборке для Яндекс Игр.
 - `server/main.ts` — Deno-сервер комнат: проверяет флот и сам считает выстрелы.
+  Персональные данные не хранит: комнаты и топ побед живут в памяти.
 - `docs/online.md` — деплой сервера на Deno Deploy и протокол сообщений.
 - `docs/yandex.md` — сборка для Яндекс Игр, чек-лист модерации, выплаты.
 - `docs/yandex-promo/` — тексты полей карточки (`TEXTS.md`) и пошаговая
@@ -27,7 +28,8 @@
   скачивания APK/IPA. Версия и ссылки — в `site/version.json`.
 - `scripts/release.mjs` — релиз: `version.json`, GitHub Releases и OneDrive.
 - `manifest.webmanifest`, `sw.js` — PWA: установка на телефон и офлайн-кэш.
-- `assets/` — иконки PWA (генерируются `scripts/make-icons.py`).
+- `assets/` — иконки PWA (генерируются `scripts/make-icons.py`) и локальные
+  шрифты Nunito/Rubik (`scripts/fetch-fonts.mjs`).
 - `scripts/make-android-icons.py` — adaptive-иконки Android: фон, якорь, monochrome.
 - `.github/workflows/ios-ipa.yml` — сборка unsigned IPA на macOS-раннере GitHub Actions.
 - `scripts/build-ipa.mjs` — запуск этой сборки и скачивание IPA в `dist/` и OneDrive.
@@ -71,7 +73,8 @@
 - Никаких ES-модулей в браузерных скриптах (`import`), иначе `file://` ломается. Только классические IIFE.
 - Правила игры и бот — только в `engine.js`; DOM и звук — только в `app.js`.
 - Онлайн: истина на сервере (`server/main.ts`). Клиент не должен получать чужой флот,
-  а ELO за онлайн-матчи не начисляется.
+  а ELO за онлайн-матчи не начисляется. Сервер не хранит персональные данные:
+  топ побед считается в памяти и обнуляется после перезапуска.
 - Сборка для Яндекс Игр не форкает код: `scripts/build-yandex.mjs` вырезает онлайн и PWA
   из тех же исходников. Правя общий код, не ломай её — `npm test` собирает и проверяет.
 - UI на русском, mobile-first, тач-цели не меньше 32px.

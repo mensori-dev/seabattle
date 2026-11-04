@@ -23,7 +23,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v19';
+  const SW_VERSION = 'sb-v20';
 
   const state = {
     profile: null,
@@ -76,6 +76,8 @@
       daily: { date: '', streak: 0 },   // последний день с победой и серия
       achievements: {},     // id → когда получено
       stats: { shots: 0, hits: 0 },
+      onlineWins: 0,        // победы в онлайн-матчах — только на этом устройстве
+      onlineGames: 0,       // сколько онлайн-матчей сыграно
       cup: null,            // активный «Кубок моря»
       adMatches: 0,         // боёв с последней межстраничной рекламы (Яндекс Игры)
       lastAdAt: 0,          // когда последний раз показывали рекламу
@@ -484,6 +486,7 @@
       // ссылка-приглашение имеет смысл только в браузере (не file://)
       const share = $('#btn-share-room');
       if (share) share.hidden = location.protocol === 'file:';
+      renderOnlineMine();
       loadLeaderboard();
     }
     window.scrollTo(0, 0);
@@ -848,6 +851,18 @@
     if (!el) return;
     el.textContent = text || '';
     el.classList.toggle('is-error', !!isError);
+  }
+
+  /* Личный счёт онлайн-побед: считается на устройстве и никуда не уходит. */
+  function renderOnlineMine() {
+    const el = $('#online-mine');
+    if (!el) return;
+    const p = state.profile || {};
+    const wins = p.onlineWins || 0;
+    const games = p.onlineGames || 0;
+    el.textContent = games
+      ? '🏆 Твои победы в онлайне: ' + wins + ' из ' + games
+      : '🏆 Побед в онлайне пока нет — сыграй с другом';
   }
 
   function startOnlineMatch(foe) {
@@ -1428,6 +1443,9 @@
       p.stats = p.stats || { shots: 0, hits: 0 };
       p.stats.shots += ms.shots;
       p.stats.hits += ms.hits;
+      // Личный счёт онлайна — на этом устройстве, сервер его не хранит.
+      p.onlineGames = (p.onlineGames || 0) + 1;
+      if (playerWon) p.onlineWins = (p.onlineWins || 0) + 1;
       unlockAchievement('online', 700);
       saveProfile();
       updateMenu();

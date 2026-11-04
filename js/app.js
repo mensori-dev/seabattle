@@ -23,7 +23,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v22';
+  const SW_VERSION = 'sb-v24';
 
   const state = {
     profile: null,
@@ -72,9 +72,10 @@
       volume: 0.7,          // 0…1, громкость эффектов
       music: true,          // фоновая музыка
       musicVolume: 0.5,     // 0…1, громкость музыки
+      musicTrack: 'pirate', // 'pirate' | 'ambient' | 'tavern'
       motion: 'on',         // 'on' | 'off' — анимации
       bubbles: true,        // пузыри в фоне (на телефоне их можно выключить)
-      theme: 'dark',        // 'dark' | 'light'
+      theme: 'dark',        // 'dark' | 'light' | 'amoled'
       difficulty: 'normal', // 'easy' | 'normal' | 'hard'
       fleet: 'classic',     // 'classic' | 'admiral'
       daily: { date: '', streak: 0 },   // последний день с победой и серия
@@ -306,10 +307,13 @@
   }
 
   function applyTheme() {
-    const light = !!state.profile && state.profile.theme === 'light';
+    const theme = state.profile ? state.profile.theme : 'dark';
+    const light = theme === 'light';
+    const amoled = theme === 'amoled';
     document.documentElement.classList.toggle('theme-light', light);
+    document.documentElement.classList.toggle('theme-amoled', amoled);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', light ? '#cfe9f8' : '#04101f');
+    if (meta) meta.setAttribute('content', amoled ? '#000000' : light ? '#cfe9f8' : '#04101f');
   }
 
   function syncSettings() {
@@ -355,9 +359,15 @@
       bubbles.setAttribute('aria-checked', on ? 'true' : 'false');
     }
 
-    const theme = p.theme === 'light' ? 'light' : 'dark';
+    const theme = p.theme === 'light' || p.theme === 'amoled' ? p.theme : 'dark';
     $$('#set-theme button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.theme === theme);
+    });
+
+    const musicTrack = p.musicTrack === 'ambient' || p.musicTrack === 'tavern'
+      ? p.musicTrack : 'pirate';
+    $$('#set-music-track button').forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.track === musicTrack);
     });
 
     const fleet = fleetKey();
@@ -374,6 +384,7 @@
   function applyMusicSettings() {
     if (!window.Music) return;
     const p = state.profile;
+    Music.setTrack(p.musicTrack === 'ambient' || p.musicTrack === 'tavern' ? p.musicTrack : 'pirate');
     Music.setEnabled(p.music !== false);
     Music.setVolume(clamp(typeof p.musicVolume === 'number' ? p.musicVolume : 0.5, 0, 1));
   }
@@ -1978,6 +1989,7 @@
       volume: p.volume,
       music: p.music,
       musicVolume: p.musicVolume,
+      musicTrack: p.musicTrack,
       motion: p.motion,
       bubbles: p.bubbles,
       theme: p.theme,
@@ -2245,8 +2257,20 @@
     $('#set-theme').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-theme]');
       if (!btn) return;
-      state.profile.theme = btn.dataset.theme === 'light' ? 'light' : 'dark';
+      const value = btn.dataset.theme;
+      state.profile.theme = value === 'light' || value === 'amoled' ? value : 'dark';
       applyTheme();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+    });
+
+    $('#set-music-track').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-track]');
+      if (!btn) return;
+      const value = btn.dataset.track;
+      state.profile.musicTrack = value === 'ambient' || value === 'tavern' ? value : 'pirate';
+      applyMusicSettings();
       syncSettings();
       saveProfile();
       Sfx.play('click');
@@ -2601,6 +2625,7 @@
   applyMotion();
   applyBubbles();
   applyTheme();
+  applyMusicSettings();
   wireIosHint();
   makeBubbles();
   wireEvents();

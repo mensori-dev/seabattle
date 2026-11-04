@@ -1,19 +1,19 @@
 /* ============================================================
-   «Морской бой»: процедурная пиратская тема на WebAudio.
-   Без внешних файлов: скрипки, барабаны, бас и шум волн.
-   Мелодия оригинальная — не цитата из фильма.
+   «Морской бой»: процедурная музыка на WebAudio.
+   Три темы: пиратская, тихий эмбиент и таверна.
+   Без внешних файлов, мелодии оригинальные.
    ============================================================ */
 (function (global) {
   'use strict';
 
-  const BPM = 100;
-  const STEP = (60 / BPM) / 2;          // одна восьмая в размере 6/8
-  const BAR = 6;                        // шесть восьмых в такте
-  const BARS = 8;
-  const TOTAL_STEPS = BAR * BARS;
   const LOOKAHEAD = 2;                  // секунды, которые планируем вперёд
   const BASE_GAIN = 0.17;
   const DUCK_GAIN = 0.035;
+
+  /* ---------------- Пиратская тема ---------------- */
+  const PIRATE_STEP = (60 / 100) / 2;   // восьмая в размере 6/8
+  const PIRATE_BARS = 8;
+  const PIRATE_STEPS = 6 * PIRATE_BARS;
 
   // Dm — Bb — F — C — Dm — Bb — C — Dm: морской минор с подъёмом.
   const CHORDS = [
@@ -40,9 +40,53 @@
     [81, 79, 77, 76, 74, null]
   ];
 
+  /* ---------------- Тихий эмбиент ---------------- */
+  const AMBIENT_STEP = 0.5;
+  const AMBIENT_STEPS = 64;
+  const AMBIENT_CHORDS = [
+    [57, 60, 64],   // Am
+    [53, 57, 60],   // F
+    [60, 64, 67],   // C
+    [55, 59, 62]    // G
+  ];
+  const AMBIENT_PENTA = [72, 74, 76, 79, 81];
+
+  /* ---------------- Таверна: весёлый вальс ---------------- */
+  const TAVERN_STEP = (60 / 132) / 2;
+  const TAVERN_STEPS = 6 * 8;
+  const TAVERN_CHORDS = [
+    [60, 64, 67],   // C
+    [59, 62, 67],   // G
+    [57, 60, 64],   // Am
+    [57, 60, 65],   // F
+    [60, 64, 67],
+    [59, 62, 67],
+    [57, 60, 65],
+    [60, 64, 67]
+  ];
+  const TAVERN_BASS = [48, 43, 45, 41, 48, 43, 41, 48];
+  const TAVERN_MELODY = [
+    [72, 76, 79, 76, 72, 76],
+    [71, 74, 79, 74, 71, 74],
+    [69, 72, 76, 72, 69, 72],
+    [69, 72, 77, 72, 69, 72],
+    [72, 76, 79, 84, 79, 76],
+    [74, 71, 74, 79, 74, 71],
+    [72, 69, 72, 77, 72, 69],
+    [72, 76, 79, 76, 72, null]
+  ];
+
+  const TRACKS = {
+    pirate: { step: PIRATE_STEP, steps: PIRATE_STEPS, wave: 0.014 },
+    ambient: { step: AMBIENT_STEP, steps: AMBIENT_STEPS, wave: 0.03 },
+    tavern: { step: TAVERN_STEP, steps: TAVERN_STEPS, wave: 0.009 }
+  };
+
   let ctx = null;
   let master = null;
   let padBus = null;
+  let padBuses = [];
+  let activeBus = 0;
   let waveBus = null;
   let waveSrc = null;
   let waveLfo = null;
@@ -52,6 +96,7 @@
   let volume = 0.5;
   let playing = false;
   let ducked = false;
+  let track = 'pirate';
   let nextStepAt = 0;
   let stepIndex = 0;
 
@@ -73,6 +118,42 @@
     else g.linearRampToValueAtTime(value, t + 0.6);
   }
 
+  /* Кроссфейд между темами: у каждой темы своя шина. Новая тема плавно
+     поднимается, старая так же плавно гаснет — без щелчка и обрыва. */
+  function crossfadeBus() {
+    if (!ctx || padBuses.length < 2) return;
+    const FADE = 1.1;
+    const oldBus = padBus;
+    activeBus = (activeBus + 1) % padBuses.length;
+    const nextBus = padBuses[activeBus];
+    padBus = nextBus;
+    const t = now();
+    try {
+      nextBus.gain.cancelScheduledValues(t);
+      nextBus.gain.setValueAtTime(0.0001, t);
+      nextBus.gain.linearRampToValueAtTime(0.9, t + FADE);
+      // Фиксируем текущее значение старой шины, чтобы не было скачка,
+      // если переключение случилось прямо во время прошлого фейда.
+      if (oldBus.gain.cancelAndHoldAtTime) oldBus.gain.cancelAndHoldAtTime(t);
+      else {
+        oldBus.gain.cancelScheduledValues(t);
+        oldBus.gain.setValueAtTime(oldBus.gain.value || 0.0001, t);
+      }
+      oldBus.gain.linearRampToValueAtTime(0.0001, t + FADE);
+    } catch (e) { /* ignore */ }
+  }
+
+  function fadeWaves() {
+    if (!waveBus) return;
+    const target = TRACKS[track].wave;
+    const t = now();
+    try {
+      waveBus.gain.cancelScheduledValues(t);
+      waveBus.gain.setValueAtTime(waveBus.gain.value, t);
+      waveBus.gain.linearRampToValueAtTime(target, t + 1.1);
+    } catch (e) { /* ignore */ }
+  }
+
   function createNoise() {
     if (!ctx || noiseBuffer) return;
     const len = Math.max(1, Math.floor(ctx.sampleRate * 4));
@@ -92,8 +173,6 @@
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 420;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.014;
     const lfo = ctx.createOscillator();
     lfo.frequency.value = 0.07;
     const lfoGain = ctx.createGain();
@@ -101,8 +180,7 @@
     lfo.connect(lfoGain);
     lfoGain.connect(filter.frequency);
     src.connect(filter);
-    filter.connect(gain);
-    gain.connect(waveBus);
+    filter.connect(waveBus);
     try { src.start(); lfo.start(); } catch (e) { /* ignore */ }
     waveSrc = src;
     waveLfo = lfo;
@@ -216,9 +294,9 @@
     try { src.start(at); src.stop(at + dur + 0.05); } catch (e) { /* ignore */ }
   }
 
-  function playStep(index, at) {
-    const bar = Math.floor(index / BAR) % BARS;
-    const beat = index % BAR;
+  function playPirateStep(index, at) {
+    const bar = Math.floor(index / 6) % PIRATE_BARS;
+    const beat = index % 6;
     const chord = CHORDS[bar];
     const melody = MELODY[bar][beat];
 
@@ -236,14 +314,83 @@
     if (beat === 2 || beat === 5) playNoiseHit(at, 0.06, 0.016, 6500);
   }
 
+  function playAmbientPad(freqs, at, dur) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, at);
+    filter.Q.value = 0.7;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(0.06, at + 1.4);
+    gain.gain.linearRampToValueAtTime(0.0001, at + dur);
+    freqs.forEach(function (freq) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, at);
+      osc.detune.setValueAtTime((Math.random() * 8) - 4, at);
+      osc.connect(filter);
+      osc.start(at);
+      osc.stop(at + dur + 0.2);
+    });
+    filter.connect(gain);
+    gain.connect(padBus);
+  }
+
+  function playAmbientNote(at) {
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(midi(AMBIENT_PENTA[Math.floor(Math.random() * AMBIENT_PENTA.length)]), at);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(0.045, at + 0.08);
+    gain.gain.linearRampToValueAtTime(0.0001, at + 2.2);
+    osc.connect(gain);
+    gain.connect(padBus);
+    osc.start(at);
+    osc.stop(at + 2.4);
+  }
+
+  function playAmbientStep(index, at) {
+    if (index % 16 === 0) {
+      const chord = AMBIENT_CHORDS[(index / 16) % AMBIENT_CHORDS.length];
+      playAmbientPad(chord.map(midi), at, 8);
+    } else if (index % 16 === 8 && Math.random() < 0.7) {
+      playAmbientNote(at);
+    }
+  }
+
+  function playTavernStep(index, at) {
+    const bar = Math.floor(index / 6) % 8;
+    const beat = index % 6;
+    const chord = TAVERN_CHORDS[bar];
+    const melody = TAVERN_MELODY[bar][beat];
+
+    if (beat === 0) {
+      playBass(midi(TAVERN_BASS[bar]), at, 0.26);
+      playKick(at);
+    } else if (beat === 2 || beat === 4) {
+      playChord(chord.map(midi), at, 0.16);
+      playNoiseHit(at, 0.05, 0.012, 5200);
+    }
+
+    if (melody !== null) playFiddle(midi(melody), at, 0.22, 0.03);
+  }
+
+  function playStep(index, at) {
+    if (track === 'ambient') playAmbientStep(index, at);
+    else if (track === 'tavern') playTavernStep(index, at);
+    else playPirateStep(index, at);
+  }
+
   function schedule() {
     if (!ctx || !playing) return;
+    const cfg = TRACKS[track] || TRACKS.pirate;
     const horizon = now() + LOOKAHEAD;
     while (nextStepAt < horizon) {
       const at = Math.max(nextStepAt, now() + 0.05);
       playStep(stepIndex, at);
-      stepIndex = (stepIndex + 1) % TOTAL_STEPS;
-      nextStepAt += STEP;
+      stepIndex = (stepIndex + 1) % cfg.steps;
+      nextStepAt += cfg.step;
     }
   }
 
@@ -254,12 +401,15 @@
     try {
       ctx = new AC();
       master = ctx.createGain();
-      padBus = ctx.createGain();
+      padBuses = [ctx.createGain(), ctx.createGain()];
+      activeBus = 0;
+      padBus = padBuses[0];
       waveBus = ctx.createGain();
-      padBus.gain.value = 0.9;
-      waveBus.gain.value = 0.9;
+      padBuses[0].gain.value = 0.9;
+      padBuses[1].gain.value = 0.0001;
+      waveBus.gain.value = TRACKS[track].wave;
       master.gain.value = 0;
-      padBus.connect(master);
+      padBuses.forEach(function (bus) { bus.connect(master); });
       waveBus.connect(master);
       master.connect(ctx.destination);
       createNoise();
@@ -267,6 +417,7 @@
     } catch (e) {
       ctx = null;
       master = null;
+      padBuses = [];
       return false;
     }
   }
@@ -277,6 +428,9 @@
     playing = true;
     if (ctx.state === 'suspended') {
       try { ctx.resume(); } catch (e) { /* ignore */ }
+    }
+    if (padBus) {
+      try { padBus.gain.setValueAtTime(0.9, now()); } catch (e) { /* ignore */ }
     }
     applyGain(true);
     startWaves();
@@ -307,6 +461,25 @@
     if (playing) applyGain(false);
   }
 
+  function setTrack(name) {
+    if (!TRACKS[name]) return false;
+    if (name === track) return true;
+    track = name;
+    if (playing) {
+      // Сбрасываем позицию и подхватываем новую тему на свободной шине:
+      // старые ноты доигрывают и гаснут, новые появляются без паузы.
+      stepIndex = 0;
+      nextStepAt = now() + 0.05;
+      crossfadeBus();
+      fadeWaves();
+    } else if (waveBus) {
+      waveBus.gain.value = TRACKS[track].wave;
+    }
+    return true;
+  }
+
+  function getTrack() { return track; }
+
   function duck(on) {
     ducked = !!on;
     if (playing) applyGain(false);
@@ -328,6 +501,8 @@
     init: init,
     setEnabled: setEnabled,
     setVolume: setVolume,
+    setTrack: setTrack,
+    getTrack: getTrack,
     start: start,
     stop: stop,
     duck: duck,

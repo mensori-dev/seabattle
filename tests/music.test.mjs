@@ -27,6 +27,16 @@ test('API музыки на месте и не падает без AudioContext'
   Music.stop();
 });
 
+test('трек можно переключить и он запоминается', () => {
+  const Music = load();
+  assert.equal(typeof Music.setTrack, 'function');
+  assert.equal(Music.getTrack(), 'pirate');
+  assert.equal(Music.setTrack('ambient'), true);
+  assert.equal(Music.getTrack(), 'ambient');
+  assert.equal(Music.setTrack('unknown'), false);
+  assert.equal(Music.getTrack(), 'ambient');
+});
+
 test('start создаёт планировщик только после init', () => {
   const timers = [];
   class Param {
@@ -73,6 +83,10 @@ test('start создаёт планировщик только после init',
   assert.equal(Music.start(), true);
   assert.equal(Music.isPlaying(), true);
   assert.equal(timers[0], 2000);
+  // Смена темы — кроссфейд на второй шине, без перезапуска планировщика.
+  assert.equal(Music.setTrack('ambient'), true);
+  assert.equal(Music.isPlaying(), true);
+  assert.equal(timers.length, 1);
   Music.stop();
   assert.equal(Music.isPlaying(), false);
 });

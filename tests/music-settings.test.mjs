@@ -30,3 +30,14 @@ test('кнопка звука в шапке управляет обоими ка
   assert.match(app, /const anyOn = /);
   assert.match(app, /state\.profile\.music = next/);
 });
+
+test('можно выбрать музыкальную тему', () => {
+  const html = read('index.html');
+  const app = read('js/app.js');
+  assert.match(html, /id="set-music-track"/);
+  for (const track of ['pirate', 'ambient', 'tavern']) {
+    assert.match(html, new RegExp('data-track="' + track + '"'), track);
+  }
+  assert.match(app, /musicTrack/);
+  assert.match(app, /Music\.setTrack/);
+});

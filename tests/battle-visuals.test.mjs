@@ -41,3 +41,21 @@ test('панель редактора в светлой теме и выше т�
   assert.match(css, /html\.theme-light \.ship-editor-panel\{\s*background:/);
   assert.match(css, /\.ship-editor\{position:fixed;inset:0;z-index:61;/);
 });
+
+test('светлая тема: свои корабли тёмные и контрастные, а не белые', () => {
+  const css = read('style.css');
+  assert.match(css, /html\.theme-light \.cell\{\s*background:linear-gradient/);
+  assert.doesNotMatch(css, /html\.theme-light \.cell\{background:rgba\(255,255,255,\.4\)/);
+  assert.match(css, /html\.theme-light \.cell\.ship\{\s*background:/);
+  assert.match(css, /html\.theme-light \.ship-blocks i\{\s*background:/);
+});
+
+test('AMOLED тема: чёрный фон и свой переключатель', () => {
+  const css = read('style.css');
+  const html = read('index.html');
+  const app = read('js/app.js');
+  assert.match(css, /html\.theme-amoled\{/);
+  assert.match(css, /html\.theme-amoled body\{\s*background:#000/);
+  assert.match(html, /data-theme="amoled"/);
+  assert.match(app, /theme-amoled/);
+});

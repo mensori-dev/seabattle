@@ -564,6 +564,26 @@ html.no-bubbles .bubble{display:none}
   background:radial-gradient(circle,rgba(255,240,190,.95),rgba(255,150,60,.5) 40%,transparent 70%);
   opacity:1;
 }
+/* результат выстрела читается однозначно: ✸ — попал, ☠ — потоплен */
+.cell.hit::after{
+  content:'✸';inset:0;display:grid;place-items:center;
+  font-size:clamp(15px,3.4vw,24px);line-height:1;color:#fff4c2;
+  text-shadow:0 1px 6px rgba(120,20,0,.8);opacity:1;z-index:2;
+}
+.cell.sunk{box-shadow:inset 0 0 0 1px rgba(255,200,170,.28),inset 0 -2px 0 rgba(0,0,0,.4)}
+.cell.sunk::after{
+  content:'☠';inset:0;display:grid;place-items:center;
+  font-size:clamp(15px,3.4vw,24px);line-height:1;color:#ffd9c8;
+  text-shadow:0 1px 6px rgba(0,0,0,.75);opacity:1;z-index:2;
+}
+.shot-legend{
+  margin:8px 0 0;text-align:center;font-size:11px;font-weight:700;
+  color:var(--muted);letter-spacing:.02em;
+}
+.shot-legend .leg{font-size:13px;margin:0 2px 0 8px}
+.shot-legend .leg-miss{color:#8fd7f7}
+.shot-legend .leg-hit{color:#ffb45c}
+.shot-legend .leg-sunk{color:#ff8f7d}
 .cell.ship-reveal{animation:revealShip .45s cubic-bezier(.2,.9,.3,1.2) both;animation-delay:var(--sd,0ms)}
 .cell.incoming{
   background:rgba(255,120,110,.20);

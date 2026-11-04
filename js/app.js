@@ -545,6 +545,12 @@
         if (shot === 'miss') cell.classList.add('miss');
         if (shot === 'hit') cell.classList.add('hit');
         if (ship && ship.sunk) cell.classList.add('sunk');
+        cell.dataset.result = (ship && ship.sunk) ? 'sunk' : (shot || '');
+        const stateText = shot === 'miss' ? 'мимо'
+          : shot === 'hit' ? 'попадание'
+          : (ship && ship.sunk ? 'корабль потоплен' : '');
+        cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) +
+          (stateText ? ': ' + stateText : ''));
       }
     }
   }
@@ -1095,6 +1101,8 @@
       cell.style.setProperty('--sd', (i * 70) + 'ms');
       applyShipLook(cell, ship, c.x, c.y);
       cell.classList.add('sunk', 'ship-reveal');
+      cell.dataset.result = 'sunk';
+      cell.setAttribute('aria-label', 'Клетка ' + (c.x + 1) + ', ' + (c.y + 1) + ': корабль потоплен');
     });
   }
 
@@ -1111,11 +1119,11 @@
     flag.style.left = (cell.offsetLeft + cell.offsetWidth / 2) + 'px';
     flag.style.top = (cell.offsetTop + cell.offsetHeight / 2) + 'px';
     targetEl.appendChild(flag);
-    setTimeout(() => targetEl.classList.remove('is-spotlight'), 850);
+    setTimeout(() => targetEl.classList.remove('is-spotlight'), 700);
     setTimeout(() => {
       cell.classList.remove('is-last-miss', 'is-last-hit');
       flag.remove();
-    }, 1500);
+    }, 1100);
   }
 
   function applyShotVisual(targetEl, x, y, result, shipCells) {
@@ -1125,10 +1133,15 @@
     markShot(targetEl, cell, result);
     if (result === 'miss') {
       cell.classList.add('miss');
+      cell.dataset.result = 'miss';
+      cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + ': мимо');
       Sfx.play('splash');
       return;
     }
     cell.classList.add('hit');
+    cell.dataset.result = result === 'sunk' ? 'sunk' : 'hit';
+    cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + ': ' +
+      (result === 'sunk' ? 'корабль потоплен' : 'попадание'));
     if (result === 'sunk' && Array.isArray(shipCells)) {
       revealNetShip(targetEl, shipCells);
       Sfx.play('sunk');
@@ -1440,6 +1453,8 @@
       cell.style.setProperty('--sd', (i * 70) + 'ms');
       applyShipLook(cell, ship, c.x, c.y);
       cell.classList.add('sunk', 'ship-reveal');
+      cell.dataset.result = 'sunk';
+      cell.setAttribute('aria-label', 'Клетка ' + (c.x + 1) + ', ' + (c.y + 1) + ': корабль потоплен');
     });
   }
 
@@ -1455,9 +1470,14 @@
 
     if (shot.result === 'miss') {
       cell.classList.add('miss');
+      cell.dataset.result = 'miss';
+      cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + ': мимо');
       Sfx.play('splash');
     } else {
       cell.classList.add('hit');
+      cell.dataset.result = shot.result === 'sunk' ? 'sunk' : 'hit';
+      cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + ': ' +
+        (shot.result === 'sunk' ? 'корабль потоплен' : 'попадание'));
       if (shot.result === 'sunk') {
         revealSunk(targetEl, shot.ship);
         Sfx.play('sunk');

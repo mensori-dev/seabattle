@@ -162,7 +162,7 @@
       </section>
 
       <!-- ================= РАССТАНОВКА ================= -->
-      <section id="screen-place" class="screen">
+      <section id="screen-place" class="screen screen-place">
         <div class="place-head">
           <button class="icon-btn back-btn" id="btn-back" type="button" aria-label="В меню">←</button>
           <div class="place-title">
@@ -189,6 +189,16 @@
             <button class="btn btn-primary" id="btn-ready" type="button" disabled>⚓ В БОЙ</button>
           </aside>
         </div>
+
+        <div class="ship-editor" id="ship-editor" hidden>
+          <div class="ship-editor-panel" role="dialog" aria-label="Корабль">
+            <button type="button" data-act="left">↺ Влево</button>
+            <button type="button" data-act="right">↻ Вправо</button>
+            <button type="button" data-act="delete">🗑 Удалить</button>
+            <button type="button" data-act="close" aria-label="Закрыть">✕</button>
+          </div>
+        </div>
+        <p class="sr-only" id="ship-editor-live" aria-live="polite"></p>
       </section>
 
       <!-- ================= БОЙ ================= -->

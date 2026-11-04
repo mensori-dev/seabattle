@@ -490,6 +490,8 @@
       loadLeaderboard();
     }
     window.scrollTo(0, 0);
+    if (name === 'place') positionEditorPanel();
+    else closeShipEditor(false);
   }
 
   function toast(text, kind) {
@@ -593,12 +595,15 @@
 
   /* ---------------- Расстановка ---------------- */
   function setupPlacement() {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     const remaining = remainingFromFleet();
     state.placement = {
       size: biggestLeft(remaining),
       dir: 'right',      // куда «растёт» корабль от клетки под курсором
       erase: false,
-      remaining: remaining
+      remaining: remaining,
+      editor: null
     };
     state.ghost = [];
     state.hover = null;
@@ -754,6 +759,18 @@
   }
 
   function placeAt(x, y) {
+    if (placementLocked()) return;
+    if (state.placement.editor) {
+      const picked = Engine.shipAt(state.playerBoard, x, y);
+      if (picked) openShipEditor(picked);
+      else closeShipEditor();
+      return;
+    }
+    const existing = Engine.shipAt(state.playerBoard, x, y);
+    if (existing && !state.placement.erase) {
+      openShipEditor(existing);
+      return;
+    }
     if (state.placement.erase) {
       const ship = Engine.removeShipAt(state.playerBoard, x, y);
       if (ship) {
@@ -790,7 +807,138 @@
     Sfx.play('place');
   }
 
+  /* ---------------- Редактор корабля ---------------- */
+  function shipEditorEl() { return $('#ship-editor'); }
+  function shipEditorPanel() { return $('#ship-editor .ship-editor-panel'); }
+
+  function placementLocked() {
+    return state.mode === 'online' && !!(state.net && state.net.fleetSent);
+  }
+
+  function setPlacementLocked(locked) {
+    const screen = $('#screen-place');
+    if (screen) screen.classList.toggle('is-fleet-sent', !!locked);
+    if (locked) closeShipEditor(false);
+  }
+
+  function refreshEditorSelection() {
+    $$('#board-place .cell').forEach((cell) => cell.classList.remove('ship-selected'));
+    const ed = state.placement && state.placement.editor;
+    if (!ed) return null;
+    const ship = state.playerBoard.ships[ed.shipId];
+    if (!ship) return null;
+    ship.cells.forEach((c) => {
+      const cell = boards.place.children[c.y * Engine.SIZE + c.x];
+      if (cell) cell.classList.add('ship-selected');
+    });
+    return ship;
+  }
+
+  function positionEditorPanel() {
+    const panel = shipEditorPanel();
+    const ship = refreshEditorSelection();
+    if (!panel || !ship) return;
+    panel.classList.toggle('is-sheet', window.innerWidth < 640);
+    panel.style.left = '';
+    panel.style.top = '';
+    if (panel.classList.contains('is-sheet')) return;
+
+    const rects = ship.cells.map((c) => {
+      const cell = boards.place.children[c.y * Engine.SIZE + c.x];
+      return cell ? cell.getBoundingClientRect() : null;
+    }).filter(Boolean);
+    if (!rects.length) return;
+    const left = Math.min(...rects.map((r) => r.left));
+    const top = Math.min(...rects.map((r) => r.top));
+    const right = Math.max(...rects.map((r) => r.right));
+    const bottom = Math.max(...rects.map((r) => r.bottom));
+    const pw = panel.offsetWidth;
+    const ph = panel.offsetHeight;
+    let py = top - ph - 12;
+    if (py < 8) py = bottom + 12;
+    py = Math.min(py, window.innerHeight - ph - 8);
+    const px = clamp(left + (right - left) / 2 - pw / 2, 8, window.innerWidth - pw - 8);
+    panel.style.left = px + 'px';
+    panel.style.top = py + 'px';
+  }
+
+  function openShipEditor(ship) {
+    if (!state.placement || placementLocked()) return;
+    state.placement.editor = { shipId: ship.id };
+    const editor = shipEditorEl();
+    if (editor) editor.hidden = false;
+    $('#screen-place').classList.add('is-ship-edit');
+    boards.place.classList.add('is-editing');
+    const panel = shipEditorPanel();
+    if (panel) {
+      panel.querySelector('[data-act="left"]').disabled = ship.size <= 1;
+      panel.querySelector('[data-act="right"]').disabled = ship.size <= 1;
+    }
+    positionEditorPanel();
+    if (panel) {
+      const first = panel.querySelector('button:not(:disabled)');
+      if (first) first.focus({ preventScroll: true });
+    }
+    Sfx.play('click');
+  }
+
+  function closeShipEditor(restoreFocus) {
+    const editor = shipEditorEl();
+    if (editor) editor.hidden = true;
+    const screen = $('#screen-place');
+    if (screen) screen.classList.remove('is-ship-edit');
+    if (boards.place) boards.place.classList.remove('is-editing');
+    $$('#board-place .cell').forEach((cell) => cell.classList.remove('ship-selected'));
+    if (state.placement) state.placement.editor = null;
+    if (restoreFocus !== false) {
+      try { boards.place.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function rotateSelectedShip(dir) {
+    const ed = state.placement && state.placement.editor;
+    if (!ed) return;
+    const r = Engine.rotateShip(state.playerBoard, ed.shipId, dir);
+    if (!r.ok) {
+      const panel = shipEditorPanel();
+      if (panel) {
+        panel.classList.add('is-shake');
+        setTimeout(() => panel.classList.remove('is-shake'), 320);
+      }
+      const live = $('#ship-editor-live');
+      if (live) live.textContent = 'Здесь не помещается. Поверни иначе или удали корабль.';
+      toast('Здесь не помещается 😅', 'error');
+      Sfx.play('error');
+      return;
+    }
+    paintBoard(boards.place, state.playerBoard, true);
+    positionEditorPanel();
+    const live = $('#ship-editor-live');
+    if (live) live.textContent = 'Корабль повёрнут';
+    Sfx.play('place');
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* ignore */ }
+  }
+
+  function deleteSelectedShip() {
+    const ed = state.placement && state.placement.editor;
+    if (!ed) return;
+    const ship = state.playerBoard.ships[ed.shipId];
+    if (!ship) { closeShipEditor(); return; }
+    const size = ship.size;
+    const first = ship.cells[0];
+    Engine.removeShipAt(state.playerBoard, first.x, first.y);
+    state.placement.remaining[size] = (state.placement.remaining[size] || 0) + 1;
+    if (!state.placement.size) state.placement.size = size;
+    closeShipEditor(false);
+    paintBoard(boards.place, state.playerBoard, true);
+    renderDock();
+    updateReady();
+    Sfx.play('place');
+  }
+
   function randomPlacement() {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     state.playerBoard = Engine.randomBoard(fleetSizes());
     state.placement.remaining = remainingFromFleet();
     Object.keys(state.placement.remaining).forEach((k) => { state.placement.remaining[k] = 0; });
@@ -803,6 +951,8 @@
   }
 
   function clearPlacement() {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     state.playerBoard = Engine.createBoard();
     state.placement.remaining = remainingFromFleet();
     state.placement.size = biggestLeft(state.placement.remaining);
@@ -816,6 +966,8 @@
 
   /* ---------------- Бой ---------------- */
   function beginBattle() {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     state.enemyBoard = Engine.randomBoard(fleetSizes());
     state.bot = new Engine.Bot(difficultyOf());
     state.gameOver = false;
@@ -894,6 +1046,7 @@
     }));
     Online.fleet(ships);
     state.net.fleetSent = true;
+    setPlacementLocked(true);
     $('#btn-ready').disabled = true;
     $('#place-hint').textContent = 'Ждём соперника…';
     $('#place-opp').textContent = 'Противник: ' + state.botName + ' · расставляется';
@@ -901,6 +1054,8 @@
   }
 
   function beginOnlineBattle(first) {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     state.enemyBoard = Engine.createBoard();
     state.net.foeShips = 10;
     state.gameOver = false;
@@ -1044,6 +1199,8 @@
   }
 
   function leaveOnline(silent) {
+    closeShipEditor(false);
+    setPlacementLocked(false);
     // Выходим и из лобби: иначе комната остаётся на сервере «призраком»,
     // а новый create на том же сокете сервер игнорирует.
     const inRoom = !!(state.net && state.net.code) || state.mode === 'online';
@@ -1205,6 +1362,7 @@
       if (state.mode === 'online' && state.screen === 'place' &&
           state.net && state.net.fleetSent && !state.gameOver) {
         state.net.fleetSent = false;
+        setPlacementLocked(false);
         const ready = $('#btn-ready');
         if (ready) ready.disabled = false;
         const hint = $('#place-hint');
@@ -2061,6 +2219,24 @@
       beginBattle();
     });
 
+    /* --- редактор корабля --- */
+    $('#ship-editor').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      const act = btn.dataset.act;
+      if (act === 'left' || act === 'right') rotateSelectedShip(act);
+      else if (act === 'delete') deleteSelectedShip();
+      else closeShipEditor();
+    });
+    window.addEventListener('resize', () => positionEditorPanel());
+    window.addEventListener('orientationchange', () => setTimeout(positionEditorPanel, 120));
+    document.addEventListener('pointerdown', (e) => {
+      if (!state.placement || !state.placement.editor) return;
+      if (e.target.closest('#ship-editor')) return;
+      if (e.target.closest('#board-place')) return;
+      closeShipEditor();
+    });
+
     /* --- бой --- */
     boards.enemy.addEventListener('click', (e) => {
       const cell = e.target.closest('.cell');
@@ -2128,11 +2304,16 @@
       if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
         if (state.screen === 'place') {
           e.preventDefault();
-          toggleRotate(e.shiftKey);
-          Sfx.play('click');
+          if (state.placement && state.placement.editor) {
+            rotateSelectedShip(e.shiftKey ? 'left' : 'right');
+          } else {
+            toggleRotate(e.shiftKey);
+            Sfx.play('click');
+          }
         }
       }
       if (e.key === 'Escape') {
+        if (state.placement && state.placement.editor) closeShipEditor();
         const settings = $('#modal-settings');
         if (!settings.hidden) closeOverlay(settings);
         const modal = $('#modal-rules');

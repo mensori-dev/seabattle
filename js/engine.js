@@ -83,6 +83,65 @@
     return ship;
   }
 
+  function shipAt(board, x, y) {
+    if (!inBounds(x, y)) return null;
+    const id = board.grid[y][x];
+    return id >= 0 ? board.ships[id] || null : null;
+  }
+
+  function canPlaceCells(board, cells, ignoreShipId) {
+    const ignore = typeof ignoreShipId === 'number' ? ignoreShipId : -1;
+    for (const c of cells) {
+      if (!inBounds(c.x, c.y)) return false;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = c.x + dx;
+          const ny = c.y + dy;
+          if (!inBounds(nx, ny)) continue;
+          const id = board.grid[ny][nx];
+          if (id !== -1 && id !== ignore) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function rotateShip(board, shipId, dir) {
+    const ship = board.ships[shipId];
+    if (!ship) return { ok: false, reason: 'missing' };
+    if (ship.size <= 1) return { ok: true, ship };
+
+    const xs = ship.cells.map((c) => c.x);
+    const ys = ship.cells.map((c) => c.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const wasHorizontal = ship.horizontal;
+
+    const cells = [];
+    for (let i = 0; i < ship.size; i++) {
+      cells.push(wasHorizontal
+        ? { x: minX, y: minY + i }
+        : { x: minX + i, y: minY });
+    }
+
+    // сдвигаем линию внутрь поля, если она вылезла за край
+    const overflowY = Math.max(0, (minY + ship.size) - SIZE);
+    const overflowX = Math.max(0, (minX + ship.size) - SIZE);
+    for (const c of cells) {
+      c.y -= overflowY;
+      c.x -= overflowX;
+    }
+
+    if (!canPlaceCells(board, cells, shipId)) return { ok: false, reason: 'collision' };
+
+    for (const c of ship.cells) board.grid[c.y][c.x] = -1;
+    ship.cells = cells;
+    ship.horizontal = !wasHorizontal;
+    if (dir === 'left') ship.cells.reverse();
+    for (const c of cells) board.grid[c.y][c.x] = shipId;
+    return { ok: true, ship };
+  }
+
   function randomBoard(fleet) {
     const sizes = (Array.isArray(fleet) && fleet.length ? fleet : FLEET)
       .slice().sort((a, b) => b - a);
@@ -336,6 +395,7 @@
   global.Engine = {
     SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS,
     createBoard, canPlace, placeShip, removeShipAt, randomBoard,
+    shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,
     Bot, rankFor, nextRank, eloExpected, eloDelta,
     NAMES, randomName, clamp

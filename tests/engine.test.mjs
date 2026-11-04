@@ -207,3 +207,105 @@ test('случайные ники — из списка', () => {
     assert.ok(E.NAMES.includes(E.randomName()));
   }
 });
+
+test('shipAt: корабль, пустая клетка и выход за поле', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 2, 3, 3, true);
+  assert.equal(E.shipAt(b, 4, 3), s);
+  assert.equal(E.shipAt(b, 2, 4), null);
+  assert.equal(E.shipAt(b, -1, 0), null);
+  assert.equal(E.shipAt(b, 10, 0), null);
+});
+
+test('canPlaceCells: свои клетки игнорируются, чужие и границы — нет', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 0, 0, 4, true);
+  assert.equal(E.canPlaceCells(b, s.cells, s.id), true);
+  assert.equal(E.canPlaceCells(b, s.cells), false);
+
+  const block = E.placeShip(b, 5, 5, 1, true);
+  assert.equal(E.canPlaceCells(b, block.cells, block.id), true);
+  assert.equal(E.canPlaceCells(b, [{ x: 9, y: 9 }, { x: 10, y: 9 }], -1), false);
+  assert.equal(E.canPlaceCells(b, [{ x: 0, y: 1 }], -1), false);
+});
+
+test('rotateShip: два нажатия возвращают корабль на место', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 3, 4, 4, true);
+  const before = Array.from(s.cells, (c) => [c.x, c.y]);
+
+  const first = E.rotateShip(b, s.id, 'right');
+  assert.equal(first.ok, true);
+  assert.deepEqual(
+    Array.from(s.cells, (c) => [c.x, c.y]),
+    [[3, 4], [3, 5], [3, 6], [3, 7]]
+  );
+  assert.equal(s.horizontal, false);
+
+  const second = E.rotateShip(b, s.id, 'right');
+  assert.equal(second.ok, true);
+  assert.deepEqual(Array.from(s.cells, (c) => [c.x, c.y]), before);
+  assert.equal(s.horizontal, true);
+});
+
+test('rotateShip: влево и вправо дают один силуэт, но разный нос', () => {
+  const right = E.createBoard();
+  const sr = E.placeShip(right, 2, 2, 4, true);
+  E.rotateShip(right, sr.id, 'right');
+
+  const left = E.createBoard();
+  const sl = E.placeShip(left, 2, 2, 4, true);
+  E.rotateShip(left, sl.id, 'left');
+
+  const cells = (ship) => Array.from(ship.cells, (c) => c.x + ':' + c.y).sort();
+  assert.deepEqual(cells(sr), cells(sl));
+  assert.equal(sr.cells[0].y, 2);
+  assert.equal(sl.cells[0].y, 5);
+});
+
+test('rotateShip: у нижнего края корабль сдвигается внутрь поля', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 1, 7, 4, true);
+  const r = E.rotateShip(b, s.id, 'right');
+  assert.equal(r.ok, true);
+  assert.equal(s.cells[0].y, 6);
+  for (const c of s.cells) {
+    assert.ok(c.x >= 0 && c.y >= 0 && c.x < E.SIZE && c.y < E.SIZE);
+  }
+});
+
+test('rotateShip: чужой корабль рядом и касание углом отклоняются', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 0, 0, 4, true);
+  E.placeShip(b, 1, 2, 1, true);
+  const before = Array.from(s.cells, (c) => [c.x, c.y]);
+
+  const r = E.rotateShip(b, s.id, 'right');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'collision');
+  assert.deepEqual(Array.from(s.cells, (c) => [c.x, c.y]), before);
+  assert.equal(b.grid[0][0], s.id);
+
+  const corner = E.createBoard();
+  const sc = E.placeShip(corner, 0, 0, 4, true);
+  E.placeShip(corner, 1, 3, 1, true);
+  assert.equal(E.rotateShip(corner, sc.id, 'right').ok, false);
+});
+
+test('rotateShip: корабль длиной 1 не меняется', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 5, 5, 1, true);
+  const r = E.rotateShip(b, s.id, 'left');
+  assert.equal(r.ok, true);
+  assert.deepEqual(Array.from(s.cells, (c) => [c.x, c.y]), [[5, 5]]);
+});
+
+test('rotateShip: hits и sunk сохраняются', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 0, 0, 2, true);
+  s.hits = 1;
+  s.sunk = true;
+  E.rotateShip(b, s.id, 'right');
+  assert.equal(s.hits, 1);
+  assert.equal(s.sunk, true);
+});

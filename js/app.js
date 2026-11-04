@@ -49,6 +49,8 @@
     cupMatch: false        // текущий бой идёт в зачёт кубка
   };
 
+  let netShotTimer = null;
+
   const boards = {
     place: $('#board-place'),
     enemy: $('#board-enemy'),
@@ -1188,8 +1190,34 @@
     }
   }
 
+  /* Если сервер не ответил на выстрел, доска не должна залипнуть навсегда. */
+  function clearNetShotTimeout() {
+    if (netShotTimer) {
+      clearTimeout(netShotTimer);
+      netShotTimer = null;
+    }
+  }
+
+  function armNetShotTimeout() {
+    clearNetShotTimeout();
+    netShotTimer = setTimeout(() => {
+      netShotTimer = null;
+      if (state.mode !== 'online' || state.gameOver) return;
+      state.locked = false;
+      setTurn(!!state.playerTurn);
+      toast('Сервер не ответил. Попробуй ещё раз', 'error');
+      Sfx.play('error');
+    }, 6000);
+  }
+
+  function showReconnect(on) {
+    const btn = $('#btn-reconnect');
+    if (btn) btn.hidden = !on;
+  }
+
   function onNetShot(msg) {
     if (state.mode !== 'online' || !state.enemyBoard || !state.playerBoard) return;
+    clearNetShotTimeout();
     const x = Number(msg.x);
     const y = Number(msg.y);
     if (x < 0 || y < 0 || x >= Engine.SIZE || y >= Engine.SIZE) return;
@@ -1238,6 +1266,7 @@
 
   function onNetTurn(msg) {
     if (state.mode !== 'online') return;
+    clearNetShotTimeout();
     state.playerTurn = !!msg.you;
     state.locked = !msg.you;
     setTurn(state.playerTurn);
@@ -1248,6 +1277,8 @@
   }
 
   function leaveOnline(silent) {
+    clearNetShotTimeout();
+    showReconnect(false);
     closeShipEditor(false);
     setPlacementLocked(false);
     // Выходим и из лобби: иначе комната остаётся на сервере «призраком»,
@@ -1358,6 +1389,7 @@
       $('#online-code').textContent = msg.code;
       $('#online-hint').textContent = 'Скинь код другу — ждём второго игрока…';
       setOnlineStatus('');
+      showReconnect(false);
     });
 
     Online.on('wait', () => {
@@ -1379,6 +1411,7 @@
     Online.on('turn', onNetTurn);
 
     Online.on('end', (msg) => {
+      clearNetShotTimeout();
       if (state.mode !== 'online' || state.gameOver) return;
       endGame(!!msg.win, msg.reason || 'online');
     });
@@ -1398,6 +1431,7 @@
 
     Online.on('error', (msg) => {
       const text = (msg && msg.msg) || 'Ошибка соединения';
+      clearNetShotTimeout();
       toast('⚠️ ' + text, 'miss');
       if (state.screen === 'online') setOnlineStatus(text, true);
       // Бой: отклонённый выстрел не должен навсегда блокировать доску.
@@ -1420,6 +1454,7 @@
     });
 
     Online.on('closed', () => {
+      clearNetShotTimeout();
       if (state.mode !== 'online' || state.gameOver) return;
       toast('📡 Связь с сервером потеряна', 'miss');
       state.gameOver = true;
@@ -1428,6 +1463,7 @@
       setTimeout(() => {
         showScreen('online');
         setOnlineStatus('Связь с сервером потеряна. Подключись заново.', true);
+        showReconnect(true);
       }, 1300);
     });
   }
@@ -1534,6 +1570,7 @@
     if (state.mode === 'online') {
       state.locked = true;
       Online.shot(x, y);
+      armNetShotTimeout();
       return;
     }
 
@@ -1986,6 +2023,18 @@
     $('#btn-lb-refresh').addEventListener('click', () => {
       Sfx.play('click');
       loadLeaderboard();
+    });
+
+    $('#btn-reconnect').addEventListener('click', () => {
+      Sfx.play('click');
+      showReconnect(false);
+      setOnlineStatus('Подключаемся…');
+      Online.connect()
+        .then(() => setOnlineStatus('Соединение восстановлено'))
+        .catch((err) => {
+          setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
+          showReconnect(true);
+        });
     });
 
     $('#btn-create-room').addEventListener('click', () => {

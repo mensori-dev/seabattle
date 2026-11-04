@@ -10,6 +10,32 @@
 
   var ws = null;
   var handlers = {};
+  var heartbeat = null;
+  var lastPong = 0;
+
+  /* Сердцебиение: раз в 20 секунд ping. В скрытой вкладке молчим,
+     чтобы браузер не будил телефон зря; после возврата — сразу ping.
+     Если pong не пришёл 45 секунд, сокет считается мёртвым. */
+  function startHeartbeat() {
+    if (heartbeat) return;
+    lastPong = Date.now();
+    heartbeat = setInterval(function () {
+      if (!ws || ws.readyState !== 1) return;
+      if (typeof global.document !== 'undefined' && global.document && global.document.hidden) return;
+      if (Date.now() - lastPong > 45000) {
+        try { ws.close(); } catch (e) { /* ignore */ }
+        return;
+      }
+      send({ t: 'ping' });
+    }, 20000);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeat) {
+      try { clearInterval(heartbeat); } catch (e) { /* ignore */ }
+      heartbeat = null;
+    }
+  }
 
   function target() {
     var loc = global.location;
@@ -68,12 +94,14 @@
         clearTimeout(timer);
         sock.removeEventListener('open', onOpen);
         sock.removeEventListener('error', onError);
+        startHeartbeat();
         resolve();
       };
       var onError = function () {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        stopHeartbeat();
         sock.removeEventListener('open', onOpen);
         sock.removeEventListener('error', onError);
         reject(new Error('Не удалось подключиться'));
@@ -84,6 +112,11 @@
       sock.addEventListener('error', onError);
 
       sock.onclose = function () {
+        // Старый сокет мог закрыться уже после реконнекта: его события
+        // не должны рвать новый матч и показывать «соединение потеряно».
+        if (ws !== sock) return;
+        stopHeartbeat();
+        ws = null;
         if (!settled) {
           settled = true;
           clearTimeout(timer);
@@ -92,9 +125,13 @@
         emit('closed', {});
       };
       sock.onmessage = function (ev) {
+        if (ws !== sock) return;
         var msg;
         try { msg = JSON.parse(ev.data); } catch (e) { return; }
-        if (msg && msg.t) emit(msg.t, msg);
+        if (!msg || !msg.t) return;
+        if (msg.t === 'pong') { lastPong = Date.now(); return; }
+        if (msg.t === 'room') startHeartbeat();
+        emit(msg.t, msg);
       };
     });
   }
@@ -120,9 +157,23 @@
     shot: function (x, y) { send({ t: 'shot', x: x, y: y }); },
     surrender: function () { send({ t: 'surrender' }); },
     leave: function () {
+      stopHeartbeat();
       send({ t: 'leave' });
       try { if (ws) ws.close(); } catch (e) { /* ignore */ }
       ws = null;
+    },
+    ping: function () {
+      lastPong = Date.now();
+      send({ t: 'ping' });
     }
   };
+
+  /* Вернулись во вкладку — сразу сообщаем серверу, что мы живы. */
+  if (global.document && global.document.addEventListener) {
+    global.document.addEventListener('visibilitychange', function () {
+      if (global.document.hidden) return;
+      lastPong = Date.now();
+      if (ws && ws.readyState === 1) send({ t: 'ping' });
+    });
+  }
 })(window);

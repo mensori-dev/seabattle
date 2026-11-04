@@ -10,6 +10,8 @@
 - `js/engine.js` — правила, генерация флота, выстрелы, бот, ELO. Без DOM.
 - `js/app.js` — UI, звук, ход игры, localStorage, экраны.
 - `js/online.js` — клиент онлайн-игры: WebSocket, комнаты (`window.Online`).
+- `js/music.js` — процедурная фоновая музыка на WebAudio: без внешних файлов
+  (`window.Music`).
 - `js/yandex.js` — платформа Яндекс Игр: SDK, реклама, пауза (`window.YandexGame`).
   Подключается только в сборке для Яндекс Игр.
 - `server/main.ts` — Deno-сервер комнат: проверяет флот и сам считает выстрелы.

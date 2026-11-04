@@ -126,6 +126,7 @@ write('index.html', buildHtml());
 fs.copyFileSync(path.join(root, 'style.css'), path.join(out, 'style.css'));
 fs.mkdirSync(path.join(out, 'js'), { recursive: true });
 fs.copyFileSync(path.join(root, 'js', 'engine.js'), path.join(out, 'js', 'engine.js'));
+fs.copyFileSync(path.join(root, 'js', 'music.js'), path.join(out, 'js', 'music.js'));
 write('js/app.js', buildApp());
 fs.copyFileSync(path.join(root, 'js', 'yandex.js'), path.join(out, 'js', 'yandex.js'));
 

@@ -23,7 +23,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v20';
+  const SW_VERSION = 'sb-v21';
 
   const state = {
     profile: null,

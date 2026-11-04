@@ -41,6 +41,12 @@ test('Яндекс Игры: страница без внешних ресурс
   assert.doesNotMatch(html, /screen-online/);
   assert.doesNotMatch(html, /ios-install/);
   assert.doesNotMatch(html, /(src|href)=["']https?:/);
+  assert.match(html, /js\/music\.js/);
+});
+
+test('Яндекс Игры: музыка в сборке и архиве', () => {
+  assert.ok(fs.existsSync(path.join(out, 'js', 'music.js')), 'нет js/music.js');
+  assert.doesNotMatch(app, /assets\/music/);
 });
 
 test('Яндекс Игры: локальные шрифты подключены', () => {

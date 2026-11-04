@@ -13,10 +13,13 @@
 
   function target() {
     var loc = global.location;
-    // На локальной машине — локальный сервер (`npm run server`),
-    // на сайте и в file:// — прод. Так разработка не зависит от деплоя.
-    var local = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1';
-    if (local) return 'ws://127.0.0.1:8000/ws';
+    // Локальный сервер (`npm run server`) — только для http-разработки.
+    // В APK Capacitor отдаёт игру с https://localhost, и это НЕ локальная
+    // разработка: раньше такой адрес уводил сокет на ws://127.0.0.1:8000,
+    // отсюда «нет подключения к интернету» при создании комнаты.
+    var host = loc.hostname;
+    var isDevHost = host === 'localhost' || host === '127.0.0.1';
+    if (isDevHost && loc.protocol === 'http:') return 'ws://127.0.0.1:8000/ws';
     return PROD_URL || null;
   }
 

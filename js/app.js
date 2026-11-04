@@ -68,6 +68,8 @@
       history: [],
       muted: false,
       volume: 0.7,          // 0…1, громкость эффектов
+      music: true,          // фоновая музыка
+      musicVolume: 0.5,     // 0…1, громкость музыки
       motion: 'on',         // 'on' | 'off' — анимации
       bubbles: true,        // пузыри в фоне (на телефоне их можно выключить)
       theme: 'dark',        // 'dark' | 'light'
@@ -317,6 +319,26 @@
     const volVal = $('#set-volume-val');
     if (volVal) volVal.textContent = vol + '%';
 
+    const sfx = $('#set-sfx');
+    if (sfx) {
+      const on = !p.muted;
+      sfx.classList.toggle('is-on', on);
+      sfx.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    const music = $('#set-music');
+    if (music) {
+      const on = p.music !== false;
+      music.classList.toggle('is-on', on);
+      music.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    const mv = Math.round(clamp(typeof p.musicVolume === 'number' ? p.musicVolume : 0.5, 0, 1) * 100);
+    const mrange = $('#set-music-volume');
+    if (mrange) mrange.value = mv;
+    const mval = $('#set-music-volume-val');
+    if (mval) mval.textContent = mv + '%';
+
     const motion = $('#set-motion');
     if (motion) {
       const on = p.motion !== 'off';
@@ -340,11 +362,25 @@
     $$('#set-fleet button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.fleet === fleet);
     });
-
     const d = difficultyOf();
     $$('#set-difficulty button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.level === d);
     });
+  }
+
+  /* ---------------- Музыка ---------------- */
+  function applyMusicSettings() {
+    if (!window.Music) return;
+    const p = state.profile;
+    Music.setEnabled(p.music !== false);
+    Music.setVolume(clamp(typeof p.musicVolume === 'number' ? p.musicVolume : 0.5, 0, 1));
+  }
+
+  function ensureMusicStarted() {
+    if (!window.Music || state.profile.music === false) return;
+    if (!Music.init()) return;
+    applyMusicSettings();
+    Music.start();
   }
 
   /* ---------------- Меню ---------------- */
@@ -379,7 +415,7 @@
     const st = p.stats || { shots: 0, hits: 0 };
     const acc = st.shots ? Math.round((st.hits / st.shots) * 100) : 0;
     $('#accuracy-line').textContent = '🎯 Точность ' + acc + '% · ' + st.shots + ' выстрелов';
-    $('#btn-sound').textContent = p.muted ? '🔇' : '🔊';
+    $('#btn-sound').textContent = (!p.muted || p.music !== false) ? '🔊' : '🔇';
     syncSettings();
     updateDailyCard();
     updateSideCards();
@@ -1728,6 +1764,7 @@
     overlay.classList.toggle('is-lose', !win);
     overlay.hidden = false;
     overlay.classList.remove('is-open');
+    if (window.Music) Music.duck(true);
 
     $('#result-emblem').textContent = win ? '🏆' : '💥';
     $('#result-title').textContent = win ? 'Победа!' : 'Поражение';
@@ -1867,6 +1904,7 @@
 
   function closeOverlay(el) {
     if (!el) return;
+    if (el.id === 'overlay' && window.Music) Music.duck(false);
     if (el._closeTimer) clearTimeout(el._closeTimer);
     el.classList.remove('is-open');
     el._closeTimer = setTimeout(() => {
@@ -1883,6 +1921,8 @@
       name: p.name,
       muted: p.muted,
       volume: p.volume,
+      music: p.music,
+      musicVolume: p.musicVolume,
       motion: p.motion,
       bubbles: p.bubbles,
       theme: p.theme,
@@ -1896,6 +1936,7 @@
     applyMotion();
     applyBubbles();
     applyTheme();
+    applyMusicSettings();
     updateMenu();
   }
 
@@ -1985,10 +2026,17 @@
     });
 
     $('#btn-sound').addEventListener('click', () => {
-      state.profile.muted = !state.profile.muted;
+      const anyOn = !state.profile.muted || state.profile.music !== false;
+      const next = !anyOn;
+      state.profile.muted = !next;
+      state.profile.music = next;
       saveProfile();
-      $('#btn-sound').textContent = state.profile.muted ? '🔇' : '🔊';
-      if (!state.profile.muted) Sfx.play('click');
+      applyMusicSettings();
+      if (next) ensureMusicStarted();
+      else if (window.Music) Music.stop();
+      syncSettings();
+      updateMenu();
+      if (next) Sfx.play('click');
     });
 
     $('#nickname').addEventListener('change', commitNickname);
@@ -2079,6 +2127,38 @@
       saveProfile();
     });
     $('#set-volume').addEventListener('change', () => Sfx.play('click'));
+
+    $('#set-sfx').addEventListener('click', () => {
+      state.profile.muted = !state.profile.muted;
+      saveProfile();
+      syncSettings();
+      updateMenu();
+      Sfx.play('click');
+    });
+
+    $('#set-music').addEventListener('click', () => {
+      state.profile.music = state.profile.music === false;
+      saveProfile();
+      applyMusicSettings();
+      if (state.profile.music) {
+        ensureMusicStarted();
+        if (window.Music) Music.duck(false);
+      } else if (window.Music) {
+        Music.stop();
+      }
+      syncSettings();
+      updateMenu();
+      Sfx.play('click');
+    });
+
+    $('#set-music-volume').addEventListener('input', (e) => {
+      state.profile.musicVolume = clamp(Number(e.target.value) / 100, 0, 1);
+      const val = $('#set-music-volume-val');
+      if (val) val.textContent = Math.round(state.profile.musicVolume * 100) + '%';
+      applyMusicSettings();
+      saveProfile();
+    });
+    $('#set-music-volume').addEventListener('change', () => Sfx.play('click'));
 
     $('#set-motion').addEventListener('click', () => {
       state.profile.motion = state.profile.motion === 'off' ? 'on' : 'off';
@@ -2347,6 +2427,15 @@
       Sfx.init();
       Sfx.resume();
     }, { once: true });
+
+    ['pointerdown', 'keydown'].forEach((type) => {
+      document.addEventListener(type, ensureMusicStarted, { once: true, passive: true });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!window.Music) return;
+      if (document.hidden) Music.pause();
+      else if (state.profile.music !== false) Music.resume();
+    });
   }
 
   /* Поворот: обычный шаг — следующее направление по кругу (4 стороны),
@@ -2416,6 +2505,10 @@
       state.paused = on;
       if (on) Sfx.suspend();
       else Sfx.resume();
+      if (window.Music) {
+        if (on) Music.pause();
+        else if (state.profile.music !== false) Music.resume();
+      }
     };
     YG.onPause(() => setPaused(true));
     YG.onResume(() => setPaused(false));

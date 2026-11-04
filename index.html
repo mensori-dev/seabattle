@@ -309,6 +309,35 @@
 
         <div class="setting-row">
           <div class="setting-text">
+            <b>Звуки</b>
+            <small>Выстрелы, клики и попадания</small>
+          </div>
+          <button class="switch is-on" id="set-sfx" type="button" role="switch" aria-checked="true"
+                  aria-label="Звуки"><i></i></button>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <b>Музыка</b>
+            <small>Спокойный морской фон</small>
+          </div>
+          <button class="switch is-on" id="set-music" type="button" role="switch" aria-checked="true"
+                  aria-label="Музыка"><i></i></button>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
+            <b>Громкость музыки</b>
+            <small>Тише, чтобы не мешать друзьям</small>
+          </div>
+          <div class="setting-control">
+            <input class="range" id="set-music-volume" type="range" min="0" max="100" step="5" value="50" aria-label="Громкость музыки">
+            <span class="setting-value" id="set-music-volume-val">50%</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-text">
             <b>Анимации</b>
             <small>Тряска, конфетти, эффекты попаданий</small>
           </div>
@@ -390,6 +419,7 @@
   </div>
   <script src="js/engine.js"></script>
   <script src="js/online.js"></script>
+  <script src="js/music.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

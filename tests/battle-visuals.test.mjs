@@ -66,3 +66,10 @@ test('AMOLED тема: чёрный фон и свой переключател�
   assert.match(html, /data-theme="amoled"/);
   assert.match(app, /theme-amoled/);
 });
+
+test('AMOLED тема: призрак и выбранный корабль подсвечены', () => {
+  const css = read('style.css');
+  assert.match(css, /html\.theme-amoled \.cell\.ghost-ok\{\s*background:/);
+  assert.match(css, /html\.theme-amoled \.cell\.ghost-bad\{\s*background:/);
+  assert.match(css, /html\.theme-amoled \.screen-place\.is-ship-edit \.board-place \.cell\.ship-selected\{/);
+});

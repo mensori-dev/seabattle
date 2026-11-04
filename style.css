@@ -1105,6 +1105,21 @@ html.theme-amoled .cell.ship{
   box-shadow:inset 0 2px 0 rgba(255,255,255,.32), inset 0 -2px 0 rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.6);
 }
 html.theme-amoled .cell.miss{background:rgba(90,150,190,.22)}
+/* «html.theme-amoled .cell» специфичнее «.cell.ghost-*»: без этих строк призрак
+   при расстановке сливается с пустой клеткой и не видно, куда встанет корабль. */
+html.theme-amoled .cell.ghost-ok{
+  background:rgba(53,224,210,.34);
+  box-shadow:inset 0 0 0 2px rgba(120,255,240,.85), 0 0 16px rgba(53,224,210,.45);
+}
+html.theme-amoled .cell.ghost-bad{
+  background:rgba(255,90,80,.36);
+  box-shadow:inset 0 0 0 2px rgba(255,140,130,.9), 0 0 14px rgba(255,90,80,.4);
+}
+html.theme-amoled .screen-place.is-ship-edit .board-place .cell{opacity:.42}
+html.theme-amoled .screen-place.is-ship-edit .board-place .cell.ship-selected{
+  opacity:1;
+  box-shadow:0 0 0 3px #35e0d2, 0 0 24px rgba(53,224,210,.65);
+}
 html.theme-amoled .mini-card,
 html.theme-amoled .ship-chip{background:rgba(255,255,255,.05)}
 html.theme-amoled .toast{background:rgba(8,8,10,.98);border-color:rgba(120,200,255,.2)}

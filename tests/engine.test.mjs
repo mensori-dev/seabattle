@@ -300,6 +300,18 @@ test('rotateShip: корабль длиной 1 не меняется', () => {
   assert.deepEqual(Array.from(s.cells, (c) => [c.x, c.y]), [[5, 5]]);
 });
 
+test('rotateShip: у правого края корабль сдвигается внутрь поля', () => {
+  const b = E.createBoard();
+  const s = E.placeShip(b, 9, 0, 4, false);
+  const r = E.rotateShip(b, s.id, 'right');
+  assert.equal(r.ok, true);
+  assert.equal(s.horizontal, true);
+  assert.deepEqual(Array.from(s.cells, (c) => c.x).sort((a, c) => a - c), [6, 7, 8, 9]);
+  for (const c of s.cells) {
+    assert.ok(c.x >= 0 && c.x < E.SIZE && c.y >= 0 && c.y < E.SIZE);
+  }
+});
+
 test('rotateShip: hits и sunk сохраняются', () => {
   const b = E.createBoard();
   const s = E.placeShip(b, 0, 0, 2, true);

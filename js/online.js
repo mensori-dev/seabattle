@@ -94,7 +94,6 @@
         clearTimeout(timer);
         sock.removeEventListener('open', onOpen);
         sock.removeEventListener('error', onError);
-        startHeartbeat();
         resolve();
       };
       var onError = function () {

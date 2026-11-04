@@ -23,7 +23,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v21';
+  const SW_VERSION = 'sb-v22';
 
   const state = {
     profile: null,
@@ -862,6 +862,10 @@
   function setPlacementLocked(locked) {
     const screen = $('#screen-place');
     if (screen) screen.classList.toggle('is-fleet-sent', !!locked);
+    ['#btn-random', '#btn-clear', '#btn-rotate', '#btn-erase'].forEach((sel) => {
+      const btn = $(sel);
+      if (btn) btn.disabled = !!locked;
+    });
     if (locked) closeShipEditor(false);
   }
 
@@ -873,7 +877,11 @@
     if (!ship) return null;
     ship.cells.forEach((c) => {
       const cell = boards.place.children[c.y * Engine.SIZE + c.x];
-      if (cell) cell.classList.add('ship-selected');
+      if (cell) {
+        cell.classList.add('ship-selected');
+        cell.setAttribute('aria-label', 'Клетка ' + (c.x + 1) + ', ' + (c.y + 1) +
+          ': корабль, ' + ship.size + ' палуб. Выбран');
+      }
     });
     return ship;
   }
@@ -932,7 +940,14 @@
     const screen = $('#screen-place');
     if (screen) screen.classList.remove('is-ship-edit');
     if (boards.place) boards.place.classList.remove('is-editing');
-    $$('#board-place .cell').forEach((cell) => cell.classList.remove('ship-selected'));
+    $$('#board-place .cell').forEach((cell, i) => {
+      if (!cell.classList.contains('ship-selected')) return;
+      cell.classList.remove('ship-selected');
+      const x = i % Engine.SIZE;
+      const y = Math.floor(i / Engine.SIZE);
+      const ship = state.playerBoard ? Engine.shipAt(state.playerBoard, x, y) : null;
+      cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + (ship ? ': корабль' : ''));
+    });
     if (state.placement) state.placement.editor = null;
     if (restoreFocus !== false) {
       try { boards.place.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
@@ -981,6 +996,7 @@
   }
 
   function randomPlacement() {
+    if (placementLocked()) return;
     closeShipEditor(false);
     setPlacementLocked(false);
     state.playerBoard = Engine.randomBoard(fleetSizes());
@@ -995,6 +1011,7 @@
   }
 
   function clearPlacement() {
+    if (placementLocked()) return;
     closeShipEditor(false);
     setPlacementLocked(false);
     state.playerBoard = Engine.createBoard();
@@ -1216,7 +1233,7 @@
   }
 
   function onNetShot(msg) {
-    if (state.mode !== 'online' || !state.enemyBoard || !state.playerBoard) return;
+    if (state.mode !== 'online' || state.gameOver || !state.enemyBoard || !state.playerBoard) return;
     clearNetShotTimeout();
     const x = Number(msg.x);
     const y = Number(msg.y);
@@ -1460,6 +1477,7 @@
       state.gameOver = true;
       state.locked = true;
       state.net = null;
+      state.mode = 'bot';
       setTimeout(() => {
         showScreen('online');
         setOnlineStatus('Связь с сервером потеряна. Подключись заново.', true);
@@ -1471,7 +1489,7 @@
 
   function updateFleet() {
     if (!state.enemyBoard || !state.playerBoard) return;
-    const online = state.mode === 'online';
+    const online = state.mode === 'online' && !!state.net;
     const foeLeft = online ? state.net.foeShips : Engine.shipsLeft(state.enemyBoard);
     const foeTotal = online ? 10 : Engine.totalShips(state.enemyBoard);
     $('#foe-fleet').textContent = foeLeft + ' / ' + foeTotal;
@@ -2191,7 +2209,6 @@
       applyMusicSettings();
       if (state.profile.music) {
         ensureMusicStarted();
-        if (window.Music) Music.duck(false);
       } else if (window.Music) {
         Music.stop();
       }

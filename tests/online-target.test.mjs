@@ -74,12 +74,14 @@ class FakeWS {
     (this.listeners.open || []).forEach((fn) => fn());
   }
   message(obj) {
-    (this.listeners.message || []).forEach((fn) => fn({ data: JSON.stringify(obj) }));
+    const ev = { data: JSON.stringify(obj) };
+    if (typeof this.onmessage === 'function') this.onmessage(ev);
+    (this.listeners.message || []).forEach((fn) => fn(ev));
   }
 }
 FakeWS.all = [];
 
-function loadWithSocket(location) {
+function loadWithSocket(location, timers) {
   FakeWS.all = [];
   const document = { addEventListener() {}, hidden: false };
   const window = {
@@ -92,7 +94,10 @@ function loadWithSocket(location) {
   const ctx = vm.createContext(Object.assign(window, {
     setTimeout,
     clearTimeout,
-    setInterval: () => 1,
+    setInterval: (fn, ms) => {
+      if (timers) timers.push({ fn, ms });
+      return (timers ? timers.length : 1);
+    },
     clearInterval: () => {},
     Date
   }));
@@ -135,4 +140,21 @@ test('ping уходит на сервер, когда сокет открыт', 
 test('heartbeat спит в скрытой вкладке', () => {
   assert.match(source, /document\.hidden/);
   assert.match(source, /visibilitychange/);
+});
+
+test('heartbeat не стартует до комнаты и стартует после room', async () => {
+  const timers = [];
+  const online = loadWithSocket({ protocol: 'https:', hostname: 'example.com' }, timers);
+  const connecting = online.connect();
+  const a = FakeWS.last;
+  a.open();
+  await connecting;
+  assert.equal(timers.length, 0, 'до комнаты сторожок не нужен');
+
+  a.message({ t: 'room', code: '1234', you: 0 });
+  assert.equal(timers.length, 1, 'после room сторожок запущен');
+  assert.equal(timers[0].ms, 20000);
+
+  online.leave();
+  assert.equal(online.isOpen(), false);
 });

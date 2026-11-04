@@ -1,22 +1,44 @@
 /* ============================================================
-   «Морской бой»: процедурная фоновая музыка на WebAudio.
-   Без внешних файлов: пэд, шум волн и редкие высокие ноты.
+   «Морской бой»: процедурная пиратская тема на WebAudio.
+   Без внешних файлов: скрипки, барабаны, бас и шум волн.
+   Мелодия оригинальная — не цитата из фильма.
    ============================================================ */
 (function (global) {
   'use strict';
 
-  // Am — F — C — G в низком регистре: спокойный морской фон.
-  const PROGRESSION = [
-    [110.00, 130.81, 164.81],
-    [87.31, 130.81, 174.61],
-    [130.81, 164.81, 196.00],
-    [98.00, 123.47, 146.83]
+  const BPM = 100;
+  const STEP = (60 / BPM) / 2;          // одна восьмая в размере 6/8
+  const BAR = 6;                        // шесть восьмых в такте
+  const BARS = 8;
+  const TOTAL_STEPS = BAR * BARS;
+  const LOOKAHEAD = 2;                  // секунды, которые планируем вперёд
+  const BASE_GAIN = 0.17;
+  const DUCK_GAIN = 0.035;
+
+  // Dm — Bb — F — C — Dm — Bb — C — Dm: морской минор с подъёмом.
+  const CHORDS = [
+    [62, 65, 69],
+    [58, 62, 65],
+    [57, 60, 65],
+    [60, 64, 67],
+    [62, 65, 69],
+    [58, 62, 65],
+    [60, 64, 67],
+    [62, 65, 69]
   ];
-  const PENTA = [523.25, 587.33, 659.25, 783.99, 880.00];
-  const BASE_GAIN = 0.18;
-  const DUCK_GAIN = 0.04;
-  const CHORD_SECONDS = 8;
-  const LOOKAHEAD = 2;
+  const BASS = [50, 46, 41, 48, 50, 46, 48, 50];
+
+  // Оригинальная мелодия: D5 F5 A5 | F5 E5 D5 и т. д. null — пауза.
+  const MELODY = [
+    [74, 77, 81, 77, 76, 74],
+    [70, 74, 77, 74, 72, 70],
+    [69, 72, 77, 76, 74, 72],
+    [72, 76, 79, 76, 74, 72],
+    [74, 77, 81, 81, 79, 77],
+    [82, 81, 79, 77, 76, 74],
+    [76, 79, 84, 82, 81, 79],
+    [81, 79, 77, 76, 74, null]
+  ];
 
   let ctx = null;
   let master = null;
@@ -30,12 +52,12 @@
   let volume = 0.5;
   let playing = false;
   let ducked = false;
-  let nextChordAt = 0;
-  let chordIndex = 0;
-  let nextNoteAt = 0;
+  let nextStepAt = 0;
+  let stepIndex = 0;
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function now() { return ctx ? ctx.currentTime : 0; }
+  function midi(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
   function targetGain() {
     return ducked ? DUCK_GAIN : BASE_GAIN * clamp(volume, 0, 1);
@@ -59,6 +81,7 @@
     for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * 0.7;
   }
 
+  /* Тихий шум прибоя: низкий фильтр и медленное «дыхание» — фон, не дрон. */
   function startWaves() {
     if (!ctx || waveSrc) return;
     createNoise();
@@ -68,14 +91,13 @@
     src.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 500;
+    filter.frequency.value = 420;
     const gain = ctx.createGain();
-    gain.gain.value = 0.03;
-    // медленная LFO «дышит» фильтром — волны накатывают и отступают
+    gain.gain.value = 0.014;
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.06;
+    lfo.frequency.value = 0.07;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 180;
+    lfoGain.gain.value = 140;
     lfo.connect(lfoGain);
     lfoGain.connect(filter.frequency);
     src.connect(filter);
@@ -99,56 +121,129 @@
     }
   }
 
-  function playPad(freqs, at, dur) {
+  /* Скрипка: две расстроенные пилы, мягкий фильтр и короткая атака. */
+  function playFiddle(freq, at, dur, level) {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(900, at);
-    filter.Q.value = 0.7;
+    filter.frequency.setValueAtTime(2800, at);
+    filter.Q.value = 0.9;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.linearRampToValueAtTime(0.06, at + 1.4);
-    gain.gain.linearRampToValueAtTime(0.0001, at + dur);
-    freqs.forEach(function (freq) {
+    gain.gain.linearRampToValueAtTime(level, at + 0.04);
+    gain.gain.linearRampToValueAtTime(level * 0.55, at + Math.max(0.08, dur * 0.6));
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    for (const detune of [-6, 6]) {
       const osc = ctx.createOscillator();
-      osc.type = 'sine';
+      osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(freq, at);
-      osc.detune.setValueAtTime((Math.random() * 8) - 4, at);
+      osc.detune.setValueAtTime(detune, at);
       osc.connect(filter);
       osc.start(at);
-      osc.stop(at + dur + 0.2);
+      osc.stop(at + dur + 0.05);
+    }
+    filter.connect(gain);
+    gain.connect(padBus);
+  }
+
+  /* Струнный аккорд: короткий удар на сильную долю. */
+  function playChord(freqs, at, dur) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1500, at);
+    filter.Q.value = 0.6;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(0.028, at + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    freqs.forEach(function (freq) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, at);
+      osc.detune.setValueAtTime((Math.random() * 10) - 5, at);
+      osc.connect(filter);
+      osc.start(at);
+      osc.stop(at + dur + 0.05);
     });
     filter.connect(gain);
     gain.connect(padBus);
   }
 
-  function playNote(at) {
+  function playBass(freq, at, dur) {
     const osc = ctx.createOscillator();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(PENTA[Math.floor(Math.random() * PENTA.length)], at);
+    osc.frequency.setValueAtTime(freq, at);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.linearRampToValueAtTime(0.045, at + 0.08);
-    gain.gain.linearRampToValueAtTime(0.0001, at + 2.2);
+    gain.gain.linearRampToValueAtTime(0.05, at + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
     osc.connect(gain);
     gain.connect(padBus);
     osc.start(at);
-    osc.stop(at + 2.4);
+    osc.stop(at + dur + 0.05);
+  }
+
+  function playKick(at) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(95, at);
+    osc.frequency.exponentialRampToValueAtTime(42, at + 0.18);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(0.085, at + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.24);
+    osc.connect(gain);
+    gain.connect(padBus);
+    osc.start(at);
+    osc.stop(at + 0.28);
+  }
+
+  function playNoiseHit(at, dur, level, cutoff) {
+    createNoise();
+    if (!noiseBuffer) return;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = cutoff > 3000 ? 'highpass' : 'bandpass';
+    filter.frequency.setValueAtTime(cutoff, at);
+    filter.Q.value = 1;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.linearRampToValueAtTime(level, at + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(padBus);
+    try { src.start(at); src.stop(at + dur + 0.05); } catch (e) { /* ignore */ }
+  }
+
+  function playStep(index, at) {
+    const bar = Math.floor(index / BAR) % BARS;
+    const beat = index % BAR;
+    const chord = CHORDS[bar];
+    const melody = MELODY[bar][beat];
+
+    if (beat === 0 || beat === 3) {
+      playChord(chord.map(midi), at, beat === 0 ? 0.34 : 0.22);
+      playBass(midi(BASS[bar]), at, beat === 0 ? 0.36 : 0.24);
+    } else if (beat === 5) {
+      playBass(midi(BASS[bar]) * 1.5, at, 0.16);
+    }
+
+    if (melody !== null) playFiddle(midi(melody), at, beat === 5 ? 0.4 : 0.3, 0.038);
+
+    if (beat === 0 || beat === 3) playKick(at);
+    if (beat === 3) playNoiseHit(at, 0.16, 0.035, 1800);
+    if (beat === 2 || beat === 5) playNoiseHit(at, 0.06, 0.016, 6500);
   }
 
   function schedule() {
     if (!ctx || !playing) return;
     const horizon = now() + LOOKAHEAD;
-    if (nextChordAt < horizon) {
-      const at = Math.max(nextChordAt, now() + 0.05);
-      playPad(PROGRESSION[chordIndex % PROGRESSION.length], at, CHORD_SECONDS);
-      chordIndex += 1;
-      nextChordAt += CHORD_SECONDS;
-      if (nextChordAt < now()) nextChordAt = now() + CHORD_SECONDS;
-    }
-    if (nextNoteAt < now()) nextNoteAt = now() + 12 + Math.random() * 8;
-    if (nextNoteAt < horizon) {
-      playNote(nextNoteAt);
-      nextNoteAt += 12 + Math.random() * 8;
+    while (nextStepAt < horizon) {
+      const at = Math.max(nextStepAt, now() + 0.05);
+      playStep(stepIndex, at);
+      stepIndex = (stepIndex + 1) % TOTAL_STEPS;
+      nextStepAt += STEP;
     }
   }
 
@@ -185,9 +280,8 @@
     }
     applyGain(true);
     startWaves();
-    nextChordAt = now() + 0.05;
-    chordIndex = 0;
-    nextNoteAt = now() + 12 + Math.random() * 8;
+    stepIndex = 0;
+    nextStepAt = now() + 0.05;
     schedule();
     timer = setInterval(schedule, 2000);
     return true;

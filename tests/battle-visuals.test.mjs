@@ -50,6 +50,13 @@ test('светлая тема: свои корабли тёмные и конт�
   assert.match(css, /html\.theme-light \.ship-blocks i\{\s*background:/);
 });
 
+test('светлая тема: призрак и выбранный корабль подсвечены', () => {
+  const css = read('style.css');
+  assert.match(css, /html\.theme-light \.cell\.ghost-ok\{\s*background:/);
+  assert.match(css, /html\.theme-light \.cell\.ghost-bad\{\s*background:/);
+  assert.match(css, /html\.theme-light \.screen-place\.is-ship-edit \.board-place \.cell\.ship-selected\{/);
+});
+
 test('AMOLED тема: чёрный фон и свой переключатель', () => {
   const css = read('style.css');
   const html = read('index.html');

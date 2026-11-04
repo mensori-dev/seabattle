@@ -37,6 +37,51 @@ test('трек можно переключить и он запоминаетс�
   assert.equal(Music.getTrack(), 'ambient');
 });
 
+test('шум прибоя fading loop без щелчка на стыке', () => {
+  let data = null;
+  class Param {
+    setValueAtTime() {}
+    linearRampToValueAtTime() {}
+    exponentialRampToValueAtTime() {}
+    cancelScheduledValues() {}
+    cancelAndHoldAtTime() {}
+  }
+  class Node {
+    connect() { return this; }
+    disconnect() {}
+    start() {}
+    stop() {}
+  }
+  class Gain extends Node { constructor() { super(); this.gain = new Param(); } }
+  class Osc extends Node {
+    constructor() { super(); this.frequency = new Param(); this.detune = new Param(); this.type = 'sine'; }
+  }
+  class Filter extends Node {
+    constructor() { super(); this.frequency = new Param(); this.Q = new Param(); this.type = 'lowpass'; }
+  }
+  class BufferSource extends Node { constructor() { super(); this.buffer = null; this.loop = false; } }
+  class FakeCtx {
+    constructor() {
+      this.currentTime = 0; this.sampleRate = 1000; this.state = 'running';
+      this.destination = {};
+    }
+    createGain() { return new Gain(); }
+    createOscillator() { return new Osc(); }
+    createBiquadFilter() { return new Filter(); }
+    createBuffer(ch, len) {
+      data = new Float32Array(len);
+      return { getChannelData: () => data };
+    }
+    createBufferSource() { return new BufferSource(); }
+  }
+  const Music = load({ AudioContext: FakeCtx, setInterval: () => 1, clearInterval: () => {} });
+  assert.equal(Music.init(), true);
+  assert.ok(data, 'буфер шума создан');
+  assert.ok(Math.abs(data[0]) < 1e-9);
+  assert.ok(Math.abs(data[data.length - 1]) < 1e-9);
+  assert.ok(data.some((v) => v !== 0), 'в середине буфера есть шум');
+});
+
 test('start создаёт планировщик только после init', () => {
   const timers = [];
   class Param {
@@ -83,8 +128,13 @@ test('start создаёт планировщик только после init',
   assert.equal(Music.start(), true);
   assert.equal(Music.isPlaying(), true);
   assert.equal(timers[0], 2000);
-  // Смена темы — кроссфейд на второй шине, без перезапуска планировщика.
+  // Смена темы — плавный переход, без перезапуска планировщика.
   assert.equal(Music.setTrack('ambient'), true);
+  assert.equal(Music.isPlaying(), true);
+  assert.equal(timers.length, 1);
+  // Быстрые переключения подряд не должны ронять музыку.
+  assert.equal(Music.setTrack('tavern'), true);
+  assert.equal(Music.setTrack('pirate'), true);
   assert.equal(Music.isPlaying(), true);
   assert.equal(timers.length, 1);
   Music.stop();

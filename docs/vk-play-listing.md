@@ -33,7 +33,7 @@
 `Морской бой с умным ботом: рейтинг ELO, ранги, тактика и испытание дня.`
 
 **Краткое описание (EN, до 255):**
-`Classic sea battle with a smart bot, ELO rating, ranks, tactical abilities and a daily challenge. Single-player, offline, no ads.`
+`Classic sea battle with a smart bot, ELO rating, ranks, tactical abilities and a daily challenge. Single-player, offline; optional rewarded ads.`
 
 **Категории:** `Настольные игры`, `Логические игры`, `Стратегии`
 
@@ -63,7 +63,7 @@
 • Тактические способности: авиаудар, ПВО и дым. Выбираешь две из трёх.
 • Испытание дня: три боя без поражения и +60 к рейтингу.
 • Тёмная, светлая и AMOLED-тема, морская музыка и звуки.
-• Одиночная игра, работает без интернета и без рекламы.
+• Одиночная игра, работает без интернета; необязательная реклама за награду.
 
 ⚓ Погружайся, капитан: море уже ждёт.
 ```

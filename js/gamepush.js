@@ -17,6 +17,7 @@
   var gameplayActive = false;
   var rewardedBusy = false;
   var gameStarted = false;
+  var preloaderTried = false;
   var pauseHandlers = [];
   var resumeHandlers = [];
 
@@ -36,13 +37,40 @@
     safe(function () { gp.gameStart(); });
   }
 
+  /* Preloader показывается до gameStart: это последний момент, когда
+     площадка разрешает рекламу перед началом игры. Если SDK молчит,
+     не держим загрузку дольше 12 секунд. */
+  function startAfterPreloader() {
+    if (gameStarted || !startRequested || !gp || !readyDone) return;
+    if (preloaderTried || !gp.ads || !gp.ads.showPreloader ||
+        gp.ads.isPreloaderAvailable === false) {
+      sendGameStart();
+      return;
+    }
+    preloaderTried = true;
+    var finished = false;
+    var timer = null;
+    var finish = function () {
+      if (finished) return;
+      finished = true;
+      if (timer) clearTimeout(timer);
+      sendGameStart();
+    };
+    timer = setTimeout(finish, 12000);
+    try {
+      Promise.resolve(gp.ads.showPreloader()).then(finish, finish);
+    } catch (e) {
+      finish();
+    }
+  }
+
   function settle(sdk) {
     // Поздний SDK не должен затирать уже полученный объект.
     if (sdk) gp = sdk;
     if (readyDone) {
       // Таймаут уже сработал, но площадка всё-таки ответила: досылаем
       // gameStart, иначе VK/OK так и не узнают, что игра загрузилась.
-      sendGameStart();
+      startAfterPreloader();
       return;
     }
     readyDone = true;
@@ -55,12 +83,12 @@
       readyResolve = null;
       resolve(gp);
     }
-    sendGameStart();
+    startAfterPreloader();
   }
 
   function startGame() {
     startRequested = true;
-    sendGameStart();
+    startAfterPreloader();
   }
 
   function handlePause() {

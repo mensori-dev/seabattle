@@ -151,6 +151,29 @@ test('GamePush: поздний SDK после таймаута всё равно
   assert.equal(gp.calls.filter((x) => x === 'gameStart').length, 1);
 });
 
+test('GamePush: preloader показывается до gameStart', async () => {
+  const { platform, init } = load();
+  const order = [];
+  const gp = fakeGp();
+  gp.ads.showPreloader = () => { order.push('preloader'); return Promise.resolve(true); };
+  gp.gameStart = () => { order.push('gameStart'); };
+  platform.ready();
+  init(gp);
+  await platform.whenReady();
+  await Promise.resolve();
+  assert.deepEqual(order, ['preloader', 'gameStart']);
+});
+
+test('GamePush: без preloader игра всё равно стартует', async () => {
+  const { platform, init } = load();
+  const gp = fakeGp();
+  gp.ads.showPreloader = () => { throw new Error('нет рекламы'); };
+  platform.ready();
+  init(gp);
+  await platform.whenReady();
+  assert.equal(gp.calls.filter((x) => x === 'gameStart').length, 1);
+});
+
 test('GamePush: повторный ready не дублирует gameStart', async () => {
   const { platform, init } = load();
   const gp = fakeGp();

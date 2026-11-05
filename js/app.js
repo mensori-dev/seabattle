@@ -24,7 +24,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v30';
+  const SW_VERSION = 'sb-v31';
 
   const state = {
     profile: null,
@@ -617,6 +617,7 @@
     syncSettings();
     updateDailyCard();
     updateSideCards();
+    updateAdBonusCard();
     renderHistory();
   }
 
@@ -2735,7 +2736,7 @@
     updateBonusButton();
   }
 
-  /* ---------------- Реклама (только Яндекс Игры) ---------------- */
+  /* ---------------- Реклама (Яндекс Игры / GamePush) ---------------- */
 
   /* Награда за rewarded-видео: раз в день, +25 к рейтингу. */
   function canShowAdBonus() {
@@ -2755,6 +2756,34 @@
     });
   }
 
+  /* Кнопка на главном экране: ещё одна точка входа в rewarded-видео. */
+  function updateAdBonusCard() {
+    const btn = $('#btn-ad-bonus');
+    if (!btn) return;
+    btn.hidden = true;
+    if (!YG) return;
+    YG.whenReady().then(function (sdk) {
+      if (!sdk || !canShowAdBonus()) return;
+      btn.hidden = false;
+    });
+  }
+
+  function watchAdBonus() {
+    if (!canShowAdBonus()) return;
+    const buttons = [$('#btn-bonus'), $('#btn-ad-bonus')].filter(Boolean);
+    if (buttons.some(function (b) { return b.disabled; })) return;
+    Sfx.play('click');
+    buttons.forEach(function (b) { b.disabled = true; });
+    YG.showRewarded().then(function (ok) {
+      buttons.forEach(function (b) { b.disabled = false; });
+      if (!ok) {
+        toast('Реклама не загрузилась — попробуй позже', 'miss');
+        return;
+      }
+      applyAdBonus();
+    });
+  }
+
   function applyAdBonus() {
     const p = state.profile;
     if (p.adBonusDate === dayKey()) return;
@@ -2766,6 +2795,8 @@
     updateMenu();
     const btn = $('#btn-bonus');
     if (btn) btn.hidden = true;
+    const adBtn = $('#btn-ad-bonus');
+    if (adBtn) adBtn.hidden = true;
     animateNumber($('#elo-after'), before, p.rating, 700);
     const bonusEl = $('#bonus-line');
     if (bonusEl) {
@@ -3424,21 +3455,11 @@
       showInterstitialBetweenMatches(next);
     });
 
-    /* Награда за просмотр рекламы (только Яндекс Игры). */
+    /* Награда за просмотр рекламы (Яндекс Игры / GamePush). */
     const bonusBtn = $('#btn-bonus');
-    if (bonusBtn) bonusBtn.addEventListener('click', () => {
-      if (bonusBtn.disabled || !canShowAdBonus()) return;
-      Sfx.play('click');
-      bonusBtn.disabled = true;
-      YG.showRewarded().then(function (ok) {
-        bonusBtn.disabled = false;
-        if (!ok) {
-          toast('Реклама не загрузилась — попробуй позже', 'miss');
-          return;
-        }
-        applyAdBonus();
-      });
-    });
+    if (bonusBtn) bonusBtn.addEventListener('click', watchAdBonus);
+    const adBonusBtn = $('#btn-ad-bonus');
+    if (adBonusBtn) adBonusBtn.addEventListener('click', watchAdBonus);
     $('#btn-menu').addEventListener('click', () => {
       Sfx.play('click');
       closeOverlay($('#overlay'));

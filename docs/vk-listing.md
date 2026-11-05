@@ -7,7 +7,7 @@
 Перед отправкой замени:
 
 - `Mensori Dev` — если хочешь другое имя разработчика;
-- адрес игры: `https://s3.eponesh.com/games/draft/32533/v1/` — открывается, 200 OK;
+- адрес игры: `https://s3.eponesh.com/games/32533/v2/` — открывается, 200 OK;
 - «Состояние для пользователей» уже включено.
 
 ## Иконки
@@ -50,7 +50,7 @@ H.264. Подходит и для блока «Рекомендуемые сег
 | Поле | Значение |
 | --- | --- |
 | Название игры (EN), до 48 | `Sea Battle — Sea Arena` |
-| Краткое описание (EN), до 255 | `Classic sea battle with a smart bot, ELO rating, ranks, tactical abilities and a daily challenge. Single-player, offline, no ads.` |
+| Краткое описание (EN), до 255 | `Classic sea battle with a smart bot, ELO rating, ranks, tactical abilities and a daily challenge. Single-player, offline; optional rewarded ads.` |
 | Категории (до 3) | `Games → Board games`, `Games → Logic`, `Games → Strategy` |
 | Теги (до 10) | `sea battle`, `battleship`, `board game`, `logic`, `strategy`, `single player`, `offline`, `ELO`, `tactics`, `casual` |
 | Ключевые слова (до 10) | `sea battle`, `battleship`, `board game`, `logic game`, `strategy`, `single player`, `offline game`, `rating`, `tactics`, `daily challenge` |
@@ -72,7 +72,7 @@ Sea Battle — Sea Arena is a modern take on the paper-game classic. Place your 
 • ELO rating, seven ranks from Cabin Boy to Legend, win streaks, best rating and match history.
 • Daily challenge: the same setup for everyone, three wins in a row for a rating bonus.
 • Three visual themes, procedural music and sound, reduced-motion support.
-• Fully playable offline. No ads, no analytics, no trackers. Progress stays on your device.
+• Playable offline. Optional rewarded video ads and occasional interstitials between matches; no ads during battle. No analytics or trackers. Progress stays on your device.
 
 Rated play uses the classic 10×10 board without tactics. Custom boards and abilities are unrated, so the ladder cannot be farmed.
 
@@ -104,8 +104,9 @@ battle you choose two of three tactical abilities: airstrike, anti-air defense
 and smoke. The game supports 8×8, 10×10 and 12×12 boards, classic and Admiral
 fleets, three visual themes and reduced-motion mode.
 
-No ads, no in-app purchases, no analytics and no account required. The game works
-offline; progress is stored locally on the device.
+No in-app purchases, no analytics and no account required. The game works offline;
+optional rewarded ads and interstitials between matches are shown by the platform
+only when a connection is available. Progress is stored locally on the device.
 ```
 
 ## Русские варианты (если VK попросит локализацию)
@@ -119,7 +120,7 @@ offline; progress is stored locally on the device.
 ### Краткое описание, до 255
 
 ```text
-Классический морской бой с умным ботом, ELO-рейтингом, рангами, тактикой и испытанием дня. Одиночная игра, офлайн, без рекламы.
+Классический морской бой с умным ботом, ELO-рейтингом, рангами, тактикой и испытанием дня. Одиночная игра, офлайн; необязательная реклама за награду.
 ```
 
 ### Полное описание, до 1024
@@ -134,7 +135,7 @@ offline; progress is stored locally on the device.
 • ELO-рейтинг, семь рангов от Юнги до Легенды, серии побед, рекорд и история матчей.
 • Испытание дня: одинаковый конфиг для всех, три победы подряд дают бонус к рейтингу.
 • Три темы оформления, процедурная музыка и звук, режим reduced-motion.
-• Полностью офлайн. Без рекламы, аналитики и трекеров. Прогресс хранится на устройстве.
+• Одиночная игра работает офлайн. Необязательная реклама за награду и редкие межстраничные показы между боями; во время боя рекламы нет. Без аналитики и трекеров. Прогресс хранится на устройстве.
 
 Рейтинг идёт только за классику 10×10 без тактики. Кастомные поля и способности не влияют на рейтинг.
 
@@ -188,8 +189,8 @@ offline; progress is stored locally on the device.
 🎨 ОФОРМЛЕНИЕ
 Три темы, процедурная музыка и звук, режим reduced-motion, расстановка вручную или случайно.
 
-📴 БЕЗ ИНТЕРНЕТА И РЕКЛАМЫ
-Игра работает офлайн. Нет рекламы, аналитики и трекеров. Прогресс хранится только на устройстве.
+📴 ОДИНОЧНАЯ ИГРА
+Игра работает офлайн. Необязательная реклама за награду и редкие межстраничные показы между боями; во время боя рекламы нет. Аналитики и трекеров нет. Прогресс хранится только на устройстве.
 
 Возрастной рейтинг: 6+.
 
@@ -203,9 +204,9 @@ offline; progress is stored locally on the device.
 | Слоган, до 32 | `Морской бой` |
 | Краткое описание, до 108 | `Морской бой с умным ботом: рейтинг ELO, ранги` |
 | Состояние для пользователей | `Включено` |
-| Мобильное приложение (WebView) | `https://s3.eponesh.com/games/draft/32533/v1/` |
-| Web (iframe) | `https://s3.eponesh.com/games/draft/32533/v1/` |
-| Мобильная версия сайта (iframe) | `https://s3.eponesh.com/games/draft/32533/v1/` |
+| Мобильное приложение (WebView) | `https://s3.eponesh.com/games/32533/v2/` |
+| Web (iframe) | `https://s3.eponesh.com/games/32533/v2/` |
+| Мобильная версия сайта (iframe) | `https://s3.eponesh.com/games/32533/v2/` |
 | Режим разработки | выключен |
 | Правовые документы | `Использовать типовые документы` |
 | Консоль Eruda | `Отключена` |
@@ -213,7 +214,7 @@ offline; progress is stored locally on the device.
 | Цвет фона за иконкой | `#17618F` |
 | Анимация иконки | `assets/vk/icon-animated.json` (96×96, Lottie, 14 КБ) |
 
-Текущий адрес — `https://s3.eponesh.com/games/draft/32533/v1/`. Он открывается и
+Текущий адрес — `https://s3.eponesh.com/games/32533/v2/`. Он открывается и
 подходит для WebView и iframe. Если после публикации GamePush выдаст другой адрес,
 замени его во всех трёх полях.
 

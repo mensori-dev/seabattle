@@ -218,6 +218,9 @@
     create: function () {},
     join: function () {},
     leave: function () {},
+    fleet: function () {},
+    loadout: function () {},
+    ability: function () {},
     shot: function () {},
     surrender: function () {},
     httpUrl: function (p) { return p; }

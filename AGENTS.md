@@ -50,6 +50,11 @@
   `gamepush.config.json`).
 - `gamepush.config.example.json` — шаблон ключей GamePush; настоящий
   `gamepush.config.json` в git не идёт.
+- `scripts/make-gamepush-assets.py` — материалы VK Play: иконки 1024×1024,
+  4:3 и 2:3, обложки 1920×1080 и 1080×1920, фон без текста.
+- `scripts/make-gamepush-screens.py` — скриншоты 1280×720 и 720×1280.
+- `scripts/gamepush-video.mjs` — портретное видео 1080×1920 до 20 с.
+- `scripts/gamepush-video-landscape.mjs` — альбомное видео 1920×1080.
 - `scripts/fetch-fonts.mjs` — локальные Nunito и Rubik в `assets/fonts` для Яндекс Игр.
 - `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
   Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
@@ -77,6 +82,12 @@
   `dist/seabattle-gamepush-<версия>.zip` (ключи из `gamepush.config.json` или
   env `GAMEPUSH_PROJECT_ID`/`GAMEPUSH_PUBLIC_TOKEN`; `-- --no-zip` — только папка)
 - `npm run gamepush:demo` — то же без SDK для локальной проверки
+- `npm run gamepush:assets` — иконки, обложки, фон, скриншоты VK Play в
+  `dist/gamepush-assets/`
+- `npm run gamepush:video` — портретное видео 1080×1920 в
+  `dist/gamepush-video/`
+- `npm run gamepush:video:landscape` — альбомное видео 1920×1080 в
+  `dist/gamepush-video-landscape/`
 - `npm run fonts` — перегенерировать локальные шрифты в `assets/fonts`
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)

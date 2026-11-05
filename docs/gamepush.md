@@ -163,7 +163,25 @@ rewarded — по кнопке на экране результата.
   в `sw.js` и `SW_VERSION` в `js/app.js`, даже если GamePush-сборка PWA не
   использует: корневая игра и GitHub Pages должны получить свежий кэш.
 
-## 8. Ссылки
+## 8. Материалы для карточки VK Play
+
+```powershell
+npm.cmd run gamepush:assets          # иконки, обложки, фон, скриншоты
+npm.cmd run gamepush:video           # видео 1080×1920, до 20 с
+npm.cmd run gamepush:video:landscape # видео 1920×1080, до 20 с
+```
+
+Готовые файлы складываются в `dist/gamepush-assets/`, `dist/gamepush-video/`
+и `dist/gamepush-video-landscape/`. Общий архив для загрузки в кабинет —
+`dist/gamepush-assets.zip`. Скрипты используют демо-сборку `dist/gamepush`
+(без SDK), поэтому перед генерацией выполните `npm.cmd run gamepush:demo`.
+
+Требования VK Play: иконки 1024×1024, 4:3 512×384 и 2:3 800×1200; обложки
+1920×1080 и 1080×1920; фон 1920×1080 без текста; скриншоты 1280×720 и
+720×1280; видео MP4 до 20 с и 100 МБ, без чёрных полос. Тексты и безопасные
+зоны — в `docs/vk-play-listing.md` и шаблонах PSD из Downloads.
+
+## 9. Ссылки
 
 - Документация: <https://docs.gamepush.com/ru/>
 - Публикация на площадках: <https://docs.gamepush.com/ru/tutorials/publishing-the-game-on-platforms-guide/>

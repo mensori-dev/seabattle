@@ -40,6 +40,35 @@
     return Number(config.size) === 10 && !config.tactics;
   }
 
+  // Испытание дня: конфиг один на всех и меняется по календарю.
+  // Награда одна в день, поэтому кастомные настройки здесь не фарм.
+  const DAILY_PRESETS = [
+    { id: 'classic', name: 'Классика', desc: '10×10, классический флот, без тактики',
+      config: { size: 10, fleet: 'classic', tactics: false } },
+    { id: 'blitz', name: 'Блиц', desc: '8×8, классический флот, с тактикой',
+      config: { size: 8, fleet: 'classic', tactics: true } },
+    { id: 'small', name: 'Малый флот', desc: '8×8, классический флот, без тактики',
+      config: { size: 8, fleet: 'classic', tactics: false } },
+    { id: 'admiral', name: 'Адмирал', desc: '10×10, адмиральский флот, без тактики',
+      config: { size: 10, fleet: 'admiral', tactics: false } },
+    { id: 'big', name: 'Большое поле', desc: '12×12, классический флот, без тактики',
+      config: { size: 12, fleet: 'classic', tactics: false } },
+    { id: 'armada', name: 'Армада', desc: '12×12, адмиральский флот, с тактикой',
+      config: { size: 12, fleet: 'admiral', tactics: true } }
+  ];
+
+  function dailyChallenge(key) {
+    const text = String(key || '');
+    let sum = 0;
+    for (let i = 0; i < text.length; i++) sum += text.charCodeAt(i);
+    const p = DAILY_PRESETS[sum % DAILY_PRESETS.length];
+    return { id: p.id, name: p.name, desc: p.desc, config: {
+      size: p.config.size,
+      fleet: p.config.fleet,
+      tactics: p.config.tactics
+    } };
+  }
+
   function createBoard(size) {
     const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
@@ -545,7 +574,7 @@
 
   global.Engine = {
     SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS, CONFIG,
-    fleetsFor, fleetFor, isRatedBattle,
+    fleetsFor, fleetFor, isRatedBattle, DAILY_PRESETS, dailyChallenge,
     createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,

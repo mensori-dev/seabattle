@@ -96,7 +96,8 @@
       stats: { shots: 0, hits: 0 },
       onlineWins: 0,        // победы в онлайн-матчах — только на этом устройстве
       onlineGames: 0,       // сколько онлайн-матчей сыграно
-      cup: null,            // активный «Кубок моря»
+      cup: null,            // активная цепочка «Испытания дня»
+      cupReward: '',        // день, за который уже получена награда испытания
       adMatches: 0,         // боёв с последней межстраничной рекламы (Яндекс Игры)
       lastAdAt: 0,          // когда последний раз показывали рекламу
       adBonusDate: ''       // день, когда уже брали награду за rewarded-видео
@@ -289,7 +290,7 @@
     { id: 'online', icon: '🌐', name: 'Морской волк', desc: 'Сыграй онлайн с другом' },
     { id: 'daily3', icon: '📅', name: 'Три дня в море', desc: '3 дня подряд с победой' },
     { id: 'admiral', icon: '🛳️', name: 'Адмирал', desc: 'Победи в адмиральском флоте' },
-    { id: 'cup', icon: '🏆', name: 'Обладатель кубка', desc: 'Пройди кубок моря без поражений' }
+    { id: 'cup', icon: '🏆', name: 'Испытание дня', desc: 'Пройди испытание дня без поражений' }
   ];
 
   /* Локальная дата в виде YYYY-MM-DD: серия считается по календарю телефона. */
@@ -571,11 +572,19 @@
       const got = Object.keys(p.achievements || {}).length;
       count.textContent = got + ' / ' + ACHIEVEMENTS.length;
     }
+    const day = Engine.dailyChallenge(dayKey());
+    const size = day.config.size + '×' + day.config.size;
+    const title = $('#cup-title');
+    if (title) title.textContent = 'Испытание дня';
     const cup = $('#cup-status');
     if (cup) {
-      cup.textContent = (state.cup && !state.cup.finished)
-        ? 'Раунд ' + state.cup.round + ' из 3 — продолжить'
-        : '3 боя подряд без поражений';
+      if (state.cup && !state.cup.finished) {
+        cup.textContent = 'Раунд ' + state.cup.round + ' из 3 · ' + day.name + ' · ' + size;
+      } else if (p.cupReward === dayKey()) {
+        cup.textContent = day.name + ' · ' + size + ' · сегодня пройдено';
+      } else {
+        cup.textContent = day.name + ' · ' + size + ' · 3 боя без поражений';
+      }
     }
   }
 
@@ -740,15 +749,30 @@
     Sfx.play('start');
   }
 
-  /* ---------------- Кубок моря ---------------- */
+  /* ---------------- Испытание дня (бывший «Кубок моря») ---------------- */
   function startCup() {
+    const day = Engine.dailyChallenge(dayKey());
+    // Конфиг дня одинаков для всех — ставим его в настройки бота.
+    state.profile.botConfig = Object.assign({}, day.config);
     state.mode = 'bot';
     state.cupMatch = true;
-    state.cup = { round: 1, wins: 0, date: dayKey() };
+    state.cup = { round: 1, wins: 0, date: dayKey(), id: day.id };
     state.profile.cup = state.cup;
     saveProfile();
     startMatch();
-    setTimeout(() => toast('🏆 Кубок моря: 3 боя без поражения', 'turn'), 320);
+    setTimeout(() => toast('🎯 Испытание дня: ' + day.name + ' · ' +
+      day.config.size + '×' + day.config.size, 'turn'), 320);
+  }
+
+  // Продолжение цепочки: конфиг дня мог быть перетёрт настройками,
+  // поэтому возвращаем его перед каждым раундом.
+  function continueCup() {
+    const day = Engine.dailyChallenge(dayKey());
+    state.profile.botConfig = Object.assign({}, day.config);
+    state.mode = 'bot';
+    state.cupMatch = true;
+    saveProfile();
+    startMatch();
   }
 
   /* ---------------- Расстановка ---------------- */
@@ -2366,10 +2390,40 @@
     }
 
     const oldRating = Math.round(p.rating);
+    const today = dayKey();
+
+    // Испытание дня: цепочка из трёх боёв и награда +60 не зависят от
+    // рейтингового гейта — конфиг дня одинаков для всех, а награда одна в день.
+    let cupInfo = null;
+    if (state.cupMatch && state.cup && !state.cup.finished) {
+      if (playerWon) {
+        state.cup.wins = (state.cup.wins || 0) + 1;
+        if (state.cup.round >= 3) {
+          state.cup.finished = true;
+          // Повторное прохождение в тот же день награду не даёт.
+          const reward = p.cupReward === today ? 0 : 60;
+          if (reward) p.cupReward = today;
+          cupInfo = { done: true, won: true, gain: reward, rewarded: reward > 0 };
+        } else {
+          state.cup.round += 1;
+          state.cup.date = today;
+          cupInfo = { done: false, round: state.cup.round };
+        }
+      } else {
+        cupInfo = { done: true, won: false };
+        state.cup = null;
+      }
+    }
+    p.cup = state.cup;
+    const cupGain = cupInfo && cupInfo.done && cupInfo.won ? cupInfo.gain : 0;
 
     // Рейтинг — только классический бот-бой 10×10. Кастомные поле, флот
     // и тактика прогресс не двигают, иначе рейтинг можно фармить.
     if (!isRatedBattle()) {
+      if (cupGain > 0) {
+        p.rating = oldRating + cupGain;
+        p.best = Math.max(p.best || 0, p.rating);
+      }
       p.stats = p.stats || { shots: 0, hits: 0 };
       p.stats.shots += ms.shots;
       p.stats.hits += ms.hits;
@@ -2381,9 +2435,11 @@
         rated: false,
         ts: Date.now()
       }].concat(p.history || []).slice(0, 8);
+      if (cupInfo && cupInfo.done && cupInfo.won) unlockAchievement('cup', 900);
       saveProfile();
       updateMenu();
-      showResult(playerWon, oldRating, oldRating, 0, reason, { rated: false });
+      showResult(playerWon, oldRating, oldRating + cupGain, cupGain, reason,
+        { rated: false, cupInfo: cupInfo });
       return;
     }
 
@@ -2391,35 +2447,12 @@
 
     // Ежедневный бонус: первая победа за календарный день.
     let dailyGain = 0;
-    if (playerWon && (!p.daily || p.daily.date !== dayKey())) {
+    if (playerWon && (!p.daily || p.daily.date !== today)) {
       const streak = nextDailyStreak();
-      p.daily = { date: dayKey(), streak: streak };
+      p.daily = { date: today, streak: streak };
       dailyGain = dailyBonusFor(streak);
     }
 
-    // «Кубок моря»: три боя подряд без поражения.
-    // В зачёт идут только бои, начатые из карточки кубка, —
-    // обычное «В бой» кубок не двигает и не сбрасывает.
-    let cupInfo = null;
-    if (state.cupMatch && state.cup && !state.cup.finished) {
-      if (playerWon) {
-        state.cup.wins = (state.cup.wins || 0) + 1;
-        if (state.cup.round >= 3) {
-          state.cup.finished = true;
-          cupInfo = { done: true, won: true, gain: 60 };
-        } else {
-          state.cup.round += 1;
-          state.cup.date = dayKey();
-          cupInfo = { done: false, round: state.cup.round };
-        }
-      } else {
-        cupInfo = { done: true, won: false };
-        state.cup = null;
-      }
-    }
-    p.cup = state.cup;
-
-    const cupGain = cupInfo && cupInfo.done && cupInfo.won ? cupInfo.gain : 0;
     const newRating = Math.max(0, oldRating + delta + dailyGain + cupGain);
 
     p.rating = newRating;
@@ -2506,23 +2539,26 @@
     if (online) {
       $('#btn-again').textContent = '🔁 Новая комната';
     } else if (state.cupMatch && state.cup && state.cup.finished) {
-      $('#btn-again').textContent = '🏆 Новый кубок';
+      $('#btn-again').textContent = '🎯 Новое испытание';
     } else if (state.cupMatch && state.cup && state.cup.round > 1) {
       $('#btn-again').textContent = '▶️ Раунд ' + state.cup.round;
     } else {
       $('#btn-again').textContent = '⚔️ Ещё бой';
     }
 
-    // бонусы дня и кубка — отдельной строкой, чтобы не путать с ELO
+    // бонусы дня и испытания — отдельной строкой, чтобы не путать с ELO
     const bonusEl = $('#bonus-line');
     if (bonusEl) {
       const parts = [];
       if (extras && extras.dailyGain > 0) parts.push('🎁 Бонус дня +' + extras.dailyGain);
       if (extras && extras.cupInfo) {
         const c = extras.cupInfo;
-        if (c.done && c.won) parts.push('🏆 Кубок моря твой! +' + c.gain);
-        else if (c.done) parts.push('🏆 Кубок упущен — начни заново из меню');
-        else parts.push('🏆 Кубок: раунд ' + c.round + ' из 3');
+        if (c.done && c.won) {
+          parts.push(c.gain > 0
+            ? '🎯 Испытание дня пройдено! +' + c.gain
+            : '🎯 Испытание дня пройдено сегодня');
+        } else if (c.done) parts.push('🎯 Испытание дня сорвано — начни заново из меню');
+        else parts.push('🎯 Испытание дня: раунд ' + c.round + ' из 3');
       }
       bonusEl.hidden = !parts.length;
       bonusEl.textContent = parts.join(' · ');
@@ -2814,9 +2850,9 @@
     $('#btn-cup').addEventListener('click', () => {
       Sfx.play('click');
       state.mode = 'bot';
-      state.cupMatch = true;
-      if (state.cup && !state.cup.finished) {
-        startMatch();
+      const active = state.cup && !state.cup.finished && state.cup.date === dayKey();
+      if (active) {
+        continueCup();
         return;
       }
       startCup();

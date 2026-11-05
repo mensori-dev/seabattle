@@ -130,6 +130,31 @@
   // не заставляем игру ждать: возвращаем null и живём как обычная сборка.
   readyTimer = setTimeout(function () { settle(null); }, 8000);
 
+  /* Реклама может не ответить (нет инвентаря, блокировщик, сбой площадки).
+     Не держим игрока с нажатой кнопкой: через 20 секунд считаем показ неудачным. */
+  var AD_WAIT_MS = 20000;
+
+  function withAdTimeout(run, fallback) {
+    return new Promise(function (resolve) {
+      var settled = false;
+      var finish = function (value) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      var timer = setTimeout(function () { finish(fallback); }, AD_WAIT_MS);
+      var pending;
+      try {
+        pending = run();
+      } catch (e) {
+        finish(fallback);
+        return;
+      }
+      Promise.resolve(pending).then(finish, function () { finish(fallback); });
+    });
+  }
+
   global.GamePlatform = {
     available: function () { return !!gp; },
     whenReady: function () { return readyPromise; },
@@ -154,22 +179,22 @@
     showInterstitial: function () {
       if (!gp || !gp.ads || !gp.ads.showFullscreen) return Promise.resolve(false);
       if (gp.ads.isFullscreenAvailable === false) return Promise.resolve(false);
-      return Promise.resolve(gp.ads.showFullscreen()).then(function (shown) {
+      return withAdTimeout(function () {
+        return gp.ads.showFullscreen();
+      }, false).then(function (shown) {
         return shown !== false;
-      }, function () { return false; });
+      });
     },
     showRewarded: function () {
       if (rewardedBusy) return Promise.resolve(false);
       if (!gp || !gp.ads || !gp.ads.showRewardedVideo) return Promise.resolve(false);
       if (gp.ads.isRewardedAvailable === false) return Promise.resolve(false);
       rewardedBusy = true;
-      var done = function () { rewardedBusy = false; };
-      return Promise.resolve(gp.ads.showRewardedVideo()).then(function (ok) {
-        done();
+      return withAdTimeout(function () {
+        return gp.ads.showRewardedVideo();
+      }, false).then(function (ok) {
+        rewardedBusy = false;
         return ok === true;
-      }, function () {
-        done();
-        return false;
       });
     }
   };

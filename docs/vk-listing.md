@@ -7,7 +7,7 @@
 Перед отправкой замени:
 
 - `Mensori Dev` — если хочешь другое имя разработчика;
-- адрес игры: `https://s3.eponesh.com/games/32533/v2/` — открывается, 200 OK;
+- адрес игры: `https://s3.eponesh.com/games/32533/v3/` — открывается, 200 OK;
 - «Состояние для пользователей» уже включено.
 
 ## Иконки
@@ -204,9 +204,9 @@ only when a connection is available. Progress is stored locally on the device.
 | Слоган, до 32 | `Морской бой` |
 | Краткое описание, до 108 | `Морской бой с умным ботом: рейтинг ELO, ранги` |
 | Состояние для пользователей | `Включено` |
-| Мобильное приложение (WebView) | `https://s3.eponesh.com/games/32533/v2/` |
-| Web (iframe) | `https://s3.eponesh.com/games/32533/v2/` |
-| Мобильная версия сайта (iframe) | `https://s3.eponesh.com/games/32533/v2/` |
+| Мобильное приложение (WebView) | `https://s3.eponesh.com/games/32533/v3/` |
+| Web (iframe) | `https://s3.eponesh.com/games/32533/v3/` |
+| Мобильная версия сайта (iframe) | `https://s3.eponesh.com/games/32533/v3/` |
 | Режим разработки | выключен |
 | Правовые документы | `Использовать типовые документы` |
 | Консоль Eruda | `Отключена` |
@@ -214,7 +214,7 @@ only when a connection is available. Progress is stored locally on the device.
 | Цвет фона за иконкой | `#17618F` |
 | Анимация иконки | `assets/vk/icon-animated.json` (96×96, Lottie, 14 КБ) |
 
-Текущий адрес — `https://s3.eponesh.com/games/32533/v2/`. Он открывается и
+Текущий адрес — `https://s3.eponesh.com/games/32533/v3/`. Он открывается и
 подходит для WebView и iframe. Если после публикации GamePush выдаст другой адрес,
 замени его во всех трёх полях.
 

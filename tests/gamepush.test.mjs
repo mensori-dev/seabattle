@@ -129,6 +129,20 @@ test('GamePush: rewarded без успеха не начисляется', async
   assert.equal(await platform.showRewarded(), false);
 });
 
+test('GamePush: зависший rewarded сбрасывается по таймауту', async () => {
+  const { platform, init, timers } = load();
+  const gp = fakeGp();
+  gp.ads.showRewardedVideo = () => new Promise(() => {});
+  init(gp);
+  await platform.whenReady();
+  const first = platform.showRewarded();
+  assert.equal(await platform.showRewarded(), false);
+  const timer = timers.find((t) => t.ms === 20000);
+  assert.ok(timer, 'нет таймаута рекламы');
+  timer.fn();
+  assert.equal(await first, false);
+});
+
 test('GamePush: без SDK игра работает через таймаут', async () => {
   const { platform, timers } = load();
   assert.equal(timers.length, 1);

@@ -56,7 +56,7 @@ H.264. Подходит и для блока «Рекомендуемые сег
 | Ключевые слова (до 10) | `sea battle`, `battleship`, `board game`, `logic game`, `strategy`, `single player`, `offline game`, `rating`, `tactics`, `daily challenge` |
 | Движок | `HTML5` (если есть «Другое» — `Custom HTML5 / JavaScript`) |
 | Возрастное ограничение | `6+` |
-| Почта техподдержки | `ПОЧТА_ПОДДЕРЖКИ` |
+| Почта техподдержки | `mensoridev@gmail.com` |
 | Имя разработчика (EN), до 128 | `Mensori Dev` |
 | Дополнительные языки | не добавлять: игра только на русском |
 

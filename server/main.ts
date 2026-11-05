@@ -16,7 +16,14 @@ interface Ship {
   sunk: boolean;
 }
 
+interface BattleConfig {
+  size: 8 | 10 | 12;
+  fleet: 'classic' | 'admiral';
+  tactics: boolean;
+}
+
 interface Board {
+  size: number;
   grid: number[][];
   shots: number[][];
   ships: Ship[];
@@ -31,34 +38,72 @@ interface Player {
 
 interface Room {
   code: string;
+  config: BattleConfig;
   players: Player[];
   turn: number;
   started: boolean;
   createdAt: number;
 }
 
-const SIZE = 10;
-const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+const DEFAULT_SIZE = 10;
+const CONFIG_SIZES = [8, 10, 12];
+// Те же пресеты, что в js/engine.js (CONFIG.fleets).
+const FLEETS: Record<number, Record<string, number[] | null>> = {
+  8: { classic: [3, 2, 2, 2, 1, 1, 1], admiral: null },
+  10: {
+    classic: [4, 3, 3, 2, 2, 2, 1, 1, 1, 1],
+    admiral: [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1]
+  },
+  12: {
+    classic: [5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1],
+    admiral: [5, 4, 4, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1]
+  }
+};
 const ROOM_TTL = 2 * 60 * 60 * 1000; // 2 часа
 const rooms = new Map<string, Room>();
 
+function normalizeConfig(raw: unknown): BattleConfig | null {
+  // Без настроек — привычная классика 10×10 без тактики.
+  if (raw === undefined || raw === null) return { size: 10, fleet: 'classic', tactics: false };
+  if (typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const size = Number(r.size);
+  if (CONFIG_SIZES.indexOf(size) < 0) return null;
+  const fleet = String(r.fleet || 'classic');
+  const set = FLEETS[size];
+  if (!set || !set[fleet]) return null;
+  return { size: size as 8 | 10 | 12, fleet: fleet as 'classic' | 'admiral', tactics: !!r.tactics };
+}
+
+function isClassicRoom(config: BattleConfig): boolean {
+  return config.size === 10 && config.fleet === 'classic' && !config.tactics;
+}
+
+function fleetFor(config: BattleConfig): number[] | null {
+  const set = FLEETS[config.size];
+  return set ? set[config.fleet] : null;
+}
+
 /* ---------------- Доска ---------------- */
 
-function buildBoard(input: unknown): Board | null {
-  if (!Array.isArray(input) || input.length !== FLEET.length) return null;
+function buildBoard(input: unknown, config: BattleConfig): Board | null {
+  const fleet = fleetFor(config);
+  if (!fleet) return null;
+  if (!Array.isArray(input) || input.length !== fleet.length) return null;
   const shipsIn = input as ShipIn[];
-  const want = FLEET.slice().sort((a, b) => a - b).join(',');
+  const want = fleet.slice().sort((a, b) => a - b).join(',');
   const got = shipsIn.map((s) => Number(s && s.size)).sort((a, b) => a - b).join(',');
   if (want !== got) return null;
 
-  const grid = Array.from({ length: SIZE }, () => new Array<number>(SIZE).fill(-1));
-  const shots = Array.from({ length: SIZE }, () => new Array<number>(SIZE).fill(0));
+  const maxShip = Math.max(...fleet);
+  const grid = Array.from({ length: config.size }, () => new Array<number>(config.size).fill(-1));
+  const shots = Array.from({ length: config.size }, () => new Array<number>(config.size).fill(0));
   const ships: Ship[] = [];
 
   for (const raw of shipsIn) {
     if (!raw || !Array.isArray(raw.cells)) return null;
     const size = Number(raw.size);
-    if (!Number.isInteger(size) || size < 1 || size > 4) return null;
+    if (!Number.isInteger(size) || size < 1 || size > maxShip) return null;
     if (raw.cells.length !== size) return null;
     const cells: Cell[] = [];
     for (const c of raw.cells) {
@@ -66,7 +111,7 @@ function buildBoard(input: unknown): Board | null {
       const x = Number(c[0]);
       const y = Number(c[1]);
       if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
-      if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return null;
+      if (x < 0 || y < 0 || x >= config.size || y >= config.size) return null;
       if (grid[y][x] !== -1) return null;
       // корабли не должны касаться даже углами
       for (const ship of ships) {
@@ -90,12 +135,12 @@ function buildBoard(input: unknown): Board | null {
     }
     ships.push({ size, cells, hits: 0, sunk: false });
   }
-  return { grid, shots, ships };
+  return { size: config.size, grid, shots, ships };
 }
 
 function fire(board: Board, x: number, y: number) {
   if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
-  if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return null;
+  if (x < 0 || y < 0 || x >= board.size || y >= board.size) return null;
   if (board.shots[y][x]) return null;
   board.shots[y][x] = 1;
   const id = board.grid[y][x];
@@ -189,16 +234,22 @@ function handle(socket: WebSocket) {
 
     if (type === 'create') {
       if (room) return;
+      const config = normalizeConfig(msg.config);
+      if (!config) {
+        send({ ws: socket, name: '', rating: 0, board: null }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
+        return;
+      }
       me = { ws: socket, name: cleanName(msg.name), rating: cleanRating(msg.rating), board: null };
       room = {
         code: newCode(),
+        config: config,
         players: [me],
         turn: 0,
         started: false,
         createdAt: Date.now()
       };
       rooms.set(room.code, room);
-      send(me, { t: 'room', code: room.code, you: 0, name: me.name, rating: me.rating });
+      send(me, { t: 'room', code: room.code, you: 0, name: me.name, rating: me.rating, config: room.config });
       send(me, { t: 'wait' });
       return;
     }
@@ -219,10 +270,10 @@ function handle(socket: WebSocket) {
       room = target;
       room.players.push(me);
       const idx = room.players.length - 1;
-      send(me, { t: 'room', code: room.code, you: idx, name: me.name, rating: me.rating });
+      send(me, { t: 'room', code: room.code, you: idx, name: me.name, rating: me.rating, config: room.config });
       room.players.forEach((p, i) => {
         const foe = room!.players[1 - i];
-        send(p, { t: 'start', you: i, foe: { name: foe.name, rating: foe.rating } });
+        send(p, { t: 'start', you: i, foe: { name: foe.name, rating: foe.rating }, config: room!.config });
       });
       return;
     }
@@ -236,7 +287,7 @@ function handle(socket: WebSocket) {
         send(me, { t: 'error', msg: 'Флот уже принят.' });
         return;
       }
-      const board = buildBoard(msg.ships);
+      const board = buildBoard(msg.ships, room.config);
       if (!board) {
         send(me, { t: 'error', msg: 'Некорректная расстановка флота.' });
         return;
@@ -256,6 +307,7 @@ function handle(socket: WebSocket) {
             t: 'begin',
             you: i,
             first: room!.turn === i,
+            config: room!.config,
             foe: { name: mine.name, rating: mine.rating }
           });
         });
@@ -285,7 +337,7 @@ function handle(socket: WebSocket) {
       if (allSunk(foe.board)) {
         send(me, { t: 'end', win: true });
         send(foe, { t: 'end', win: false });
-        recordWin(me.name);
+        if (isClassicRoom(room.config)) recordWin(me.name);
         dropRoom(room);
         room = null;
         return;
@@ -309,7 +361,7 @@ function handle(socket: WebSocket) {
       const foe = room.players[1 - idx];
       if (foe) {
         send(foe, { t: 'end', win: true, reason: 'surrender' });
-        recordWin(foe.name);
+        if (isClassicRoom(room.config)) recordWin(foe.name);
       }
       send(me, { t: 'end', win: false, reason: 'surrender' });
       dropRoom(room);

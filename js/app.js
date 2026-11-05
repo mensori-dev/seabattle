@@ -17,13 +17,14 @@
   const STORE_KEY = 'seabattle.profile.v2';
   let memoryStore = null;
 
-  /* Платформа Яндекс Игр. В обычной сборке js/yandex.js не подключён,
+  /* Платформа: GamePush (VK/OK), Яндекс Игры или обычная сборка.
+     В обычной игре ни js/gamepush.js, ни js/yandex.js не подключены,
      поэтому YG остаётся null и все хуки платформы пропускаются. */
-  const YG = window.YandexGame || null;
+  const YG = window.GamePlatform || window.YandexGame || null;
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v29';
+  const SW_VERSION = 'sb-v30';
 
   const state = {
     profile: null,
@@ -2637,7 +2638,7 @@
     if (cupInfo && cupInfo.done && cupInfo.won) unlock('cup');
 
     // Яндекс Игры: считаем бои для показа рекламы между матчами
-    if (YG) p.adMatches = (p.adMatches || 0) + 1;
+    if (YG && YG.available()) p.adMatches = (p.adMatches || 0) + 1;
 
     saveProfile();
     updateMenu();
@@ -2738,14 +2739,14 @@
 
   /* Награда за rewarded-видео: раз в день, +25 к рейтингу. */
   function canShowAdBonus() {
-    return !!YG && state.profile.adBonusDate !== dayKey();
+    return !!YG && YG.available() && state.profile.adBonusDate !== dayKey();
   }
 
   function updateBonusButton() {
     const btn = $('#btn-bonus');
     if (!btn) return;
     btn.hidden = true;
-    if (!YG || !canShowAdBonus()) return;
+    if (!YG) return;
     // SDK инициализируется асинхронно — показываем кнопку, когда он готов
     YG.whenReady().then(function (sdk) {
       if (!sdk || !canShowAdBonus()) return;
@@ -2780,7 +2781,8 @@
      и не раньше третьего боя, чтобы не мешать новичку. */
   function showInterstitialBetweenMatches(done) {
     const p = state.profile;
-    const ready = !!YG && (p.adMatches || 0) >= 2 && Date.now() - (p.lastAdAt || 0) >= 90000;
+    const ready = !!YG && YG.available() &&
+      (p.adMatches || 0) >= 2 && Date.now() - (p.lastAdAt || 0) >= 90000;
     if (!ready) { done(); return; }
     YG.showInterstitial().then(function (wasShown) {
       // даже неудачный показ считаем попыткой: иначе будем дёргать SDK каждый бой

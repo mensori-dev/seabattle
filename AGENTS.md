@@ -14,10 +14,16 @@
   (`window.Music`).
 - `js/yandex.js` — платформа Яндекс Игр: SDK, реклама, пауза (`window.YandexGame`).
   Подключается только в сборке для Яндекс Игр.
+- `js/gamepush.js` — платформа GamePush для VK/OK: SDK, реклама, пауза
+  (`window.GamePlatform`). Подключается только в GamePush-сборке; без SDK игра
+  работает как обычно.
 - `server/main.ts` — Deno-сервер комнат: проверяет флот и сам считает выстрелы.
   Персональные данные не хранит: комнаты и топ побед живут в памяти.
 - `docs/online.md` — деплой сервера на Deno Deploy и протокол сообщений.
 - `docs/yandex.md` — сборка для Яндекс Игр, чек-лист модерации, выплаты.
+- `docs/gamepush.md` — GamePush, VK Games и OK Games: ключи, сборка, хостинг,
+  реклама и модерация.
+- `docs/stores.md` — статус и чек-лист RuStore, Google Play и App Store.
 - `docs/yandex-promo/` — тексты полей карточки (`TEXTS.md`) и пошаговая
   инструкция публикации (`README.md`).
 - `scripts/make-yandex-promo.mjs` — промоматериалы для консоли:
@@ -38,6 +44,11 @@
 - `capacitor.config.json`, `www/` — мобильная обёртка: `www` собирается из корня `scripts/build-www.mjs`.
 - `scripts/build-yandex.mjs` — сборка для Яндекс Игр: `dist/yandex/` и архив
   `dist/seabattle-yandex-<версия>.zip` (онлайн, Google Fonts и PWA вырезаны).
+- `scripts/build-gamepush.mjs` — сборка для VK/OK через GamePush:
+  `dist/gamepush/` и `dist/seabattle-gamepush-<версия>.zip` (PWA вырезана,
+  онлайн и приватность остаются; ключи из env или `gamepush.config.json`).
+- `gamepush.config.example.json` — шаблон ключей GamePush; настоящий
+  `gamepush.config.json` в git не идёт.
 - `scripts/fetch-fonts.mjs` — локальные Nunito и Rubik в `assets/fonts` для Яндекс Игр.
 - `android/` — нативный проект Capacitor (генерируется `npx cap add android`).
   Сборка требует JDK 21 (Capacitor 8) и Android SDK: platform 36 + build-tools 36.
@@ -61,6 +72,10 @@
   `dist/seabattle-yandex-<версия>.zip` (`-- --no-zip` — только папка)
 - `npm run yandex:promo` — промоматериалы в `yandex-promo/` (нужен Chrome;
   `-- --no-video` — без MP4, `-- --no-build` — не пересобирать `dist/yandex`).
+- `npm run gamepush` — сборка для VK/OK: `dist/gamepush/` и архив
+  `dist/seabattle-gamepush-<версия>.zip` (ключи из `gamepush.config.json` или
+  env `GAMEPUSH_PROJECT_ID`/`GAMEPUSH_PUBLIC_TOKEN`; `-- --no-zip` — только папка)
+- `npm run gamepush:demo` — то же без SDK для локальной проверки
 - `npm run fonts` — перегенерировать локальные шрифты в `assets/fonts`
 - `npm run android:apk` — sync + подписанный release APK/AAB в `dist/`
   (`-- --apk` только APK, `-- --debug` debug-сборка)
@@ -79,6 +94,11 @@
   топ побед считается в памяти и обнуляется после перезапуска.
 - Сборка для Яндекс Игр не форкает код: `scripts/build-yandex.mjs` вырезает онлайн и PWA
   из тех же исходников. Правя общий код, не ломай её — `npm test` собирает и проверяет.
+- Платформенные хуки в `app.js` идут через `window.GamePlatform || window.YandexGame`.
+  В корне и `file://` оба отсутствуют — игра обязана работать без SDK.
+- Сборка GamePush для VK/OK (`scripts/build-gamepush.mjs`) оставляет онлайн и
+  приватность, но вырезает PWA и внешние шрифты. Ключи — в gitignored
+  `gamepush.config.json` или env, в репозиторий их не коммитить.
 - UI на русском, mobile-first, тач-цели не меньше 32px.
 - Новые анимации уважают `prefers-reduced-motion`.
 - Ключ localStorage `seabattle.profile.v2` не менять без миграции.

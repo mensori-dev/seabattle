@@ -24,6 +24,9 @@ dist/
 # промоматериалы для Яндекс Игр: генерируются npm run yandex:promo
 /yandex-promo/
 
+# ключи GamePush (VK/OK): настоящий файл не коммитим
+gamepush.config.json
+
 # Capacitor iOS (генерируется на macOS/в CI)
 ios/
 ios-assets/

@@ -144,6 +144,19 @@ npm run release -- --yes # публикация
 без файлов в `dist/` публикация остановится. Открыть витрину локально:
 `npm run dev`, затем http://localhost:5173/site/.
 
+## VK Games и OK Games
+
+HTML5-версия для VK и Одноклассников собирается через GamePush:
+
+1. Создай проект на https://gamepush.com/ и положи `projectId` и `publicToken`
+   в `gamepush.config.json` (шаблон — `gamepush.config.example.json`).
+2. `npm run gamepush` — получишь `dist/gamepush/` и
+   `dist/seabattle-gamepush-<версия>.zip`.
+3. Загрузи архив в **Хостинг игр** GamePush и подключи платформы VK/OK.
+
+`npm run gamepush:demo` собирает то же без SDK для локальной проверки.
+Подробно: `docs/gamepush.md`. Для OK нужен ИП или юрлицо.
+
 ## Публикация
 
 - **PWA / GitHub Pages**: https://mensori-dev.github.io/seabattle/
@@ -151,6 +164,8 @@ npm run release -- --yes # публикация
 - **APK для друзей**: https://github.com/mensori-dev/seabattle/releases/latest
 - **Политика конфиденциальности**: https://mensori-dev.github.io/seabattle/privacy.html
 - **Скриншоты для магазина**: `docs/screenshots/` (1080×1920)
+- **RuStore**: версия 1.5.0 на модерации
+- **Google Play / App Store**: чек-лист в `docs/stores.md`
 
 ## Что внутри
 
@@ -214,8 +229,11 @@ style.css       — оформление, анимации, адаптив
 js/engine.js    — правила, генерация флота, бот, ELO
 js/app.js       — интерфейс, звук, ход игры, сохранения
 js/online.js    — клиент онлайн-игры (WebSocket, комнаты)
+js/gamepush.js  — платформа GamePush для VK/OK (SDK, реклама, пауза)
 server/main.ts  — сервер комнат для Deno Deploy
 docs/online.md  — деплой сервера и протокол онлайн-игры
+docs/gamepush.md — GamePush, VK Games и OK Games
+docs/stores.md  — RuStore, Google Play, App Store: статус и чек-лист
 site/           — витрина: index.html, site.css, site.js, version.json, img/
 scripts/release.mjs — релиз: site/version.json + GitHub Releases + OneDrive
 ```

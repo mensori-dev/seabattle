@@ -597,11 +597,12 @@
     panel.hidden = false;
     list.innerHTML = hist.slice(0, 4).map((h) => {
       const delta = Number(h.delta) || 0;
+      const deltaText = h.rated === false ? '—' : (delta >= 0 ? '+' : '') + delta;
       return '<div class="history-row">' +
         '<span class="h-dot ' + (h.win ? 'win' : 'lose') + '"></span>' +
         '<span class="h-name">' + escapeHtml(h.name) + '</span>' +
         '<span class="h-res">' + (h.win ? 'победа' : 'поражение') + '</span>' +
-        '<span class="h-delta ' + (delta >= 0 ? 'plus' : 'minus') + '">' + (delta >= 0 ? '+' : '') + delta + '</span>' +
+        '<span class="h-delta ' + (delta >= 0 ? 'plus' : 'minus') + '">' + deltaText + '</span>' +
       '</div>';
     }).join('');
   }
@@ -1114,7 +1115,7 @@
     if (placementLocked()) return;
     closeShipEditor(false);
     setPlacementLocked(false);
-    state.playerBoard = Engine.randomBoard(fleetSizes());
+    state.playerBoard = Engine.randomBoard(fleetSizes(), state.size);
     state.placement.remaining = remainingFromFleet();
     Object.keys(state.placement.remaining).forEach((k) => { state.placement.remaining[k] = 0; });
     state.placement.size = null;
@@ -1129,7 +1130,7 @@
     if (placementLocked()) return;
     closeShipEditor(false);
     setPlacementLocked(false);
-    state.playerBoard = Engine.createBoard();
+    state.playerBoard = Engine.createBoard(state.size);
     state.placement.remaining = remainingFromFleet();
     state.placement.size = biggestLeft(state.placement.remaining);
     setErase(false);
@@ -2351,16 +2352,41 @@
       p.stats.shots += ms.shots;
       p.stats.hits += ms.hits;
       // Личный счёт онлайна — на этом устройстве, сервер его не хранит.
+      // В топ побед идут только классические комнаты: кастомные настройки
+      // не должны накручивать счётчик.
       p.onlineGames = (p.onlineGames || 0) + 1;
-      if (playerWon) p.onlineWins = (p.onlineWins || 0) + 1;
+      if (playerWon && isClassicConfig(state.config)) {
+        p.onlineWins = (p.onlineWins || 0) + 1;
+      }
       unlockAchievement('online', 700);
       saveProfile();
       updateMenu();
-      showResult(playerWon, same, same, 0, reason, null);
+      showResult(playerWon, same, same, 0, reason, { rated: false });
       return;
     }
 
     const oldRating = Math.round(p.rating);
+
+    // Рейтинг — только классический бот-бой 10×10. Кастомные поле, флот
+    // и тактика прогресс не двигают, иначе рейтинг можно фармить.
+    if (!isRatedBattle()) {
+      p.stats = p.stats || { shots: 0, hits: 0 };
+      p.stats.shots += ms.shots;
+      p.stats.hits += ms.hits;
+      p.history = [{
+        name: state.botName,
+        rating: Math.round(state.botRating),
+        delta: 0,
+        win: !!playerWon,
+        rated: false,
+        ts: Date.now()
+      }].concat(p.history || []).slice(0, 8);
+      saveProfile();
+      updateMenu();
+      showResult(playerWon, oldRating, oldRating, 0, reason, { rated: false });
+      return;
+    }
+
     const delta = Engine.eloDelta(oldRating, Math.round(state.botRating), playerWon ? 1 : 0);
 
     // Ежедневный бонус: первая победа за календарный день.
@@ -2469,7 +2495,13 @@
       (state.botRating ? ' · ' + Math.round(state.botRating) : '');
 
     const eloRow = document.querySelector('.result-card .elo-row');
-    if (eloRow) eloRow.hidden = online;
+    const rated = !online && !(extras && extras.rated === false);
+    if (eloRow) eloRow.hidden = !rated;
+    const ratedBadge = $('#result-rated');
+    if (ratedBadge) {
+      ratedBadge.hidden = rated;
+      ratedBadge.textContent = rated ? '' : 'Без рейтинга';
+    }
 
     if (online) {
       $('#btn-again').textContent = '🔁 Новая комната';

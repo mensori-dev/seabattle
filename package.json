@@ -17,6 +17,7 @@
     "yandex:promo": "node scripts/make-yandex-promo.mjs",
     "gamepush": "node scripts/build-gamepush.mjs",
     "gamepush:demo": "node scripts/build-gamepush.mjs --demo",
+    "vk:assets": "node scripts/vk-assets.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "android:sync": "npm run www && cap sync android",
     "android:apk": "node scripts/build-apk.mjs",

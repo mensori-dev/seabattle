@@ -22,11 +22,17 @@ interface BattleConfig {
   tactics: boolean;
 }
 
+interface SmokeZone {
+  cells: Cell[];
+  turnsLeft: number;
+}
+
 interface Board {
   size: number;
   grid: number[][];
   shots: number[][];
   ships: Ship[];
+  smoke: SmokeZone[];
 }
 
 interface Player {
@@ -34,6 +40,8 @@ interface Player {
   name: string;
   rating: number;
   board: Board | null;
+  loadout: string[] | null;
+  hintLoadout: string[];
 }
 
 interface Room {
@@ -43,6 +51,8 @@ interface Room {
   turn: number;
   started: boolean;
   createdAt: number;
+  charges: Record<string, number>[];
+  loadoutTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const DEFAULT_SIZE = 10;
@@ -135,7 +145,7 @@ function buildBoard(input: unknown, config: BattleConfig): Board | null {
     }
     ships.push({ size, cells, hits: 0, sunk: false });
   }
-  return { size: config.size, grid, shots, ships };
+  return { size: config.size, grid, shots, ships, smoke: [] };
 }
 
 function fire(board: Board, x: number, y: number) {
@@ -156,6 +166,139 @@ function fire(board: Board, x: number, y: number) {
 
 function allSunk(board: Board): boolean {
   return board.ships.length > 0 && board.ships.every((s) => s.sunk);
+}
+
+/* ---------------- Способности ---------------- */
+
+const ABILITY_IDS = ['airstrike', 'aa', 'smoke'];
+const DEFAULT_LOADOUT = ['airstrike', 'smoke'];
+
+function normalizeLoadout(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: string[] = [];
+  for (const v of raw) {
+    const id = String(v);
+    if (ABILITY_IDS.indexOf(id) >= 0 && out.indexOf(id) < 0) out.push(id);
+  }
+  return out.length === 2 ? out : null;
+}
+
+function newAbilityState(ids: string[] | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of ids || []) out[id] = 1;
+  return out;
+}
+
+// На 8×8 способности занимают 2×2, на большом поле — 3×3.
+function sideFor(size: number): number {
+  return size === 8 ? 2 : 3;
+}
+
+function areaCells(size: number, side: number, x: number, y: number): Cell[] {
+  if (x < 0 || y < 0 || x >= size || y >= size) return [];
+  const cells: Cell[] = [];
+  if (side === 2) {
+    const ax = Math.max(0, Math.min(size - 2, x));
+    const ay = Math.max(0, Math.min(size - 2, y));
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) cells.push([ax + dx, ay + dy]);
+    }
+    return cells;
+  }
+  // 3×3: якорь — центр, область не обрезается
+  if (x < 1 || y < 1 || x > size - 2 || y > size - 2) return [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) cells.push([x + dx, y + dy]);
+  }
+  return cells;
+}
+
+function smokeBlocks(board: Board, x: number, y: number): boolean {
+  return board.smoke.some((z) => z.turnsLeft > 0 &&
+    z.cells.some((c) => c[0] === x && c[1] === y));
+}
+
+function placeSmoke(board: Board, x: number, y: number): boolean {
+  const cells = areaCells(board.size, sideFor(board.size), x, y);
+  if (!cells.length) return false;
+  if (!cells.some((c) => !board.shots[c[1]][c[0]])) return false;
+  board.smoke.push({ cells, turnsLeft: 3 });
+  return true;
+}
+
+function tickSmoke(board: Board): void {
+  for (const z of board.smoke) z.turnsLeft -= 1;
+  board.smoke = board.smoke.filter((z) => z.turnsLeft > 0);
+}
+
+function legalShots(board: Board): Cell[] {
+  const out: Cell[] = [];
+  for (let y = 0; y < board.size; y++) {
+    for (let x = 0; x < board.size; x++) {
+      if (!board.shots[y][x] && !smokeBlocks(board, x, y)) out.push([x, y]);
+    }
+  }
+  return out;
+}
+
+function awaitingLoadout(room: Room): boolean {
+  return room.config.tactics && !room.players.every((p) => !!p.loadout);
+}
+
+function startBattle(room: Room): void {
+  if (room.started || room.players.length !== 2) return;
+  if (room.loadoutTimer) {
+    clearTimeout(room.loadoutTimer);
+    room.loadoutTimer = null;
+  }
+  room.started = true;
+  room.turn = Math.random() < 0.5 ? 0 : 1;
+  room.charges = room.players.map((p) => newAbilityState(p.loadout));
+  room.players.forEach((p, i) => {
+    const mine = room.players[1 - i];
+    send(p, {
+      t: 'begin',
+      you: i,
+      first: room.turn === i,
+      config: room.config,
+      loadout: p.loadout,
+      foeLoadout: mine.loadout,
+      foe: { name: mine.name, rating: mine.rating }
+    });
+  });
+}
+
+function maybeBegin(room: Room): void {
+  if (room.started || room.players.length !== 2) return;
+  if (!room.players.every((p) => !!p.board)) return;
+  if (awaitingLoadout(room)) {
+    // Комната не должна зависнуть на подготовке: через минуту берём подсказку.
+    if (!room.loadoutTimer) {
+      room.loadoutTimer = setTimeout(() => {
+        room.loadoutTimer = null;
+        if (room.started || room.players.length !== 2) return;
+        room.players.forEach((p) => {
+          if (!p.loadout) p.loadout = (p.hintLoadout || DEFAULT_LOADOUT).slice();
+        });
+        startBattle(room);
+      }, 60000);
+    }
+    return;
+  }
+  startBattle(room);
+}
+
+// Ход перешёл: дым на доске игрока, чей ход закончился, тикает.
+function advanceTurn(room: Room, fromIdx: number, depth = 0): void {
+  room.turn = 1 - fromIdx;
+  const finished = room.players[1 - fromIdx];
+  if (finished.board) tickSmoke(finished.board);
+  room.players.forEach((p, i) => send(p, { t: 'turn', you: room.turn === i }));
+  const next = room.players[room.turn];
+  if (next && next.board && legalShots(next.board).length === 0) {
+    room.players.forEach((p) => send(p, { t: 'pass', reason: 'smoke' }));
+    if (depth < 4) advanceTurn(room, room.turn, depth + 1);
+  }
 }
 
 /* ---------------- Утилиты ---------------- */
@@ -186,6 +329,10 @@ function cleanRating(v: unknown): number {
 }
 
 function dropRoom(room: Room) {
+  if (room.loadoutTimer) {
+    clearTimeout(room.loadoutTimer);
+    room.loadoutTimer = null;
+  }
   rooms.delete(room.code);
 }
 
@@ -236,17 +383,26 @@ function handle(socket: WebSocket) {
       if (room) return;
       const config = normalizeConfig(msg.config);
       if (!config) {
-        send({ ws: socket, name: '', rating: 0, board: null }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
+        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
         return;
       }
-      me = { ws: socket, name: cleanName(msg.name), rating: cleanRating(msg.rating), board: null };
+      me = {
+        ws: socket,
+        name: cleanName(msg.name),
+        rating: cleanRating(msg.rating),
+        board: null,
+        loadout: null,
+        hintLoadout: DEFAULT_LOADOUT.slice()
+      };
       room = {
         code: newCode(),
         config: config,
         players: [me],
         turn: 0,
         started: false,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        charges: [],
+        loadoutTimer: null
       };
       rooms.set(room.code, room);
       send(me, { t: 'room', code: room.code, you: 0, name: me.name, rating: me.rating, config: room.config });
@@ -259,14 +415,21 @@ function handle(socket: WebSocket) {
       const code = String(msg.code || '').replace(/\D/g, '').slice(0, 4);
       const target = rooms.get(code);
       if (!target) {
-        send({ ws: socket, name: '', rating: 0, board: null }, { t: 'error', msg: 'Комната не найдена. Проверь код.' });
+        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'Комната не найдена. Проверь код.' });
         return;
       }
       if (target.players.length >= 2) {
-        send({ ws: socket, name: '', rating: 0, board: null }, { t: 'error', msg: 'В комнате уже двое.' });
+        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'В комнате уже двое.' });
         return;
       }
-      me = { ws: socket, name: cleanName(msg.name), rating: cleanRating(msg.rating), board: null };
+      me = {
+        ws: socket,
+        name: cleanName(msg.name),
+        rating: cleanRating(msg.rating),
+        board: null,
+        loadout: null,
+        hintLoadout: DEFAULT_LOADOUT.slice()
+      };
       room = target;
       room.players.push(me);
       const idx = room.players.length - 1;
@@ -280,6 +443,22 @@ function handle(socket: WebSocket) {
 
     if (!me || !room) return;
 
+    if (type === 'loadout') {
+      if (room.started) {
+        send(me, { t: 'error', msg: 'Бой уже начался.' });
+        return;
+      }
+      const ids = normalizeLoadout(msg.ids);
+      if (!ids) {
+        send(me, { t: 'error', msg: 'Выбери ровно две способности.' });
+        return;
+      }
+      me.loadout = ids;
+      me.hintLoadout = ids.slice();
+      maybeBegin(room);
+      return;
+    }
+
     if (type === 'fleet') {
       // Флот принимается только один раз и только до старта боя:
       // иначе можно подменить расстановку по ходу матча.
@@ -287,6 +466,8 @@ function handle(socket: WebSocket) {
         send(me, { t: 'error', msg: 'Флот уже принят.' });
         return;
       }
+      const hint = normalizeLoadout(msg.loadout);
+      if (hint) me.hintLoadout = hint;
       const board = buildBoard(msg.ships, room.config);
       if (!board) {
         send(me, { t: 'error', msg: 'Некорректная расстановка флота.' });
@@ -298,20 +479,112 @@ function handle(socket: WebSocket) {
       const foe = room.players[1 - idx];
       if (foe) send(foe, { t: 'foeReady' });
 
-      if (room.players.length === 2 && room.players.every((p) => p.board)) {
-        room.started = true;
-        room.turn = Math.random() < 0.5 ? 0 : 1;
-        room.players.forEach((p, i) => {
-          const mine = room!.players[1 - i];
-          send(p, {
-            t: 'begin',
-            you: i,
-            first: room!.turn === i,
-            config: room!.config,
-            foe: { name: mine.name, rating: mine.rating }
-          });
-        });
+      maybeBegin(room);
+      return;
+    }
+
+    if (type === 'ability') {
+      if (!room.started || !room.config.tactics) {
+        send(me, { t: 'error', msg: 'Способности недоступны.' });
+        return;
       }
+      const idx = room.players.indexOf(me);
+      if (idx !== room.turn) {
+        send(me, { t: 'error', msg: 'Сейчас не твой ход.' });
+        return;
+      }
+      const kind = String(msg.kind || '');
+      const charges = room.charges[idx] || {};
+      if (!me.loadout || me.loadout.indexOf(kind) < 0 || !charges[kind]) {
+        send(me, { t: 'error', msg: 'Способность недоступна.' });
+        return;
+      }
+      const x = Number(msg.x);
+      const y = Number(msg.y);
+      if (!Number.isInteger(x) || !Number.isInteger(y) ||
+          x < 0 || y < 0 || x >= room.config.size || y >= room.config.size) {
+        send(me, { t: 'error', msg: 'Координаты вне поля.' });
+        return;
+      }
+      const foe = room.players[1 - idx];
+
+      if (kind === 'smoke') {
+        const own = me.board;
+        if (!own) return;
+        const cells = areaCells(own.size, sideFor(own.size), x, y);
+        if (!cells.length) {
+          send(me, { t: 'error', msg: 'Слишком близко к краю.' });
+          return;
+        }
+        if (!cells.some((c) => !own.shots[c[1]][c[0]])) {
+          send(me, { t: 'error', msg: 'Здесь уже всё обстреляно.' });
+          return;
+        }
+        placeSmoke(own, x, y);
+        charges.smoke -= 1;
+        room.players.forEach((p, i) => send(p, {
+          t: 'ability',
+          kind: 'smoke',
+          x: x,
+          y: y,
+          cells: cells.map((c) => ({ x: c[0], y: c[1] })),
+          owner: idx,
+          turnsLeft: 3,
+          foe: i !== idx
+        }));
+        advanceTurn(room, idx);
+        return;
+      }
+
+      if (kind === 'airstrike') {
+        if (!foe || !foe.board) return;
+        const foeBoard = foe.board;
+        let cells = areaCells(foeBoard.size, sideFor(foeBoard.size), x, y);
+        if (!cells.length) {
+          send(me, { t: 'error', msg: 'Слишком близко к краю.' });
+          return;
+        }
+        if (!cells.some((c) => !foeBoard.shots[c[1]][c[0]])) {
+          send(me, { t: 'error', msg: 'Здесь уже всё обстреляно.' });
+          return;
+        }
+        // ПВО соперника гасит первый авиаудар до центральной клетки.
+        let blocked = false;
+        const foeCharges = room.charges[1 - idx] || {};
+        if (foeCharges.aa > 0) {
+          foeCharges.aa = 0;
+          cells = [[x, y]];
+          blocked = true;
+          room.players.forEach((p) => send(p, { t: 'ability', kind: 'aa', blocked: true, owner: 1 - idx }));
+        }
+        const hits: Array<NonNullable<ReturnType<typeof fire>>> = [];
+        for (const c of cells) {
+          const hit = fire(foeBoard, c[0], c[1]);
+          if (hit) hits.push(hit);
+        }
+        charges.airstrike -= 1;
+        room.players.forEach((p, i) => send(p, {
+          t: 'ability',
+          kind: 'airstrike',
+          x: x,
+          y: y,
+          cells: hits,
+          foe: i !== idx,
+          blocked: blocked
+        }));
+        if (allSunk(foeBoard)) {
+          send(me, { t: 'end', win: true });
+          send(foe, { t: 'end', win: false });
+          if (isClassicRoom(room.config)) recordWin(me.name);
+          dropRoom(room);
+          room = null;
+          return;
+        }
+        advanceTurn(room, idx);
+        return;
+      }
+
+      send(me, { t: 'error', msg: 'Неизвестная способность.' });
       return;
     }
 
@@ -325,7 +598,14 @@ function handle(socket: WebSocket) {
       const foe = room.players[1 - idx];
       if (!foe || !foe.board) return;
 
-      const res = fire(foe.board, Number(msg.x), Number(msg.y));
+      const sx = Number(msg.x);
+      const sy = Number(msg.y);
+      if (smokeBlocks(foe.board, sx, sy)) {
+        send(me, { t: 'error', msg: 'Клетка под дымом.' });
+        return;
+      }
+
+      const res = fire(foe.board, sx, sy);
       if (!res) {
         send(me, { t: 'error', msg: 'По этой клетке уже стреляли.' });
         return;
@@ -344,8 +624,7 @@ function handle(socket: WebSocket) {
       }
 
       if (res.result === 'miss') {
-        room.turn = 1 - idx;
-        room.players.forEach((p, i) => send(p, { t: 'turn', you: room!.turn === i }));
+        advanceTurn(room, idx);
       }
       return;
     }

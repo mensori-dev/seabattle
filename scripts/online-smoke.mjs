@@ -18,6 +18,17 @@ const FLEET = [
   { size: 1, cells: [[8, 4]] }
 ];
 
+// Пресет 8×8: [3, 2, 2, 2, 1, 1, 1].
+const FLEET8 = [
+  { size: 3, cells: [[0, 0], [1, 0], [2, 0]] },
+  { size: 2, cells: [[4, 0], [5, 0]] },
+  { size: 2, cells: [[0, 2], [1, 2]] },
+  { size: 2, cells: [[3, 2], [4, 2]] },
+  { size: 1, cells: [[7, 0]] },
+  { size: 1, cells: [[0, 4]] },
+  { size: 1, cells: [[2, 4]] }
+];
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function client(name) {
@@ -64,6 +75,96 @@ const watchdog = setTimeout(() => {
   process.exit(1);
 }, 30000);
 watchdog.unref?.();
+
+// Тактические комнаты: конфиг, лоудаут, ПВО, дым и передача хода.
+async function tacticalScenario() {
+  /* --- 8×8: ПВО гасит первый авиаудар до одной клетки --- */
+  const a = client('TA');
+  const b = client('TB');
+  await a.open();
+  await b.open();
+  a.send({ t: 'create', name: 'Тактика А', rating: 1000, config: { size: 8, fleet: 'classic', tactics: true } });
+  const roomA = await a.take('room');
+  check(roomA.config && roomA.config.size === 8, 'комната приняла конфиг 8×8');
+  await a.take('wait');
+  b.send({ t: 'join', code: roomA.code, name: 'Тактика Б', rating: 1000 });
+  await b.take('room');
+  check((await a.take('start')).config.tactics === true, 'start несёт тактику');
+  await b.take('start');
+
+  const loadout = ['aa', 'airstrike'];
+  a.send({ t: 'fleet', ships: FLEET8, loadout: loadout });
+  b.send({ t: 'fleet', ships: FLEET8, loadout: loadout });
+  await a.take('fleetOk');
+  await b.take('fleetOk');
+  a.send({ t: 'loadout', ids: loadout });
+  b.send({ t: 'loadout', ids: loadout });
+  const beginA = await a.take('begin');
+  const beginB = await b.take('begin');
+  check(beginA.config.size === 8 && beginB.config.size === 8, 'begin только после двух лоудаутов');
+  check(beginA.loadout.join(',') === 'aa,airstrike', 'begin вернул лоудаут');
+
+  const shooter = beginA.first ? a : b;
+  const defender = beginA.first ? b : a;
+  shooter.send({ t: 'ability', kind: 'airstrike', x: 4, y: 4 });
+  const aa = await shooter.take('ability', (m) => m.kind === 'aa');
+  check(aa.blocked === true, 'ПВО сработало');
+  const strike = await shooter.take('ability', (m) => m.kind === 'airstrike');
+  check(strike.cells.length === 1, 'ПВО сжало удар до 1 клетки');
+  await defender.take('ability', (m) => m.kind === 'aa');
+  await defender.take('ability', (m) => m.kind === 'airstrike');
+  check((await shooter.take('turn')).you === false, 'авиаудар передал ход');
+
+  a.ws.close();
+  b.ws.close();
+
+  /* --- 10×10: дым, запрет выстрела и обычный авиаудар --- */
+  await sleep(150);
+  const c = client('TC');
+  const d = client('TD');
+  await c.open();
+  await d.open();
+  c.send({ t: 'create', name: 'Дым А', rating: 1000, config: { size: 10, fleet: 'classic', tactics: true } });
+  const roomC = await c.take('room');
+  await c.take('wait');
+  d.send({ t: 'join', code: roomC.code, name: 'Дым Б', rating: 1000 });
+  await d.take('room');
+  await c.take('start');
+  await d.take('start');
+
+  const loadout2 = ['airstrike', 'smoke'];
+  c.send({ t: 'fleet', ships: FLEET, loadout: loadout2 });
+  d.send({ t: 'fleet', ships: FLEET, loadout: loadout2 });
+  await c.take('fleetOk');
+  await d.take('fleetOk');
+  c.send({ t: 'loadout', ids: loadout2 });
+  d.send({ t: 'loadout', ids: loadout2 });
+  const beginC = await c.take('begin');
+  const beginD = await d.take('begin');
+  const smokeUser = beginC.first ? c : d;
+  const smokeFoe = beginC.first ? d : c;
+
+  smokeUser.send({ t: 'ability', kind: 'smoke', x: 4, y: 4 });
+  const smoke = await smokeUser.take('ability', (m) => m.kind === 'smoke');
+  check(smoke.cells.length === 9, 'дым 3×3 — девять клеток');
+  check(smoke.owner === (beginC.first ? beginC.you : beginD.you), 'владелец дыма указан');
+  await smokeFoe.take('ability', (m) => m.kind === 'smoke');
+  check((await smokeFoe.take('turn')).you === true, 'дым передал ход');
+
+  smokeFoe.send({ t: 'shot', x: 4, y: 4 });
+  check((await smokeFoe.take('error')).msg.includes('дымом'), 'выстрел в дым отклонён');
+  smokeFoe.send({ t: 'shot', x: 7, y: 7 });
+  check((await smokeFoe.take('shot', (m) => m.mine === true)).result === 'miss', 'выстрел мимо дыма прошёл');
+  await smokeFoe.take('turn');
+
+  smokeUser.send({ t: 'ability', kind: 'airstrike', x: 4, y: 4 });
+  const strike2 = await smokeUser.take('ability', (m) => m.kind === 'airstrike');
+  check(strike2.cells.length === 9, 'обычный авиаудар 3×3 — девять клеток');
+  await smokeFoe.take('ability', (m) => m.kind === 'airstrike');
+
+  c.ws.close();
+  d.ws.close();
+}
 
 const a = client('A');
 const b = client('B');
@@ -147,6 +248,8 @@ try {
   c.send({ t: 'join', code: roomA.code, name: 'Тест Ц', rating: 1000 });
   check((await c.take('error')).msg.includes('не найдена'), 'после боя комната закрыта');
   c.ws.close();
+
+  await tacticalScenario();
 } catch (err) {
   fails++;
   console.error('\nОшибка смоука:', err.message);

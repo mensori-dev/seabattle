@@ -203,6 +203,21 @@
         <p class="sr-only" id="ship-editor-live" aria-live="polite"></p>
       </section>
 
+      <!-- ================= ПОДГОТОВКА ================= -->
+      <section id="screen-prepare" class="screen screen-prepare">
+        <div class="prep-head">
+          <button class="icon-btn back-btn" id="btn-prep-back" type="button" aria-label="Назад к расстановке">←</button>
+          <div class="place-title">
+            <h2>Выбери две способности</h2>
+            <p class="muted" id="prep-hint">Каждая сработает один раз за бой</p>
+          </div>
+        </div>
+
+        <div class="prep-cards" id="prep-cards" role="group" aria-label="Способности"></div>
+        <p class="prep-config" id="prep-config"></p>
+        <button class="btn btn-primary btn-big" id="btn-prep-go" type="button" disabled>В бой</button>
+      </section>
+
       <!-- ================= БОЙ ================= -->
       <section id="screen-battle" class="screen">
         <div class="battle-head">
@@ -222,6 +237,8 @@
             <span class="fighter-avatar" id="b-foe-avatar">🤖</span>
           </div>
         </div>
+
+        <div class="ability-bar" id="ability-bar" hidden></div>
 
         <div class="battle-grid" id="battle-grid">
           <div class="board-col enemy-col">

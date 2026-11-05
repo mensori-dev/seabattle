@@ -49,7 +49,9 @@
     config: { size: 10, fleet: 'classic', tactics: false },
     loadout: ['airstrike', 'smoke'],
     abilities: null,       // заряды способностей в текущем бою
+    botAbilities: null,    // заряды способностей бота
     pendingAbility: null,  // выбранная способность в режиме прицела
+    prepGo: null,          // что запустить после экрана подготовки
     cup: null,             // «Испытание дня»: { round, wins }
     cupMatch: false        // текущий бой идёт в зачёт испытания
   };
@@ -588,7 +590,7 @@
   }
 
   function showScreen(name) {
-    Object.keys({ menu: 1, online: 1, place: 1, battle: 1 }).forEach((key) => {
+    Object.keys({ menu: 1, online: 1, place: 1, prepare: 1, battle: 1 }).forEach((key) => {
       const screen = $('#screen-' + key);
       if (screen) screen.classList.toggle('is-active', key === name);
     });
@@ -1106,6 +1108,250 @@
     Sfx.play('click');
   }
 
+  /* ---------------- Подготовка: две способности ---------------- */
+  function prepSelection() {
+    const out = [];
+    for (const id of (state.loadout || [])) {
+      if (Engine.ABILITIES[id] && out.indexOf(id) < 0) out.push(id);
+    }
+    return out.slice(0, 2);
+  }
+
+  function renderPrep() {
+    const wrap = $('#prep-cards');
+    if (!wrap) return;
+    const chosen = prepSelection();
+    state.loadout = chosen;
+    wrap.innerHTML = '';
+    Object.keys(Engine.ABILITIES).forEach((id) => {
+      const ability = Engine.ABILITIES[id];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'prep-card';
+      btn.dataset.ability = id;
+      const on = chosen.indexOf(id) >= 0;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.innerHTML =
+        '<span class="prep-icon" aria-hidden="true">' + ability.icon + '</span>' +
+        '<span class="prep-name">' + ability.name + '</span>' +
+        '<span class="prep-desc">' + ability.desc + '</span>';
+      if (on) btn.classList.add('is-on');
+      else if (chosen.length >= 2) btn.classList.add('is-dim');
+      wrap.appendChild(btn);
+    });
+    const go = $('#btn-prep-go');
+    if (go) go.disabled = chosen.length !== 2;
+    const cfg = $('#prep-config');
+    if (cfg) cfg.textContent = configLabel(state.config);
+    const hint = $('#prep-hint');
+    if (hint) {
+      hint.textContent = chosen.length === 2
+        ? 'Готово: ' + chosen.map((id) => Engine.ABILITIES[id].name).join(' + ')
+        : 'Выбери ещё ' + (2 - chosen.length);
+    }
+  }
+
+  function togglePrepAbility(id) {
+    if (!Engine.ABILITIES[id]) return false;
+    const chosen = prepSelection();
+    const at = chosen.indexOf(id);
+    if (at >= 0) {
+      chosen.splice(at, 1);
+    } else if (chosen.length < 2) {
+      chosen.push(id);
+    } else {
+      toast('Можно выбрать только две способности', 'miss');
+      return false;
+    }
+    state.loadout = chosen.slice(0, 2);
+    renderPrep();
+    Sfx.play('click');
+    return true;
+  }
+
+  function showPrepare(onGo) {
+    state.loadout = prepSelection();
+    state.prepGo = typeof onGo === 'function' ? onGo : null;
+    renderPrep();
+    showScreen('prepare');
+  }
+
+  function confirmLoadout() {
+    if (prepSelection().length !== 2) return;
+    state.profile.loadout = state.loadout.slice();
+    saveProfile();
+    const go = state.prepGo;
+    state.prepGo = null;
+    if (go) go(state.loadout.slice());
+  }
+
+  function botLoadout() {
+    const ids = Object.keys(Engine.ABILITIES);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = randInt(0, i);
+      const t = ids[i];
+      ids[i] = ids[j];
+      ids[j] = t;
+    }
+    return ids.slice(0, 2);
+  }
+
+  function renderAbilityBar() {
+    const bar = $('#ability-bar');
+    if (!bar) return;
+    const tactics = !!(state.config && state.config.tactics) && state.mode !== 'online';
+    bar.hidden = !tactics;
+    bar.innerHTML = '';
+    if (!tactics || !state.abilities) return;
+    for (const id of state.loadout) {
+      const ability = Engine.ABILITIES[id];
+      if (!ability) continue;
+      const left = state.abilities[id] || 0;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ability-btn';
+      btn.dataset.ability = id;
+      btn.disabled = left <= 0;
+      const armed = state.pendingAbility === id;
+      if (armed) btn.classList.add('is-armed');
+      btn.setAttribute('aria-pressed', armed ? 'true' : 'false');
+      btn.innerHTML =
+        '<span aria-hidden="true">' + ability.icon + '</span>' +
+        '<span>' + ability.name + '</span>' +
+        '<span class="ability-charge">' + left + '</span>';
+      bar.appendChild(btn);
+    }
+  }
+
+  function clearAim() {
+    $$('.cell.aim').forEach((c) => c.classList.remove('aim'));
+  }
+
+  function paintAim(targetEl, x, y) {
+    clearAim();
+    if (!targetEl || !state.pendingAbility) return;
+    const cells = Engine.areaCells(state.size, Engine.abilitySide(state.size), x, y);
+    for (const c of cells) {
+      const cell = targetEl.children[c.y * state.size + c.x];
+      if (cell) cell.classList.add('aim');
+    }
+  }
+
+  function armAbility(id) {
+    if (!state.abilities || !state.abilities[id] || state.abilities[id] <= 0) return;
+    if (state.mode === 'online') return;
+    state.pendingAbility = state.pendingAbility === id ? null : id;
+    clearAim();
+    renderAbilityBar();
+    if (state.pendingAbility === 'smoke') {
+      toast('💨 Тапни по своему полю — поставим дым', 'turn');
+    } else if (state.pendingAbility === 'airstrike') {
+      toast('✈️ Тапни по полю противника — удар по площади', 'turn');
+      Sfx.play('click');
+    }
+  }
+
+  function paintSmoke(targetEl, board) {
+    if (!targetEl || !board) return;
+    $$('.cell.smoke', targetEl).forEach((c) => c.classList.remove('smoke'));
+    for (const c of Engine.smokeCells(board)) {
+      const cell = targetEl.children[c.y * state.size + c.x];
+      if (cell) cell.classList.add('smoke');
+    }
+  }
+
+  async function useAirstrike(x, y) {
+    if (!state.enemyBoard || !state.abilities || state.abilities.airstrike <= 0) return;
+    const cells = Engine.areaCells(state.size, Engine.abilitySide(state.size), x, y);
+    if (!cells.length) {
+      toast('Слишком близко к краю — выбери клетку дальше', 'miss');
+      return;
+    }
+    const seq = state.matchSeq;
+    state.locked = true;
+    state.pendingAbility = null;
+    const res = Engine.airstrike(state.enemyBoard, x, y);
+    if (!res.ok) {
+      state.locked = false;
+      renderAbilityBar();
+      toast('Здесь уже всё обстреляно', 'miss');
+      return;
+    }
+    state.abilities.airstrike -= 1;
+    renderAbilityBar();
+
+    for (const hit of res.cells) {
+      const cell = boards.enemy.children[hit.y * state.size + hit.x];
+      if (!cell) continue;
+      cell.classList.add('strike');
+      markShot(boards.enemy, cell, hit.result);
+      if (hit.result === 'miss') {
+        cell.classList.add('miss');
+        cell.dataset.result = 'miss';
+      } else {
+        cell.classList.add('hit');
+        cell.dataset.result = hit.result === 'sunk' ? 'sunk' : 'hit';
+        if (hit.result === 'sunk') revealSunk(boards.enemy, hit.ship);
+      }
+      setTimeout(() => cell.classList.remove('strike'), 520);
+    }
+    Sfx.play('boom');
+    shake(true);
+
+    if (state.matchStats) {
+      state.matchStats.shots += res.cells.length;
+      state.matchStats.hits += res.cells.filter((c) => c.result !== 'miss').length;
+    }
+    updateFleet();
+    toast('✈️ Авиаудар: ' + res.cells.length + ' клеток', 'hit');
+
+    if (Engine.allSunk(state.enemyBoard)) {
+      endGame(true);
+      return;
+    }
+
+    state.playerTurn = false;
+    setTurn(false);
+    await sleep(520);
+    if (seq !== state.matchSeq || state.gameOver) return;
+    endPlayerTurn();
+    botTurn(seq);
+  }
+
+  function useSmoke(x, y) {
+    if (!state.playerBoard || !state.abilities || state.abilities.smoke <= 0) return;
+    if (!state.playerTurn || state.locked || state.gameOver) return;
+    const res = Engine.placeSmoke(state.playerBoard, x, y);
+    if (!res.ok) {
+      toast('Здесь нельзя поставить дым', 'miss');
+      return;
+    }
+    state.abilities.smoke -= 1;
+    state.pendingAbility = null;
+    renderAbilityBar();
+    paintSmoke(boards.own, state.playerBoard);
+    toast('💨 Дым на 3 хода соперника', 'turn');
+    Sfx.play('click');
+    endPlayerTurn();
+    botTurn(state.matchSeq);
+  }
+
+  // Конец хода игрока: дым соперника на его поле тикает.
+  function endPlayerTurn() {
+    if (state.enemyBoard && state.enemyBoard.smoke && state.enemyBoard.smoke.length) {
+      Engine.tickSmoke(state.enemyBoard);
+      paintSmoke(boards.enemy, state.enemyBoard);
+    }
+  }
+
+  // Конец хода бота: тикает дым игрока на своём поле.
+  function endBotTurn() {
+    if (state.playerBoard && state.playerBoard.smoke && state.playerBoard.smoke.length) {
+      Engine.tickSmoke(state.playerBoard);
+      paintSmoke(boards.own, state.playerBoard);
+    }
+  }
+
   /* ---------------- Бой ---------------- */
   function beginBattle() {
     closeShipEditor(false);
@@ -1115,11 +1361,18 @@
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = true;
+    state.pendingAbility = null;
+    state.abilities = state.config.tactics ? Engine.newAbilityState(state.loadout) : null;
+    state.botAbilities = state.config.tactics ? Engine.newAbilityState(botLoadout()) : null;
 
     buildBoard(boards.enemy);
     buildBoard(boards.own);
     paintBoard(boards.enemy, state.enemyBoard, false);
     paintBoard(boards.own, state.playerBoard, true);
+    paintSmoke(boards.enemy, state.enemyBoard);
+    paintSmoke(boards.own, state.playerBoard);
+    clearAim();
+    renderAbilityBar();
 
     const pRank = Engine.rankFor(state.profile.rating);
     $('#b-you-name').textContent = state.profile.name;
@@ -1671,6 +1924,14 @@
   async function playerShoot(x, y) {
     if (state.paused) return;
     if (state.locked || !state.playerTurn || state.gameOver || !state.enemyBoard) return;
+    if (state.pendingAbility === 'airstrike') {
+      await useAirstrike(x, y);
+      return;
+    }
+    if (Engine.smokeBlocks(state.enemyBoard, x, y)) {
+      toast('💨 Сюда нельзя: дым соперника', 'miss');
+      return;
+    }
     if (state.enemyBoard.shots[y][x]) return;
 
     if (state.mode === 'online') {
@@ -1705,10 +1966,22 @@
       return;
     }
 
+    // Бот может прикрыть повреждённый корабль дымом.
+    if (state.config.tactics && state.botAbilities && state.botAbilities.smoke > 0 &&
+        shot.result !== 'miss' && shot.ship && Math.random() < 0.35) {
+      const anchor = shot.ship.cells[0];
+      if (Engine.placeSmoke(state.enemyBoard, anchor.x, anchor.y).ok) {
+        state.botAbilities.smoke -= 1;
+        paintSmoke(boards.enemy, state.enemyBoard);
+        toast('💨 Бот поставил дым', 'turn');
+      }
+    }
+
     if (shot.result === 'miss') {
       toast('🌊 Мимо', 'miss');
       state.playerTurn = false;
       setTurn(false);
+      endPlayerTurn();
       await sleep(430);
       if (seq !== state.matchSeq) return;
       botTurn(seq);
@@ -1734,8 +2007,18 @@
       await waitWhilePaused();
       if (seq !== state.matchSeq || state.gameOver) return;
 
-      const move = state.bot.choose(state.playerBoard);
+      let move = state.bot.choose(state.playerBoard);
       if (!move) break;
+
+      // Дым игрока: бот не стреляет в задымлённые клетки.
+      let guard = 0;
+      while (Engine.smokeBlocks(state.playerBoard, move.x, move.y) && guard++ < 300) {
+        state.bot.report(move.x, move.y, { result: 'miss' });
+        const next = state.bot.choose(state.playerBoard);
+        if (!next) break;
+        move = next;
+      }
+      if (Engine.smokeBlocks(state.playerBoard, move.x, move.y)) break;
 
       const shot = await doShot(boards.own, state.playerBoard, move.x, move.y, true);
       if (seq !== state.matchSeq || state.gameOver) return;
@@ -1747,6 +2030,38 @@
       if (Engine.allSunk(state.playerBoard)) {
         endGame(false);
         return;
+      }
+
+      // Тактика бота: авиаудар по области последнего попадания.
+      if (state.config.tactics && state.botAbilities && state.botAbilities.airstrike > 0 &&
+          shot.result !== 'miss' && Math.random() < 0.5) {
+        const res = Engine.airstrike(state.playerBoard, move.x, move.y);
+        if (res.ok) {
+          state.botAbilities.airstrike -= 1;
+          for (const hit of res.cells) {
+            const cell = boards.own.children[hit.y * state.size + hit.x];
+            if (!cell) continue;
+            cell.classList.add('strike');
+            setTimeout(() => cell.classList.remove('strike'), 520);
+            if (hit.result === 'miss') {
+              cell.classList.add('miss');
+              cell.dataset.result = 'miss';
+            } else {
+              cell.classList.add('hit');
+              cell.dataset.result = hit.result === 'sunk' ? 'sunk' : 'hit';
+              if (hit.result === 'sunk') revealSunk(boards.own, hit.ship);
+            }
+          }
+          Sfx.play('boom');
+          shake(true);
+          updateFleet();
+          toast('✈️ Бот нанёс авиаудар', 'sunk');
+          if (Engine.allSunk(state.playerBoard)) {
+            endGame(false);
+            return;
+          }
+          await sleep(420);
+        }
       }
 
       if (shot.result === 'miss') {
@@ -1761,6 +2076,7 @@
     }
 
     if (seq !== state.matchSeq || state.gameOver) return;
+    endBotTurn();
     state.playerTurn = true;
     state.locked = false;
     setTurn(true);
@@ -2514,7 +2830,28 @@
       if (totalLeft() > 0) return;
       Sfx.play('click');
       if (state.mode === 'online') { sendFleetOnline(); return; }
+      if (state.config && state.config.tactics) {
+        showPrepare(() => beginBattle());
+        return;
+      }
       beginBattle();
+    });
+
+    /* --- экран подготовки --- */
+    $('#prep-cards').addEventListener('click', (e) => {
+      const card = e.target.closest('.prep-card[data-ability]');
+      if (!card) return;
+      togglePrepAbility(card.dataset.ability);
+    });
+    $('#btn-prep-go').addEventListener('click', () => {
+      if (prepSelection().length !== 2) return;
+      Sfx.play('click');
+      confirmLoadout();
+    });
+    $('#btn-prep-back').addEventListener('click', () => {
+      Sfx.play('click');
+      state.prepGo = null;
+      showScreen('place');
     });
 
     /* --- редактор корабля --- */
@@ -2540,6 +2877,35 @@
       const cell = e.target.closest('.cell');
       if (!cell) return;
       playerShoot(Number(cell.dataset.x), Number(cell.dataset.y));
+    });
+
+    boards.enemy.addEventListener('pointermove', (e) => {
+      if (state.pendingAbility !== 'airstrike') return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      paintAim(boards.enemy, Number(cell.dataset.x), Number(cell.dataset.y));
+    });
+    boards.enemy.addEventListener('pointerleave', clearAim);
+
+    boards.own.addEventListener('pointermove', (e) => {
+      if (state.pendingAbility !== 'smoke') return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      paintAim(boards.own, Number(cell.dataset.x), Number(cell.dataset.y));
+    });
+    boards.own.addEventListener('pointerleave', clearAim);
+
+    boards.own.addEventListener('click', (e) => {
+      if (state.pendingAbility !== 'smoke') return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      useSmoke(Number(cell.dataset.x), Number(cell.dataset.y));
+    });
+
+    $('#ability-bar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.ability-btn[data-ability]');
+      if (!btn || btn.disabled) return;
+      armAbility(btn.dataset.ability);
     });
 
     $('#btn-surrender').addEventListener('click', () => {
@@ -2728,6 +3094,7 @@
   }
 
   state.profile = loadProfile();
+  state.loadout = normalizeLoadout(state.profile.loadout);
   state.cup = state.profile.cup || null;
   applyNativeInsets();
   applyMotion();

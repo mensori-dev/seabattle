@@ -45,8 +45,9 @@
 - `scripts/build-yandex.mjs` — сборка для Яндекс Игр: `dist/yandex/` и архив
   `dist/seabattle-yandex-<версия>.zip` (онлайн, Google Fonts и PWA вырезаны).
 - `scripts/build-gamepush.mjs` — сборка для VK/OK через GamePush:
-  `dist/gamepush/` и `dist/seabattle-gamepush-<версия>.zip` (PWA вырезана,
-  онлайн и приватность остаются; ключи из env или `gamepush.config.json`).
+  `dist/gamepush/` и `dist/seabattle-gamepush-<версия>.zip` (PWA и онлайн
+  вырезаны, остаётся одиночный бой и приватность; ключи из env или
+  `gamepush.config.json`).
 - `gamepush.config.example.json` — шаблон ключей GamePush; настоящий
   `gamepush.config.json` в git не идёт.
 - `scripts/fetch-fonts.mjs` — локальные Nunito и Rubik в `assets/fonts` для Яндекс Игр.
@@ -96,9 +97,10 @@
   из тех же исходников. Правя общий код, не ломай её — `npm test` собирает и проверяет.
 - Платформенные хуки в `app.js` идут через `window.GamePlatform || window.YandexGame`.
   В корне и `file://` оба отсутствуют — игра обязана работать без SDK.
-- Сборка GamePush для VK/OK (`scripts/build-gamepush.mjs`) оставляет онлайн и
-  приватность, но вырезает PWA и внешние шрифты. Ключи — в gitignored
-  `gamepush.config.json` или env, в репозиторий их не коммитить.
+- Сборка GamePush для VK/OK (`scripts/build-gamepush.mjs`) вырезает PWA, онлайн
+  и внешние шрифты, но оставляет только одиночный бой с ботом и политику
+  конфиденциальности. Ключи — в gitignored `gamepush.config.json` или env,
+  в репозиторий их не коммитить.
 - UI на русском, mobile-first, тач-цели не меньше 32px.
 - Новые анимации уважают `prefers-reduced-motion`.
 - Ключ localStorage `seabattle.profile.v2` не менять без миграции.

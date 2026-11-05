@@ -145,4 +145,22 @@
       });
     }
   };
+
+  /* В одиночной GamePush-сборке онлайн вырезан, но app.js всё равно
+     обращается к Online. Заглушка отвечает «недоступно». */
+  global.Online = global.Online || {
+    available: function () { return false; },
+    isOpen: function () { return false; },
+    on: function () {},
+    connect: function () { return Promise.resolve(); },
+    create: function () {},
+    join: function () {},
+    leave: function () {},
+    fleet: function () {},
+    loadout: function () {},
+    ability: function () {},
+    shot: function () {},
+    surrender: function () {},
+    httpUrl: function (p) { return p; }
+  };
 })(window);

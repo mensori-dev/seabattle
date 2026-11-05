@@ -4,7 +4,7 @@
 // Отличия от основной игры:
 //   • нет PWA: manifest, service worker, иконки установки и подсказки Safari;
 //   • локальные шрифты, никаких Google Fonts;
-//   • онлайн остаётся: VK/OK-комнаты работают через тот же WebSocket;
+//   • онлайн вырезан: в VK/OK — только одиночная игра с ботом;
 //   • подключён js/gamepush.js и официальный загрузчик SDK GamePush.
 //
 // Ключи проекта берутся из переменных окружения GAMEPUSH_PROJECT_ID,
@@ -105,19 +105,35 @@ function buildHtml(creds) {
   // подсказка «добавить на домашний экран» относится к PWA, а не к VK/OK
   s = cut(s, '        <!-- подсказка только для Safari', '        <a class="privacy-link"', 'подсказка установки на iPhone');
 
-  const appScript = '  <script src="js/app.js"></script>';
-  must(s.includes(appScript), 'не нашёл подключение js/app.js');
+  // онлайн-комнат в VK/OK нет — убираем кнопку, экран и все упоминания
+  s = s.replace(/[ \t]*<button class="btn btn-ghost btn-big btn-online"[\s\S]*?<\/button>\s*\n/, '');
+  must(!s.includes('id="btn-online"'), 'осталась кнопка онлайна');
+  s = cut(s, '      <!-- ================= ОНЛАЙН', '<!-- ================= РАССТАНОВКА', 'экран онлайна');
+  must(!s.includes('screen-online'), 'остался экран онлайна');
+
+  s = s.replace(
+    '11 медалей за победы, точность, онлайн, адмиральский флот и испытание дня',
+    '10 медалей за победы, точность, адмиральский флот и испытание дня');
+  must(s.includes('10 медалей'), 'не поправил текст про достижения');
+  s = s.replace('id="ach-count">0 / 11<', 'id="ach-count">0 / 10<');
+  must(s.includes('id="ach-count">0 / 10<'), 'не поправил счётчик достижений');
+  s = s.replace('— против бота и в онлайн-комнате', '— против бота');
+  must(!s.includes('в онлайн-комнате'), 'в правилах остался онлайн');
+
+  // вместо онлайн-клиента — адаптер платформы и загрузчик SDK
+  const onlineScript = '  <script src="js/online.js"></script>';
+  must(s.includes(onlineScript), 'не нашёл подключение js/online.js');
   const sdk = creds
     ? '  <!-- GamePush SDK -->\n' + sdkSnippet(creds)
     : '  <!-- GamePush SDK: демо-сборка без projectId/publicToken -->';
-  s = s.replace(appScript,
-    '  <script src="js/gamepush.js"></script>\n' + sdk + '\n' + appScript);
+  s = s.replace(onlineScript,
+    '  <script src="js/gamepush.js"></script>\n' + sdk);
 
   must(s.includes('js/gamepush.js'), 'не подключил js/gamepush.js');
+  must(!s.includes('js/online.js'), 'остался онлайн-клиент');
   must(!s.includes('rel="manifest"'), 'остался manifest');
   must(!s.includes('apple-mobile-web-app'), 'остались apple-mobile-web-app-теги');
   must(s.includes('privacy-link'), 'потерялась ссылка на политику конфиденциальности');
-  must(s.includes('id="btn-online"'), 'потерялся онлайн-режим');
   return s;
 }
 
@@ -131,6 +147,18 @@ function buildApp() {
     '\n})();',
     'service worker');
   must(!s.includes('serviceWorker'), 'осталась регистрация service worker');
+
+  // экрана онлайна в разметке нет — его обработчики обращались бы к null
+  s = cut(s,
+    "    $('#btn-online').addEventListener('click', () => {",
+    "    $('#btn-sound').addEventListener('click', () => {",
+    'обработчики онлайна');
+  must(!s.includes("$('#btn-online')"), 'остались обработчики онлайна');
+
+  // онлайн-достижение в одиночной сборке недостижимо
+  s = s.replace(/[ \t]*\{ id: 'online', icon: '[^']*',[^\n]*\n/, '');
+  must(!s.includes("id: 'online'"), 'осталось достижение за онлайн');
+
   must(s.includes('window.GamePlatform'), 'в app.js нет хуков GamePlatform');
   return s;
 }
@@ -144,7 +172,7 @@ write('index.html', buildHtml(creds));
 fs.copyFileSync(path.join(root, 'style.css'), path.join(out, 'style.css'));
 fs.copyFileSync(path.join(root, 'privacy.html'), path.join(out, 'privacy.html'));
 fs.mkdirSync(path.join(out, 'js'), { recursive: true });
-for (const file of ['engine.js', 'music.js', 'online.js', 'gamepush.js']) {
+for (const file of ['engine.js', 'music.js', 'gamepush.js']) {
   fs.copyFileSync(path.join(root, 'js', file), path.join(out, 'js', file));
 }
 write('js/app.js', buildApp());
@@ -288,7 +316,7 @@ if (!noZip) {
 console.log('');
 if (creds) {
   console.log('Дальше: panel.gamepush.com → Хостинг игр → загрузить архив.');
-  console.log('Проверь VK/OK: рекламу, паузу, вход игрока и онлайн-комнату.');
+  console.log('Проверь VK/OK: рекламу, паузу, вход игрока и одиночный бой.');
 } else {
   console.log('Демо-сборка: SDK не подключён. Для площадок заполни gamepush.config.json.');
 }

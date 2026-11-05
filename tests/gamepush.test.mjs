@@ -160,3 +160,22 @@ test('GamePush: повторный ready не дублирует gameStart', asy
   await platform.whenReady();
   assert.equal(gp.calls.filter((x) => x === 'gameStart').length, 1);
 });
+
+test('GamePush-сборка вырезает онлайн и оставляет 10 достижений', () => {
+  const build = fs.readFileSync(path.join(root, 'scripts', 'build-gamepush.mjs'), 'utf8');
+  assert.match(build, /btn-online/);
+  assert.match(build, /screen-online/);
+  assert.match(build, /0 \/ 11/);
+  assert.match(build, /0 \/ 10/);
+  assert.match(build, /js\/gamepush\.js/);
+  assert.match(build, /must\(!s\.includes\('js\/online\.js'\)/);
+});
+
+test('GamePush: заглушка Online закрывает все методы, которые зовёт app.js', () => {
+  const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
+  const used = new Set();
+  for (const m of app.matchAll(/Online\.([A-Za-z]+)/g)) used.add(m[1]);
+  for (const name of used) {
+    assert.match(source, new RegExp('\\b' + name + ':\\s*function'), 'нет заглушки Online.' + name);
+  }
+});

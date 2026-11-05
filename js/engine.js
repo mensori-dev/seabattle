@@ -6,34 +6,65 @@
 
   const SIZE = 10;
   const FLEET = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
-  // Адмиральский флот: тяжелее и плотнее, играется только против бота.
+  // Адмиральский флот: тяжелее и плотнее.
   const ADMIRAL_FLEET = [5, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1];
   const FLEETS = { classic: FLEET, admiral: ADMIRAL_FLEET };
   const SHIP_LABEL = { 5: 'Флагман', 4: 'Линкор', 3: 'Крейсер', 2: 'Эсминец', 1: 'Катер' };
 
-  function createBoard() {
+  // Пресеты по размеру поля. Поле хранит размер, флот — просто длины.
+  const CONFIG = {
+    sizes: [8, 10, 12],
+    default: 10,
+    fleets: {
+      8: { classic: [3, 2, 2, 2, 1, 1, 1], admiral: null },
+      10: { classic: FLEET, admiral: ADMIRAL_FLEET },
+      12: {
+        classic: [5, 4, 4, 3, 3, 2, 2, 1, 1, 1, 1, 1],
+        admiral: [5, 4, 4, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1]
+      }
+    }
+  };
+
+  function fleetsFor(size) {
+    return CONFIG.fleets[size] || CONFIG.fleets[CONFIG.default];
+  }
+
+  function fleetFor(size, key) {
+    const set = fleetsFor(size);
+    return set[key] || null;
+  }
+
+  // Рейтинг — только за классический бой с ботом на 10×10 без тактики.
+  function isRatedBattle(mode, config) {
+    if (mode !== 'bot' || !config) return false;
+    return Number(config.size) === 10 && !config.tactics;
+  }
+
+  function createBoard(size) {
+    const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
-      size: SIZE,
-      grid: Array.from({ length: SIZE }, () => new Array(SIZE).fill(-1)),
-      shots: Array.from({ length: SIZE }, () => new Array(SIZE).fill(null)),
-      ships: []
+      size: n,
+      grid: Array.from({ length: n }, () => new Array(n).fill(-1)),
+      shots: Array.from({ length: n }, () => new Array(n).fill(null)),
+      ships: [],
+      smoke: []
     };
   }
 
-  function inBounds(x, y) {
-    return x >= 0 && y >= 0 && x < SIZE && y < SIZE;
+  function inBounds(size, x, y) {
+    return x >= 0 && y >= 0 && x < size && y < size;
   }
 
   function canPlace(board, x, y, size, horizontal) {
     for (let i = 0; i < size; i++) {
       const cx = x + (horizontal ? i : 0);
       const cy = y + (horizontal ? 0 : i);
-      if (!inBounds(cx, cy)) return false;
+      if (!inBounds(board.size, cx, cy)) return false;
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           const nx = cx + dx;
           const ny = cy + dy;
-          if (!inBounds(nx, ny)) continue;
+          if (!inBounds(board.size, nx, ny)) continue;
           if (board.grid[ny][nx] !== -1) return false;
         }
       }
@@ -63,7 +94,8 @@
 
   function rebuild(board) {
     const list = board.ships.filter(Boolean);
-    board.grid = Array.from({ length: SIZE }, () => new Array(SIZE).fill(-1));
+    const n = board.size;
+    board.grid = Array.from({ length: n }, () => new Array(n).fill(-1));
     list.forEach((ship, i) => {
       ship.id = i;
       for (const c of ship.cells) board.grid[c.y][c.x] = i;
@@ -72,7 +104,7 @@
   }
 
   function removeShipAt(board, x, y) {
-    if (!inBounds(x, y)) return null;
+    if (!inBounds(board.size, x, y)) return null;
     const id = board.grid[y][x];
     if (id < 0) return null;
     const ship = board.ships[id];
@@ -84,7 +116,7 @@
   }
 
   function shipAt(board, x, y) {
-    if (!inBounds(x, y)) return null;
+    if (!inBounds(board.size, x, y)) return null;
     const id = board.grid[y][x];
     return id >= 0 ? board.ships[id] || null : null;
   }
@@ -92,12 +124,12 @@
   function canPlaceCells(board, cells, ignoreShipId) {
     const ignore = typeof ignoreShipId === 'number' ? ignoreShipId : -1;
     for (const c of cells) {
-      if (!inBounds(c.x, c.y)) return false;
+      if (!inBounds(board.size, c.x, c.y)) return false;
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           const nx = c.x + dx;
           const ny = c.y + dy;
-          if (!inBounds(nx, ny)) continue;
+          if (!inBounds(board.size, nx, ny)) continue;
           const id = board.grid[ny][nx];
           if (id !== -1 && id !== ignore) return false;
         }
@@ -125,8 +157,9 @@
     }
 
     // сдвигаем линию внутрь поля, если она вылезла за край
-    const overflowY = Math.max(0, (minY + ship.size) - SIZE);
-    const overflowX = Math.max(0, (minX + ship.size) - SIZE);
+    const n = board.size;
+    const overflowY = Math.max(0, (minY + ship.size) - n);
+    const overflowX = Math.max(0, (minX + ship.size) - n);
     for (const c of cells) {
       c.y -= overflowY;
       c.x -= overflowX;
@@ -142,20 +175,21 @@
     return { ok: true, ship };
   }
 
-  function randomBoard(fleet) {
+  function randomBoard(fleet, size) {
+    const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     const sizes = (Array.isArray(fleet) && fleet.length ? fleet : FLEET)
       .slice().sort((a, b) => b - a);
     // плотный флот ставится труднее — даём больше попыток
     const attempts = sizes.length > 10 ? 900 : 400;
     for (let attempt = 0; attempt < attempts; attempt++) {
-      const board = createBoard();
+      const board = createBoard(n);
       let ok = true;
       for (const size of sizes) {
         let placed = false;
         for (let t = 0; t < 500; t++) {
           const horizontal = Math.random() < 0.5;
-          const maxX = SIZE - (horizontal ? size : 1);
-          const maxY = SIZE - (horizontal ? 1 : size);
+          const maxX = n - (horizontal ? size : 1);
+          const maxY = n - (horizontal ? 1 : size);
           const x = Math.floor(Math.random() * (maxX + 1));
           const y = Math.floor(Math.random() * (maxY + 1));
           if (canPlace(board, x, y, size, horizontal)) {
@@ -168,11 +202,10 @@
       }
       if (ok) return board;
     }
-    return createBoard();
+    return createBoard(n);
   }
 
-  function fire(board, x, y) {
-    if (!inBounds(x, y)) return null;
+  function fireCell(board, x, y) {
     if (board.shots[y][x]) return null;
     const id = board.grid[y][x];
     if (id < 0) {
@@ -188,6 +221,121 @@
       return { x, y, result: 'sunk', ship };
     }
     return { x, y, result: 'hit', ship };
+  }
+
+  function fire(board, x, y) {
+    if (!inBounds(board.size, x, y)) return null;
+    if (board.shots[y][x]) return null;
+    if (smokeBlocks(board, x, y)) return null;
+    return fireCell(board, x, y);
+  }
+
+  /* ---------------- Способности ---------------- */
+
+  const ABILITIES = {
+    airstrike: {
+      id: 'airstrike',
+      name: 'Авиаудар',
+      icon: '✈️',
+      desc: 'Бьёт по площади 3×3. Каждая клетка — обычный выстрел.'
+    },
+    aa: {
+      id: 'aa',
+      name: 'ПВО',
+      icon: '🛡️',
+      desc: 'Сбивает первый авиаудар соперника: бьёт только центр.'
+    },
+    smoke: {
+      id: 'smoke',
+      name: 'Дым',
+      icon: '💨',
+      desc: 'Дым на 3 хода: соперник не может стрелять в эту зону.'
+    }
+  };
+
+  // На 8×8 способности занимают 2×2, на большом поле — 3×3.
+  function abilitySide(size) {
+    return size === 8 ? 2 : 3;
+  }
+
+  function areaCells(size, side, x, y) {
+    if (x < 0 || y < 0 || x >= size || y >= size) return [];
+    const cells = [];
+    if (side === 2) {
+      const ax = Math.max(0, Math.min(size - 2, x));
+      const ay = Math.max(0, Math.min(size - 2, y));
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) cells.push({ x: ax + dx, y: ay + dy });
+      }
+      return cells;
+    }
+    // 3×3: якорь — центр, область не обрезается
+    if (x < 1 || y < 1 || x > size - 2 || y > size - 2) return [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) cells.push({ x: x + dx, y: y + dy });
+    }
+    return cells;
+  }
+
+  function newAbilityState(ids) {
+    const out = {};
+    for (const id of ids || []) if (ABILITIES[id]) out[id] = 1;
+    return out;
+  }
+
+  function airstrike(board, x, y) {
+    const cells = areaCells(board.size, abilitySide(board.size), x, y);
+    if (!cells.length) return { ok: false, reason: 'bounds' };
+    const hit = [];
+    for (const c of cells) {
+      const r = fireCell(board, c.x, c.y);
+      if (r) hit.push(r);
+    }
+    if (!hit.length) return { ok: false, reason: 'empty' };
+    return { ok: true, cells: hit };
+  }
+
+  function placeSmoke(board, x, y) {
+    const cells = areaCells(board.size, abilitySide(board.size), x, y);
+    if (!cells.length) return { ok: false, reason: 'bounds' };
+    const free = cells.filter((c) => !board.shots[c.y][c.x]);
+    if (!free.length) return { ok: false, reason: 'empty' };
+    board.smoke.push({ cells, turnsLeft: 3 });
+    return { ok: true, cells, turnsLeft: 3 };
+  }
+
+  function smokeBlocks(board, x, y) {
+    return (board.smoke || []).some((z) => z.turnsLeft > 0 &&
+      z.cells.some((c) => c.x === x && c.y === y));
+  }
+
+  function smokeCells(board) {
+    const out = [];
+    for (const z of board.smoke || []) {
+      for (const c of z.cells) out.push({ x: c.x, y: c.y, turnsLeft: z.turnsLeft });
+    }
+    return out;
+  }
+
+  function tickSmoke(board) {
+    if (!board.smoke || !board.smoke.length) return 0;
+    let removed = 0;
+    for (const z of board.smoke) {
+      z.turnsLeft -= 1;
+      if (z.turnsLeft <= 0) removed += 1;
+    }
+    board.smoke = board.smoke.filter((z) => z.turnsLeft > 0);
+    return removed;
+  }
+
+  function legalShots(board) {
+    const out = [];
+    for (let y = 0; y < board.size; y++) {
+      for (let x = 0; x < board.size; x++) {
+        if (!board.shots[y][x] && !smokeBlocks(board, x, y)) out.push({ x, y });
+      }
+    }
+    return out;
   }
 
   function allSunk(board) {
@@ -209,6 +357,7 @@
   class Bot {
     constructor(level) {
       this.level = BOT_LEVELS.indexOf(level) >= 0 ? level : 'normal';
+      this.size = SIZE;
       this.tried = new Set();
       this.excluded = new Set();
       this.queue = [];
@@ -217,8 +366,9 @@
     }
     key(x, y) { return x + ',' + y; }
     keyOf(cell) { return cell.x + ',' + cell.y; }
+    in(x, y) { return inBounds(this.size, x, y); }
     add(x, y, front) {
-      if (!inBounds(x, y)) return;
+      if (!this.in(x, y)) return;
       const k = this.key(x, y);
       if (this.tried.has(k) || this.excluded.has(k) || this.queued.has(k)) return;
       this.queued.add(k);
@@ -226,14 +376,14 @@
       else this.queue.push(k);
     }
     free(x, y) {
-      if (!inBounds(x, y)) return false;
+      if (!this.in(x, y)) return false;
       const k = this.key(x, y);
       return !this.tried.has(k) && !this.excluded.has(k);
     }
     freeCells() {
       const out = [];
-      for (let y = 0; y < SIZE; y++) {
-        for (let x = 0; x < SIZE; x++) if (this.free(x, y)) out.push({ x, y });
+      for (let y = 0; y < this.size; y++) {
+        for (let x = 0; x < this.size; x++) if (this.free(x, y)) out.push({ x, y });
       }
       return out;
     }
@@ -260,6 +410,7 @@
       return score;
     }
     choose(board) {
+      if (board && board.size) this.size = board.size;
       // «Легко»: просто случайные выстрелы, без добивания
       if (this.level === 'easy') {
         const pool = this.freeCells();
@@ -274,8 +425,8 @@
       }
       const even = [];
       const any = [];
-      for (let y = 0; y < SIZE; y++) {
-        for (let x = 0; x < SIZE; x++) {
+      for (let y = 0; y < this.size; y++) {
+        for (let x = 0; x < this.size; x++) {
           const k = this.key(x, y);
           if (this.tried.has(k) || this.excluded.has(k)) continue;
           any.push({ x, y });
@@ -306,7 +457,7 @@
         for (const c of shot.ship.cells) {
           for (let dy = -1; dy <= 1; dy++) {
             for (let dx = -1; dx <= 1; dx++) {
-              if (inBounds(c.x + dx, c.y + dy)) this.excluded.add(this.key(c.x + dx, c.y + dy));
+              if (this.in(c.x + dx, c.y + dy)) this.excluded.add(this.key(c.x + dx, c.y + dy));
             }
           }
         }
@@ -393,10 +544,13 @@
   }
 
   global.Engine = {
-    SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS,
-    createBoard, canPlace, placeShip, removeShipAt, randomBoard,
+    SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS, CONFIG,
+    fleetsFor, fleetFor, isRatedBattle,
+    createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,
+    ABILITIES, abilitySide, areaCells, newAbilityState,
+    airstrike, placeSmoke, smokeBlocks, smokeCells, tickSmoke, legalShots,
     Bot, rankFor, nextRank, eloExpected, eloDelta,
     NAMES, randomName, clamp
   };

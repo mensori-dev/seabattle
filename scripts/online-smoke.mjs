@@ -112,7 +112,9 @@ async function tacticalScenario() {
   const strike = await shooter.take('ability', (m) => m.kind === 'airstrike');
   check(strike.cells.length === 1, 'ПВО сжало удар до 1 клетки');
   await defender.take('ability', (m) => m.kind === 'aa');
-  await defender.take('ability', (m) => m.kind === 'airstrike');
+  const strikeDef = await defender.take('ability', (m) => m.kind === 'airstrike');
+  check(strike.foe === true && strikeDef.foe === false,
+    'авиаудар: стрелок рисует чужое поле, защитник — своё');
   check((await shooter.take('turn')).you === false, 'авиаудар передал ход');
 
   a.ws.close();

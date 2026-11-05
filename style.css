@@ -330,6 +330,21 @@ html.no-bubbles .bubble{display:none}
   display:flex;flex-direction:column;align-items:stretch;
 }
 .online-card .btn-big{margin-top:0}
+.lobby-config{
+  display:flex;flex-direction:column;gap:10px;
+  margin-bottom:14px;padding:12px;
+  border-radius:16px;border:1px solid var(--line);
+  background:rgba(6,26,44,.45);
+}
+.lobby-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lobby-label{
+  flex:0 0 auto;min-width:62px;
+  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);
+}
+.lobby-row .segmented{flex:1;min-width:0}
+.lobby-row .segmented button{min-height:36px;padding:6px 8px;font-size:12px}
+.lobby-row .segmented button:disabled{opacity:.4;cursor:default}
 .online-sep{
   margin:16px 0 12px;text-align:center;
   font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);

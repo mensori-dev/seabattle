@@ -130,6 +130,31 @@
         </div>
 
         <div class="panel online-card">
+          <div class="lobby-config" id="lobby-config">
+            <div class="lobby-row">
+              <span class="lobby-label">Поле</span>
+              <div class="segmented" id="lobby-size">
+                <button type="button" data-lobby-size="8">8×8</button>
+                <button type="button" data-lobby-size="10" class="is-active">10×10</button>
+                <button type="button" data-lobby-size="12">12×12</button>
+              </div>
+            </div>
+            <div class="lobby-row">
+              <span class="lobby-label">Флот</span>
+              <div class="segmented is-two" id="lobby-fleet">
+                <button type="button" data-lobby-fleet="classic" class="is-active">⚓ Классический</button>
+                <button type="button" data-lobby-fleet="admiral">🛳️ Адмиральский</button>
+              </div>
+            </div>
+            <div class="lobby-row">
+              <span class="lobby-label">Тактика</span>
+              <div class="segmented is-two" id="lobby-tactics">
+                <button type="button" data-lobby-tactics="off" class="is-active">Без тактики</button>
+                <button type="button" data-lobby-tactics="on">✈️ Тактика</button>
+              </div>
+            </div>
+          </div>
+
           <button class="btn btn-primary btn-big" id="btn-create-room" type="button"><span>🎮 Создать комнату</span></button>
 
           <div class="online-sep"><span>или войди по коду</span></div>

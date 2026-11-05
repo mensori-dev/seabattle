@@ -57,6 +57,9 @@
   };
 
   let netShotTimer = null;
+  // Повтор входа в комнату: на Deno Deploy новый сокет может попасть на другой
+  // инстанс, где комнаты ещё нет. Пара переподключений заметно повышает шанс.
+  let pendingJoin = null;
 
   const boards = {
     place: $('#board-place'),
@@ -331,6 +334,34 @@
     return !!(c && Number(c.size) === 10 && c.fleet === 'classic' && !c.tactics);
   }
 
+  function lobbyConfig() {
+    return normalizeConfig(state.profile && state.profile.lobby, 'classic');
+  }
+
+  function renderLobbyConfig() {
+    if (!$('#lobby-config')) return;
+    const c = lobbyConfig();
+    $$('#lobby-size [data-lobby-size]').forEach((b) => {
+      b.classList.toggle('is-active', Number(b.dataset.lobbySize) === c.size);
+    });
+    $$('#lobby-fleet [data-lobby-fleet]').forEach((b) => {
+      b.classList.toggle('is-active', b.dataset.lobbyFleet === c.fleet);
+    });
+    const admiral = $('#lobby-fleet [data-lobby-fleet="admiral"]');
+    if (admiral) admiral.disabled = c.size === 8;
+    $$('#lobby-tactics [data-lobby-tactics]').forEach((b) => {
+      b.classList.toggle('is-active', (b.dataset.lobbyTactics === 'on') === c.tactics);
+    });
+  }
+
+  function setLobbyConfig(patch) {
+    const next = normalizeConfig(Object.assign({}, lobbyConfig(), patch), 'classic');
+    state.profile.lobby = next;
+    saveProfile();
+    renderLobbyConfig();
+    Sfx.play('click');
+  }
+
   function configLabel(config) {
     const c = config || state.config;
     const fleet = c.fleet === 'admiral' ? 'Адмиральский' : 'Классика';
@@ -600,6 +631,7 @@
       const share = $('#btn-share-room');
       if (share) share.hidden = location.protocol === 'file:';
       renderOnlineMine();
+      renderLobbyConfig();
       loadLeaderboard();
     }
     window.scrollTo(0, 0);
@@ -1199,7 +1231,7 @@
   function renderAbilityBar() {
     const bar = $('#ability-bar');
     if (!bar) return;
-    const tactics = !!(state.config && state.config.tactics) && state.mode !== 'online';
+    const tactics = !!(state.config && state.config.tactics);
     bar.hidden = !tactics;
     bar.innerHTML = '';
     if (!tactics || !state.abilities) return;
@@ -1239,7 +1271,7 @@
 
   function armAbility(id) {
     if (!state.abilities || !state.abilities[id] || state.abilities[id] <= 0) return;
-    if (state.mode === 'online') return;
+    if (state.mode === 'online' && (state.locked || !state.playerTurn || state.gameOver)) return;
     state.pendingAbility = state.pendingAbility === id ? null : id;
     clearAim();
     renderAbilityBar();
@@ -1257,6 +1289,94 @@
     for (const c of Engine.smokeCells(board)) {
       const cell = targetEl.children[c.y * state.size + c.x];
       if (cell) cell.classList.add('smoke');
+    }
+  }
+
+  function paintNetSmoke() {
+    if (!state.net || !state.size) return;
+    $$('#board-own .cell.smoke, #board-enemy .cell.smoke').forEach((c) => c.classList.remove('smoke'));
+    const you = state.net.you;
+    for (const z of (state.net.zones || [])) {
+      if (z.turnsLeft <= 0) continue;
+      const target = z.owner === you ? boards.own : boards.enemy;
+      for (const c of z.cells) {
+        const cell = target.children[c.y * state.size + c.x];
+        if (cell) cell.classList.add('smoke');
+      }
+    }
+  }
+
+  function sendNetAbility(kind, x, y) {
+    if (state.mode !== 'online' || !state.net) return;
+    state.pendingAbility = null;
+    state.locked = true;
+    clearAim();
+    renderAbilityBar();
+    Online.ability(kind, x, y);
+    armNetShotTimeout();
+  }
+
+  function onNetAbility(msg) {
+    if (state.mode !== 'online' || state.gameOver) return;
+    if (msg.kind === 'aa') {
+      Sfx.play('click');
+      toast('🛡️ ПВО сбило авиаудар', 'turn');
+      return;
+    }
+    if (msg.kind === 'smoke') {
+      if (!state.net) return;
+      state.net.zones = state.net.zones || [];
+      state.net.zones.push({
+        owner: Number(msg.owner),
+        cells: Array.isArray(msg.cells) ? msg.cells : [],
+        turnsLeft: Number(msg.turnsLeft) || 3
+      });
+      if (state.abilities && msg.owner === state.net.you) {
+        state.abilities.smoke = Math.max(0, (state.abilities.smoke || 0) - 1);
+      }
+      paintNetSmoke();
+      renderAbilityBar();
+      toast(msg.owner === state.net.you ? '💨 Дым поставлен' : '💨 Соперник поставил дым', 'turn');
+      return;
+    }
+    if (msg.kind === 'airstrike') {
+      const target = msg.foe ? boards.enemy : boards.own;
+      const board = msg.foe ? state.enemyBoard : state.playerBoard;
+      const cells = Array.isArray(msg.cells) ? msg.cells : [];
+      for (const hit of cells) {
+        const x = Number(hit.x);
+        const y = Number(hit.y);
+        if (!board || x < 0 || y < 0 || x >= state.size || y >= state.size) continue;
+        if (msg.foe) {
+          board.shots[y][x] = hit.result === 'miss' ? 'miss' : 'hit';
+        } else {
+          // Свой флот считаем движком: иначе счётчик потопленных разъедется.
+          Engine.fire(state.playerBoard, x, y);
+        }
+        if (hit.result === 'sunk' && Array.isArray(hit.ship)) {
+          hit.ship.forEach((c) => {
+            const cx = Number(c[0]);
+            const cy = Number(c[1]);
+            if (cx >= 0 && cy >= 0 && cx < state.size && cy < state.size) {
+              board.shots[cy][cx] = 'hit';
+            }
+          });
+        }
+        applyShotVisual(target, x, y, hit.result, hit.ship);
+        if (hit.result === 'sunk' && msg.foe && state.net) state.net.foeShips -= 1;
+      }
+      if (state.abilities && msg.foe) {
+        state.abilities.airstrike = Math.max(0, (state.abilities.airstrike || 0) - 1);
+      }
+      renderAbilityBar();
+      updateFleet();
+      shake(true);
+      if (msg.blocked) {
+        toast(msg.foe ? '🛡️ ПВО сбило удар: только центр' : '🛡️ Твоё ПВО сбило удар: только центр', 'miss');
+      }
+      else if (msg.foe) toast('✈️ Авиаудар: ' + cells.length + ' клеток', 'hit');
+      else toast('✈️ Авиаудар соперника: ' + cells.length + ' клеток', 'miss');
+      Sfx.play(msg.foe ? 'boom' : 'lose');
     }
   }
 
@@ -1441,11 +1561,27 @@
 
   function sendFleetOnline() {
     if (!state.net || state.net.fleetSent) return;
+    if (state.config && state.config.tactics && !state.net.loadoutSent) {
+      // Сначала выбираем две способности, потом отправляем флот и лоудаут.
+      showPrepare((ids) => {
+        state.loadout = ids.slice();
+        state.net.loadoutSent = true;
+        showScreen('place');
+        sendFleetNow();
+      });
+      return;
+    }
+    sendFleetNow();
+  }
+
+  function sendFleetNow() {
+    if (!state.net || state.net.fleetSent) return;
     const ships = state.playerBoard.ships.filter(Boolean).map((s) => ({
       size: s.size,
       cells: s.cells.map((c) => [c.x, c.y])
     }));
-    Online.fleet(ships);
+    Online.fleet(ships, state.loadout);
+    if (state.config && state.config.tactics) Online.loadout(state.loadout);
     state.net.fleetSent = true;
     setPlacementLocked(true);
     $('#btn-ready').disabled = true;
@@ -1465,10 +1601,20 @@
     state.playerTurn = !!first;
     state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
 
+    state.abilities = state.config.tactics
+      ? Engine.newAbilityState((state.net && state.net.loadout) || state.loadout)
+      : null;
+    state.pendingAbility = null;
+    state.net.zones = [];
+    state.net.turnIdx = state.playerTurn ? state.net.you : 1 - state.net.you;
+    clearAim();
+
     buildBoard(boards.enemy);
     buildBoard(boards.own);
     paintBoard(boards.enemy, state.enemyBoard, false);
     paintBoard(boards.own, state.playerBoard, true);
+    paintNetSmoke();
+    renderAbilityBar();
 
     const pRank = Engine.rankFor(state.profile.rating);
     const fRank = Engine.rankFor(state.botRating);
@@ -1625,6 +1771,18 @@
   function onNetTurn(msg) {
     if (state.mode !== 'online') return;
     clearNetShotTimeout();
+    if (state.net) {
+      // Дым тикает на доске того, чей ход закончился (owner === 1 - прошлый ход).
+      const prev = state.net.turnIdx;
+      if (typeof prev === 'number') {
+        const tickOwner = 1 - prev;
+        state.net.zones = (state.net.zones || [])
+          .map((z) => (z.owner === tickOwner ? Object.assign({}, z, { turnsLeft: z.turnsLeft - 1 }) : z))
+          .filter((z) => z.turnsLeft > 0);
+      }
+      state.net.turnIdx = msg.you ? state.net.you : 1 - state.net.you;
+      paintNetSmoke();
+    }
     state.playerTurn = !!msg.you;
     state.locked = !msg.you;
     setTurn(state.playerTurn);
@@ -1636,6 +1794,10 @@
 
   function leaveOnline(silent) {
     clearNetShotTimeout();
+    if (pendingJoin) {
+      if (pendingJoin.timer) clearTimeout(pendingJoin.timer);
+      pendingJoin = null;
+    }
     showReconnect(false);
     closeShipEditor(false);
     setPlacementLocked(false);
@@ -1694,16 +1856,52 @@
     } catch (e) { return null; }
   }
 
+  function joinRoom(code, left) {
+    const roomCode = String(code || '').replace(/\D/g, '').slice(0, 4);
+    if (roomCode.length !== 4) {
+      setOnlineStatus('Введи 4 цифры кода', true);
+      return;
+    }
+    pendingJoin = { code: roomCode, left: typeof left === 'number' ? left : 2, timer: null };
+    setOnlineStatus('Подключаемся…');
+    Online.connect()
+      .then(() => {
+        if (!pendingJoin || pendingJoin.code !== roomCode) return;
+        setOnlineStatus('Заходим в комнату ' + roomCode + '…');
+        Online.join(roomCode, state.profile.name, Math.round(state.profile.rating));
+      })
+      .catch((err) => {
+        pendingJoin = null;
+        setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
+      });
+  }
+
+  function retryJoin() {
+    const p = pendingJoin;
+    if (!p || p.left <= 0) return false;
+    p.left -= 1;
+    setOnlineStatus('Комната не найдена — пробуем ещё раз…');
+    if (p.timer) clearTimeout(p.timer);
+    p.timer = setTimeout(() => {
+      if (pendingJoin !== p) return;
+      // Переподключаемся новым сокетом: повтор на том же инстансе бесполезен.
+      try { Online.leave(); } catch (e) { /* ignore */ }
+      Online.connect()
+        .then(() => {
+          if (pendingJoin !== p) return;
+          setOnlineStatus('Заходим в комнату ' + p.code + '…');
+          Online.join(p.code, state.profile.name, Math.round(state.profile.rating));
+        })
+        .catch(() => { /* следующая попытка или финальная ошибка */ });
+    }, 900);
+    return true;
+  }
+
   function joinInvite(code) {
     $('#room-code').value = code;
     showScreen('online');
     setOnlineStatus('Тебя пригласили в комнату ' + code + ' — подключаемся…');
-    Online.connect()
-      .then(() => {
-        setOnlineStatus('Заходим в комнату ' + code + '…');
-        Online.join(code, state.profile.name, Math.round(state.profile.rating));
-      })
-      .catch((err) => setOnlineStatus((err && err.message) || 'Сервер недоступен', true));
+    joinRoom(code, 3);
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* не критично */ }
   }
 
@@ -1740,9 +1938,21 @@
 
   function wireOnlineEvents() {
     Online.on('room', (msg) => {
+      if (pendingJoin) {
+        if (pendingJoin.timer) clearTimeout(pendingJoin.timer);
+        pendingJoin = null;
+      }
       state.net = state.net || {};
       state.net.code = msg.code;
       state.net.you = msg.you;
+      state.net.loadoutSent = false;
+      if (msg.config) {
+        state.net.config = normalizeConfig(msg.config);
+      } else {
+        // Старый сервер не знает про кастомные комнаты — играем классику.
+        state.net.config = normalizeConfig(null);
+        toast('⚠️ Сервер не обновлён — кастомные комнаты недоступны', 'miss');
+      }
       $('#online-wait').hidden = false;
       $('#online-code').textContent = msg.code;
       $('#online-hint').textContent = 'Скинь код другу — ждём второго игрока…';
@@ -1757,16 +1967,30 @@
     Online.on('start', (msg) => {
       // «start» из брошенной комнаты не должен телепортировать игрока в бой.
       if (state.mode === 'online' || state.screen !== 'online') return;
-      startOnlineMatch(msg.foe);
+      pendingJoin = null;
+      state.net = state.net || {};
+      state.net.you = msg.you;
+      startOnlineMatch(msg.foe, msg.config);
     });
 
     Online.on('begin', (msg) => {
-      if (state.screen !== 'place') return;
+      if (state.screen !== 'place' && state.screen !== 'prepare') return;
+      if (state.net) {
+        state.net.you = typeof msg.you === 'number' ? msg.you : state.net.you;
+        if (msg.config) state.net.config = normalizeConfig(msg.config);
+        if (Array.isArray(msg.loadout)) state.net.loadout = msg.loadout.slice();
+        if (Array.isArray(msg.foeLoadout)) state.net.foeLoadout = msg.foeLoadout.slice();
+      }
       beginOnlineBattle(!!msg.first);
     });
 
     Online.on('shot', onNetShot);
     Online.on('turn', onNetTurn);
+    Online.on('ability', onNetAbility);
+    Online.on('pass', () => {
+      if (state.mode !== 'online') return;
+      toast('💨 Ход пропущен: всё под дымом', 'turn');
+    });
 
     Online.on('end', (msg) => {
       clearNetShotTimeout();
@@ -1790,6 +2014,15 @@
     Online.on('error', (msg) => {
       const text = (msg && msg.msg) || 'Ошибка соединения';
       clearNetShotTimeout();
+      // «Комната не найдена» часто значит, что вход попал на другой инстанс
+      // сервера. Переподключаемся и пробуем снова, прежде чем пугать игрока.
+      if (pendingJoin && text.indexOf('не найдена') >= 0) {
+        if (retryJoin()) return;
+        pendingJoin = null;
+        setOnlineStatus('Комната не найдена. Проверь код — или пусть друг создаст новую.', true);
+        toast('⚠️ Комната не найдена', 'miss');
+        return;
+      }
       toast('⚠️ ' + text, 'miss');
       if (state.screen === 'online') setOnlineStatus(text, true);
       // Бой: отклонённый выстрел не должен навсегда блокировать доску.
@@ -1925,6 +2158,7 @@
     if (state.paused) return;
     if (state.locked || !state.playerTurn || state.gameOver || !state.enemyBoard) return;
     if (state.pendingAbility === 'airstrike') {
+      if (state.mode === 'online') { sendNetAbility('airstrike', x, y); return; }
       await useAirstrike(x, y);
       return;
     }
@@ -2465,36 +2699,42 @@
       Online.connect()
         .then(() => {
           setOnlineStatus('Создаём комнату…');
-          Online.create(state.profile.name, Math.round(state.profile.rating));
+          pendingJoin = null;
+          Online.create(state.profile.name, Math.round(state.profile.rating), lobbyConfig());
         })
         .catch((err) => {
           setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
         });
     });
 
-    function joinRoom() {
+    function submitJoin() {
       const code = ($('#room-code').value || '').replace(/\D/g, '');
-      if (code.length !== 4) {
-        setOnlineStatus('Введи 4 цифры кода', true);
-        return;
-      }
       Sfx.play('click');
-      Online.connect()
-        .then(() => {
-          setOnlineStatus('Подключаемся…');
-          Online.join(code, state.profile.name, Math.round(state.profile.rating));
-        })
-        .catch((err) => {
-          setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
-        });
+      joinRoom(code);
     }
 
-    $('#btn-join-room').addEventListener('click', joinRoom);
+    $('#btn-join-room').addEventListener('click', submitJoin);
     $('#room-code').addEventListener('input', (e) => {
       e.target.value = (e.target.value || '').replace(/\D/g, '').slice(0, 4);
     });
     $('#room-code').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); joinRoom(); }
+      if (e.key === 'Enter') { e.preventDefault(); submitJoin(); }
+    });
+
+    $('#lobby-size').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-lobby-size]');
+      if (!btn) return;
+      setLobbyConfig({ size: Number(btn.dataset.lobbySize) });
+    });
+    $('#lobby-fleet').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-lobby-fleet]');
+      if (!btn || btn.disabled) return;
+      setLobbyConfig({ fleet: btn.dataset.lobbyFleet });
+    });
+    $('#lobby-tactics').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-lobby-tactics]');
+      if (!btn) return;
+      setLobbyConfig({ tactics: btn.dataset.lobbyTactics === 'on' });
     });
 
     $('#btn-sound').addEventListener('click', () => {
@@ -2899,6 +3139,10 @@
       if (state.pendingAbility !== 'smoke') return;
       const cell = e.target.closest('.cell');
       if (!cell) return;
+      if (state.mode === 'online') {
+        sendNetAbility('smoke', Number(cell.dataset.x), Number(cell.dataset.y));
+        return;
+      }
       useSmoke(Number(cell.dataset.x), Number(cell.dataset.y));
     });
 

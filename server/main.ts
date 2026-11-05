@@ -288,14 +288,16 @@ function maybeBegin(room: Room): void {
   startBattle(room);
 }
 
-// Ход перешёл: дым на доске игрока, чей ход закончился, тикает.
+// Ход перешёл: дым на доске игрока, чей ход начинается, тикает.
 function advanceTurn(room: Room, fromIdx: number, depth = 0): void {
   room.turn = 1 - fromIdx;
   const finished = room.players[1 - fromIdx];
   if (finished.board) tickSmoke(finished.board);
   room.players.forEach((p, i) => send(p, { t: 'turn', you: room.turn === i }));
-  const next = room.players[room.turn];
-  if (next && next.board && legalShots(next.board).length === 0) {
+  // Игрок стреляет по чужому полю: если там всё простреляно или под дымом,
+  // ход пропускается (с защитой от бесконечной рекурсии).
+  const target = room.players[1 - room.turn];
+  if (target && target.board && legalShots(target.board).length === 0) {
     room.players.forEach((p) => send(p, { t: 'pass', reason: 'smoke' }));
     if (depth < 4) advanceTurn(room, room.turn, depth + 1);
   }
@@ -569,7 +571,9 @@ function handle(socket: WebSocket) {
           x: x,
           y: y,
           cells: hits,
-          foe: i !== idx,
+          // «foe» — это «удар пришёлся по твоему сопернику»: для стрелка true,
+          // для защитника false (он рисует попадания на своём поле).
+          foe: i === idx,
           blocked: blocked
         }));
         if (allSunk(foeBoard)) {

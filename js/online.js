@@ -150,9 +150,13 @@
       var i = list.indexOf(fn);
       if (i >= 0) list.splice(i, 1);
     },
-    create: function (name, rating) { send({ t: 'create', name: name, rating: rating }); },
+    create: function (name, rating, config) {
+      send({ t: 'create', name: name, rating: rating, config: config });
+    },
     join: function (code, name, rating) { send({ t: 'join', code: code, name: name, rating: rating }); },
-    fleet: function (ships) { send({ t: 'fleet', ships: ships }); },
+    fleet: function (ships, loadout) { send({ t: 'fleet', ships: ships, loadout: loadout }); },
+    loadout: function (ids) { send({ t: 'loadout', ids: ids }); },
+    ability: function (kind, x, y) { send({ t: 'ability', kind: kind, x: x, y: y }); },
     shot: function (x, y) { send({ t: 'shot', x: x, y: y }); },
     surrender: function () { send({ t: 'surrender' }); },
     leave: function () {

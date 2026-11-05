@@ -80,6 +80,9 @@ function buildHtml() {
     '11 медалей за победы, точность, онлайн, адмиральский флот и испытание дня',
     '10 медалей за победы, точность, адмиральский флот и испытание дня');
   must(s.includes('10 медалей'), 'не поправил текст про достижения');
+  // В сборке на одну медаль меньше: не мигаем чужим «0 / 11» до отрисовки.
+  s = s.replace('id="ach-count">0 / 11<', 'id="ach-count">0 / 10<');
+  must(s.includes('id="ach-count">0 / 10<'), 'не поправил счётчик достижений');
 
   // онлайн-комнат в сборке нет — не обещаем их в правилах
   s = s.replace('— против бота и в онлайн-комнате', '— против бота');
@@ -254,6 +257,12 @@ function makeZip(entries) {
 
 if (!noZip) {
   const zip = path.join(root, 'dist', 'seabattle-yandex-' + version + '.zip');
+  // Убираем архивы прошлых версий: в dist должен остаться только актуальный.
+  for (const file of fs.readdirSync(path.join(root, 'dist'))) {
+    if (/^seabattle-yandex-.+\.zip$/i.test(file) && file !== path.basename(zip)) {
+      fs.rmSync(path.join(root, 'dist', file), { force: true });
+    }
+  }
   const entries = shipped
     .map((file) => ({ name: path.relative(out, file).split(path.sep).join('/'), file: file }))
     .sort((a, b) => a.name.localeCompare(b.name));

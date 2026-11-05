@@ -382,7 +382,10 @@ function handle(socket: WebSocket) {
     }
 
     if (type === 'create') {
-      if (room) return;
+      if (room) {
+        if (me) send(me, { t: 'error', msg: 'Ты уже в комнате. Выйди из неё, чтобы создать новую.' });
+        return;
+      }
       const config = normalizeConfig(msg.config);
       if (!config) {
         send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
@@ -413,7 +416,10 @@ function handle(socket: WebSocket) {
     }
 
     if (type === 'join') {
-      if (room) return;
+      if (room) {
+        if (me) send(me, { t: 'error', msg: 'Ты уже в комнате. Выйди из неё, чтобы войти в другую.' });
+        return;
+      }
       const code = String(msg.code || '').replace(/\D/g, '').slice(0, 4);
       const target = rooms.get(code);
       if (!target) {

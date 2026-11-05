@@ -61,6 +61,22 @@
   // инстанс, где комнаты ещё нет. Пара переподключений заметно повышает шанс.
   let pendingJoin = null;
 
+  function clearPendingJoin() {
+    if (!pendingJoin) return;
+    if (pendingJoin.timer) clearTimeout(pendingJoin.timer);
+    if (pendingJoin.deadline) clearTimeout(pendingJoin.deadline);
+    pendingJoin = null;
+  }
+
+  let creatingRoom = false;
+  let createDeadline = null;
+
+  function clearCreatePending() {
+    if (createDeadline) clearTimeout(createDeadline);
+    createDeadline = null;
+    creatingRoom = false;
+  }
+
   const boards = {
     place: $('#board-place'),
     enemy: $('#board-enemy'),
@@ -122,23 +138,95 @@
     return out.slice(0, 2);
   }
 
+  function toInt(value, min, max, fallback) {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function toUnit(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(1, Math.max(0, n));
+  }
+
+  function normalizeHistory(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((h) => h && typeof h === 'object').map((h) => ({
+      name: typeof h.name === 'string' ? h.name.slice(0, 32) : '—',
+      rating: toInt(h.rating, 0, 5000, 1000),
+      delta: toInt(h.delta, -5000, 5000, 0),
+      win: !!h.win,
+      rated: h.rated !== false,
+      ts: toInt(h.ts, 0, Number.MAX_SAFE_INTEGER, 0)
+    })).slice(0, 8);
+  }
+
   function loadProfile() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const p = JSON.parse(raw);
+        if (!p || typeof p !== 'object' || Array.isArray(p)) return defaultProfile();
         const prof = Object.assign(defaultProfile(), p, {
-          rating: Number(p.rating) || 1000,
-          history: Array.isArray(p.history) ? p.history.slice(0, 8) : []
+          name: typeof p.name === 'string' && p.name.trim()
+            ? p.name.trim().slice(0, 20) : Engine.randomName(),
+          rating: toInt(p.rating, 0, 5000, 1000),
+          games: toInt(p.games, 0, 10000000, 0),
+          wins: toInt(p.wins, 0, 10000000, 0),
+          losses: toInt(p.losses, 0, 10000000, 0),
+          best: toInt(p.best, 0, 5000, 1000),
+          streak: toInt(p.streak, -10000000, 10000000, 0),
+          volume: toUnit(p.volume, 0.7),
+          musicVolume: toUnit(p.musicVolume, 0.5),
+          muted: !!p.muted,
+          music: p.music !== false,
+          bubbles: p.bubbles !== false,
+          motion: p.motion === 'off' ? 'off' : 'on',
+          difficulty: DIFFICULTY[p.difficulty] ? p.difficulty : 'normal',
+          theme: ['dark', 'light', 'amoled'].indexOf(p.theme) >= 0 ? p.theme : 'dark',
+          musicTrack: ['pirate', 'ambient', 'tavern'].indexOf(p.musicTrack) >= 0 ? p.musicTrack : 'pirate',
+          onlineWins: toInt(p.onlineWins, 0, 10000000, 0),
+          onlineGames: toInt(p.onlineGames, 0, 10000000, 0),
+          adMatches: toInt(p.adMatches, 0, 10000000, 0),
+          lastAdAt: toInt(p.lastAdAt, 0, Number.MAX_SAFE_INTEGER, 0),
+          cupReward: typeof p.cupReward === 'string' ? p.cupReward : '',
+          adBonusDate: typeof p.adBonusDate === 'string' ? p.adBonusDate : '',
+          history: normalizeHistory(p.history)
         });
+        prof.games = Math.min(10000000, Math.max(prof.games, prof.wins + prof.losses));
+        prof.best = Math.max(prof.best, prof.rating);
+
         // вложенные объекты нормализуем отдельно: старые профили их не знают
-        prof.daily = Object.assign({ date: '', streak: 0 }, p.daily || {});
-        prof.stats = Object.assign({ shots: 0, hits: 0 }, p.stats || {});
-        prof.achievements = (p.achievements && typeof p.achievements === 'object')
-          ? p.achievements : {};
-        const cup = p.cup;
-        prof.cup = (cup && cup.date === dayKey() && cup.round >= 1 && cup.round <= 3 && !cup.finished)
-          ? cup : null;
+        const daily = p.daily && typeof p.daily === 'object' ? p.daily : {};
+        prof.daily = {
+          date: typeof daily.date === 'string' ? daily.date : '',
+          streak: toInt(daily.streak, 0, 100000, 0)
+        };
+        const stats = p.stats && typeof p.stats === 'object' ? p.stats : {};
+        const shots = toInt(stats.shots, 0, 1000000000, 0);
+        prof.stats = { shots: shots, hits: Math.min(shots, toInt(stats.hits, 0, 1000000000, 0)) };
+        prof.achievements = (p.achievements && typeof p.achievements === 'object' &&
+          !Array.isArray(p.achievements)) ? p.achievements : {};
+
+        const cup = p.cup && typeof p.cup === 'object' ? p.cup : null;
+        if (cup && cup.date === dayKey() && cup.round >= 1 && cup.round <= 3 && !cup.finished) {
+          // У старых цепочек конфига не было — восстанавливаем пресет дня.
+          const cupConfig = cup.config
+            ? normalizeConfig(cup.config, 'classic')
+            : Object.assign({}, Engine.dailyChallenge(cup.date).config);
+          prof.cup = {
+            round: toInt(cup.round, 1, 3, 1),
+            wins: toInt(cup.wins, 0, 2, 0),
+            date: cup.date,
+            id: typeof cup.id === 'string' ? cup.id : '',
+            config: normalizeConfig(cupConfig, 'classic')
+          };
+        } else {
+          prof.cup = null;
+        }
+
+        prof.fleet = prof.fleet === 'admiral' ? 'admiral' : 'classic';
         prof.botConfig = normalizeConfig(
           Object.assign({ fleet: prof.fleet }, p.botConfig || {}),
           prof.fleet
@@ -606,12 +694,13 @@
     panel.hidden = false;
     list.innerHTML = hist.slice(0, 4).map((h) => {
       const delta = Number(h.delta) || 0;
-      const deltaText = h.rated === false ? '—' : (delta >= 0 ? '+' : '') + delta;
+      const rated = h.rated !== false;
+      const deltaText = rated ? (delta >= 0 ? '+' : '') + delta : '—';
       return '<div class="history-row">' +
         '<span class="h-dot ' + (h.win ? 'win' : 'lose') + '"></span>' +
         '<span class="h-name">' + escapeHtml(h.name) + '</span>' +
         '<span class="h-res">' + (h.win ? 'победа' : 'поражение') + '</span>' +
-        '<span class="h-delta ' + (delta >= 0 ? 'plus' : 'minus') + '">' + deltaText + '</span>' +
+        '<span class="h-delta ' + (rated ? (delta >= 0 ? 'plus' : 'minus') : 'na') + '">' + deltaText + '</span>' +
       '</div>';
     }).join('');
   }
@@ -717,7 +806,10 @@
   function startMatch() {
     state.matchSeq += 1;
     state.mode = 'bot';
-    state.config = configFor('bot');
+    // Конфиг испытания дня живёт в state.cup: настройки игрока не перетираем.
+    state.config = (state.cupMatch && state.cup && state.cup.config)
+      ? normalizeConfig(state.cup.config, 'classic')
+      : configFor('bot');
     state.size = state.config.size;
     // Завершённый/просроченный кубок не тянется в обычный бой:
     // чистим и состояние, и сохранение (loadProfile мог его отбросить).
@@ -752,11 +844,15 @@
   /* ---------------- Испытание дня (бывший «Кубок моря») ---------------- */
   function startCup() {
     const day = Engine.dailyChallenge(dayKey());
-    // Конфиг дня одинаков для всех — ставим его в настройки бота.
-    state.profile.botConfig = Object.assign({}, day.config);
     state.mode = 'bot';
     state.cupMatch = true;
-    state.cup = { round: 1, wins: 0, date: dayKey(), id: day.id };
+    state.cup = {
+      round: 1,
+      wins: 0,
+      date: dayKey(),
+      id: day.id,
+      config: Object.assign({}, day.config)
+    };
     state.profile.cup = state.cup;
     saveProfile();
     startMatch();
@@ -764,13 +860,20 @@
       day.config.size + '×' + day.config.size, 'turn'), 320);
   }
 
-  // Продолжение цепочки: конфиг дня мог быть перетёрт настройками,
-  // поэтому возвращаем его перед каждым раундом.
+  // Продолжение цепочки: конфиг дня хранится в самой цепочке, а не в
+  // настройках бота — иначе обычные бои молча переезжали на чужое поле.
   function continueCup() {
-    const day = Engine.dailyChallenge(dayKey());
-    state.profile.botConfig = Object.assign({}, day.config);
+    if (!state.cup) {
+      startCup();
+      return;
+    }
+    if (!state.cup.config) {
+      const day = Engine.dailyChallenge(dayKey());
+      state.cup.config = Object.assign({}, day.config);
+    }
     state.mode = 'bot';
     state.cupMatch = true;
+    state.profile.cup = state.cup;
     saveProfile();
     startMatch();
   }
@@ -1260,7 +1363,11 @@
     bar.hidden = !tactics;
     bar.innerHTML = '';
     if (!tactics || !state.abilities) return;
-    for (const id of state.loadout) {
+    // В онлайне лоадаут мог отличаться от локального профиля: сервер присылает
+    // итоговый набор в begin, и рисовать надо именно его.
+    const ids = (state.mode === 'online' && state.net && Array.isArray(state.net.loadout) &&
+      state.net.loadout.length) ? state.net.loadout : state.loadout;
+    for (const id of ids) {
       const ability = Engine.ABILITIES[id];
       if (!ability) continue;
       const left = state.abilities[id] || 0;
@@ -1344,6 +1451,12 @@
   function onNetAbility(msg) {
     if (state.mode !== 'online' || state.gameOver) return;
     if (msg.kind === 'aa') {
+      // ПВО сработало у защитника: списываем заряд именно у него, иначе
+      // кнопка останется доступной до конца боя.
+      if (state.net && state.abilities && msg.owner === state.net.you) {
+        state.abilities.aa = 0;
+        renderAbilityBar();
+      }
       Sfx.play('click');
       toast('🛡️ ПВО сбило авиаудар', 'turn');
       return;
@@ -1819,10 +1932,8 @@
 
   function leaveOnline(silent) {
     clearNetShotTimeout();
-    if (pendingJoin) {
-      if (pendingJoin.timer) clearTimeout(pendingJoin.timer);
-      pendingJoin = null;
-    }
+    clearPendingJoin();
+    clearCreatePending();
     showReconnect(false);
     closeShipEditor(false);
     setPlacementLocked(false);
@@ -1887,7 +1998,24 @@
       setOnlineStatus('Введи 4 цифры кода', true);
       return;
     }
-    pendingJoin = { code: roomCode, left: typeof left === 'number' ? left : 2, timer: null };
+    // Повторный тап не должен плодить параллельные join на одном сокете.
+    if (pendingJoin && pendingJoin.code === roomCode) return;
+    clearPendingJoin();
+    const req = {
+      code: roomCode,
+      left: typeof left === 'number' ? left : 2,
+      timer: null,
+      deadline: null
+    };
+    pendingJoin = req;
+    // Если сервер молчит (не тот инстанс, зависший сокет) — не держим игрока
+    // в вечном «Заходим…»: через 12 секунд показываем ошибку.
+    req.deadline = setTimeout(() => {
+      if (pendingJoin !== req) return;
+      clearPendingJoin();
+      setOnlineStatus('Сервер не ответил. Попробуй войти ещё раз', true);
+      toast('⚠️ Не удалось войти в комнату', 'miss');
+    }, 12000);
     setOnlineStatus('Подключаемся…');
     Online.connect()
       .then(() => {
@@ -1896,7 +2024,7 @@
         Online.join(roomCode, state.profile.name, Math.round(state.profile.rating));
       })
       .catch((err) => {
-        pendingJoin = null;
+        clearPendingJoin();
         setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
       });
   }
@@ -1963,10 +2091,8 @@
 
   function wireOnlineEvents() {
     Online.on('room', (msg) => {
-      if (pendingJoin) {
-        if (pendingJoin.timer) clearTimeout(pendingJoin.timer);
-        pendingJoin = null;
-      }
+      clearPendingJoin();
+      clearCreatePending();
       state.net = state.net || {};
       state.net.code = msg.code;
       state.net.you = msg.you;
@@ -1992,7 +2118,7 @@
     Online.on('start', (msg) => {
       // «start» из брошенной комнаты не должен телепортировать игрока в бой.
       if (state.mode === 'online' || state.screen !== 'online') return;
-      pendingJoin = null;
+      clearPendingJoin();
       state.net = state.net || {};
       state.net.you = msg.you;
       startOnlineMatch(msg.foe, msg.config);
@@ -2043,11 +2169,15 @@
       // сервера. Переподключаемся и пробуем снова, прежде чем пугать игрока.
       if (pendingJoin && text.indexOf('не найдена') >= 0) {
         if (retryJoin()) return;
-        pendingJoin = null;
+        clearPendingJoin();
         setOnlineStatus('Комната не найдена. Проверь код — или пусть друг создаст новую.', true);
         toast('⚠️ Комната не найдена', 'miss');
         return;
       }
+      // Любая ошибка во время входа снимает ожидание: иначе повторный тап
+      // будет молча проигнорирован до истечения 12-секундного таймаута.
+      if (pendingJoin) clearPendingJoin();
+      clearCreatePending();
       toast('⚠️ ' + text, 'miss');
       if (state.screen === 'online') setOnlineStatus(text, true);
       // Бой: отклонённый выстрел не должен навсегда блокировать доску.
@@ -2336,6 +2466,22 @@
 
     if (seq !== state.matchSeq || state.gameOver) return;
     endBotTurn();
+    // Всё оставшееся поле противника под дымом — ходить некуда. Пропускаем
+    // ход игрока (дым тикает) и отдаём его боту, как это делает сервер.
+    if (Engine.legalShots(state.enemyBoard).length === 0) {
+      state.pendingAbility = null;
+      clearAim();
+      endPlayerTurn();
+      state.playerTurn = false;
+      state.locked = true;
+      setTurn(false);
+      renderAbilityBar();
+      toast('💨 Всё поле под дымом — пропуск хода', 'turn');
+      await sleep(650);
+      if (seq !== state.matchSeq || state.gameOver) return;
+      botTurn(seq);
+      return;
+    }
     state.playerTurn = true;
     state.locked = false;
     setTurn(true);
@@ -2764,13 +2910,23 @@
 
     $('#btn-create-room').addEventListener('click', () => {
       Sfx.play('click');
+      if (creatingRoom) return;
+      creatingRoom = true;
+      createDeadline = setTimeout(() => {
+        if (!creatingRoom) return;
+        clearCreatePending();
+        setOnlineStatus('Сервер не ответил. Попробуй создать комнату ещё раз', true);
+        toast('⚠️ Не удалось создать комнату', 'miss');
+      }, 12000);
       Online.connect()
         .then(() => {
+          if (!creatingRoom) return;
           setOnlineStatus('Создаём комнату…');
-          pendingJoin = null;
+          clearPendingJoin();
           Online.create(state.profile.name, Math.round(state.profile.rating), lobbyConfig());
         })
         .catch((err) => {
+          clearCreatePending();
           setOnlineStatus((err && err.message) || 'Сервер недоступен', true);
         });
     });
@@ -3193,9 +3349,22 @@
       if (!cell) return;
       paintAim(boards.enemy, Number(cell.dataset.x), Number(cell.dataset.y));
     });
+    // На тач-экранах нет hover: показываем зону уже при касании.
+    boards.enemy.addEventListener('pointerdown', (e) => {
+      if (state.pendingAbility !== 'airstrike') return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      paintAim(boards.enemy, Number(cell.dataset.x), Number(cell.dataset.y));
+    });
     boards.enemy.addEventListener('pointerleave', clearAim);
 
     boards.own.addEventListener('pointermove', (e) => {
+      if (state.pendingAbility !== 'smoke') return;
+      const cell = e.target.closest('.cell');
+      if (!cell) return;
+      paintAim(boards.own, Number(cell.dataset.x), Number(cell.dataset.y));
+    });
+    boards.own.addEventListener('pointerdown', (e) => {
       if (state.pendingAbility !== 'smoke') return;
       const cell = e.target.closest('.cell');
       if (!cell) return;

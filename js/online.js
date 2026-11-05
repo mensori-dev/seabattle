@@ -81,9 +81,14 @@
       }
 
       var settled = false;
+      var detach = function () {
+        sock.removeEventListener('open', onOpen);
+        sock.removeEventListener('error', onError);
+      };
       var timer = setTimeout(function () {
         if (settled) return;
         settled = true;
+        detach();
         try { sock.close(); } catch (e) { /* ignore */ }
         reject(new Error('Сервер не отвечает'));
       }, 8000);
@@ -92,8 +97,7 @@
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        sock.removeEventListener('open', onOpen);
-        sock.removeEventListener('error', onError);
+        detach();
         resolve();
       };
       var onError = function () {
@@ -101,8 +105,7 @@
         settled = true;
         clearTimeout(timer);
         stopHeartbeat();
-        sock.removeEventListener('open', onOpen);
-        sock.removeEventListener('error', onError);
+        detach();
         reject(new Error('Не удалось подключиться'));
       };
 
@@ -119,6 +122,7 @@
         if (!settled) {
           settled = true;
           clearTimeout(timer);
+          detach();
           reject(new Error('Соединение закрыто'));
         }
         emit('closed', {});

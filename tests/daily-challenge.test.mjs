@@ -28,9 +28,11 @@ test('каждый пресет дня валиден для своего пол
   }
 });
 
-test('карточка кубка показывает конфиг дня', () => {
+test('испытание дня хранит конфиг в цепочке, а не в настройках бота', () => {
   const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
   assert.match(app, /dailyChallenge/);
   assert.match(app, /startCup/);
-  assert.match(app, /botConfig = .*daily|daily.*botConfig/s);
+  assert.match(app, /config: Object\.assign\(\{\}, day\.config\)/);
+  assert.match(app, /state\.cupMatch && state\.cup && state\.cup\.config/);
+  assert.doesNotMatch(app, /state\.profile\.botConfig = Object\.assign\(\{\}, day\.config\)/);
 });

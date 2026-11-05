@@ -426,6 +426,7 @@ html.no-bubbles .bubble{display:none}
 .h-delta{font-family:'Rubik',sans-serif;font-weight:800;font-size:12px}
 .h-delta.plus{color:#5ff0b8}
 .h-delta.minus{color:#ff8b80}
+.h-delta.na{color:#8fb0c9}
 
 /* ---------- игровое поле ---------- */
 .board{

@@ -415,7 +415,7 @@ html.no-bubbles .bubble{display:none}
 /* ---------- игровое поле ---------- */
 .board{
   display:grid;
-  grid-template-columns:repeat(10,1fr);
+  grid-template-columns:repeat(var(--n, 10), 1fr);
   gap:clamp(2px,.6vw,4px);
   width:100%;
   aspect-ratio:1/1;
@@ -624,6 +624,7 @@ html.no-bubbles .bubble{display:none}
   width:100%;max-width:830px;
 }
 .place-hint{font-size:12px;font-weight:700;color:#8fb0c9;margin:0;text-align:center}
+.place-config{font-size:11px;color:#7b93a8;margin:2px 0 0;text-align:center}
 
 /* ---------- редактор корабля на расстановке ---------- */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

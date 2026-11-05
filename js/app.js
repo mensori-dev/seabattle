@@ -45,8 +45,13 @@
     ghost: [],
     hover: null,           // последняя клетка под курсором при расстановке
     matchStats: { shots: 0, hits: 0, firstShot: true, firstShotSunk: false },
-    cup: null,             // «Кубок моря»: { round, wins }
-    cupMatch: false        // текущий бой идёт в зачёт кубка
+    size: 10,              // размер текущей доски
+    config: { size: 10, fleet: 'classic', tactics: false },
+    loadout: ['airstrike', 'smoke'],
+    abilities: null,       // заряды способностей в текущем бою
+    pendingAbility: null,  // выбранная способность в режиме прицела
+    cup: null,             // «Испытание дня»: { round, wins }
+    cupMatch: false        // текущий бой идёт в зачёт испытания
   };
 
   let netShotTimer = null;
@@ -77,7 +82,10 @@
       bubbles: true,        // пузыри в фоне (на телефоне их можно выключить)
       theme: 'dark',        // 'dark' | 'light' | 'amoled'
       difficulty: 'normal', // 'easy' | 'normal' | 'hard'
-      fleet: 'classic',     // 'classic' | 'admiral'
+      fleet: 'classic',     // 'classic' | 'admiral' — старый ключ, читается как фолбэк
+      botConfig: { size: 10, fleet: 'classic', tactics: false },
+      lobby: { size: 10, fleet: 'classic', tactics: false },
+      loadout: ['airstrike', 'smoke'],
       daily: { date: '', streak: 0 },   // последний день с победой и серия
       achievements: {},     // id → когда получено
       stats: { shots: 0, hits: 0 },
@@ -88,6 +96,24 @@
       lastAdAt: 0,          // когда последний раз показывали рекламу
       adBonusDate: ''       // день, когда уже брали награду за rewarded-видео
     };
+  }
+
+  function normalizeConfig(raw, fallbackFleet) {
+    const n = Number(raw && raw.size);
+    const size = Engine.CONFIG.sizes.indexOf(n) >= 0 ? n : 10;
+    const fleets = Engine.fleetsFor(size);
+    let fleet = raw && raw.fleet;
+    if (!fleets[fleet]) fleet = (fallbackFleet && fleets[fallbackFleet]) ? fallbackFleet : 'classic';
+    return { size: size, fleet: fleet, tactics: !!(raw && raw.tactics) };
+  }
+
+  function normalizeLoadout(raw) {
+    const list = Array.isArray(raw) ? raw.filter((id) => Engine.ABILITIES[id]) : [];
+    const out = list.filter((id, i) => list.indexOf(id) === i).slice(0, 2);
+    for (const id of ['airstrike', 'smoke']) {
+      if (out.length < 2 && out.indexOf(id) < 0) out.push(id);
+    }
+    return out.slice(0, 2);
   }
 
   function loadProfile() {
@@ -107,6 +133,12 @@
         const cup = p.cup;
         prof.cup = (cup && cup.date === dayKey() && cup.round >= 1 && cup.round <= 3 && !cup.finished)
           ? cup : null;
+        prof.botConfig = normalizeConfig(
+          Object.assign({ fleet: prof.fleet }, p.botConfig || {}),
+          prof.fleet
+        );
+        prof.lobby = normalizeConfig(p.lobby, prof.botConfig.fleet);
+        prof.loadout = normalizeLoadout(p.loadout);
         return prof;
       }
     } catch (e) { /* ignore */ }
@@ -285,15 +317,36 @@
     return DIFFICULTY[d] ? d : 'normal';
   }
 
+  function configFor(kind) {
+    const raw = kind === 'online'
+      ? (state.net && state.net.config) || (state.profile && state.profile.lobby)
+      : (state.profile && state.profile.botConfig);
+    return normalizeConfig(raw, 'classic');
+  }
+
+  function isClassicConfig(config) {
+    const c = config || state.config;
+    return !!(c && Number(c.size) === 10 && c.fleet === 'classic' && !c.tactics);
+  }
+
+  function configLabel(config) {
+    const c = config || state.config;
+    const fleet = c.fleet === 'admiral' ? 'Адмиральский' : 'Классика';
+    return 'Поле ' + c.size + '×' + c.size + ' · ' + fleet + ' · ' +
+      (c.tactics ? 'Тактика' : 'Без тактики');
+  }
+
+  function isRatedBattle() {
+    return Engine.isRatedBattle('bot', state.config);
+  }
+
   function fleetKey() {
-    // Онлайн — только классический флот: сервер проверяет ровно 10 кораблей.
-    if (state.mode === 'online') return 'classic';
-    const f = state.profile && state.profile.fleet;
-    return Engine.FLEETS[f] ? f : 'classic';
+    const key = state.config && state.config.fleet;
+    return Engine.fleetFor(state.size, key) ? key : 'classic';
   }
 
   function fleetSizes() {
-    return Engine.FLEETS[fleetKey()] || Engine.FLEET;
+    return Engine.fleetFor(state.size, fleetKey()) || Engine.FLEET;
   }
 
   function applyMotion() {
@@ -370,9 +423,18 @@
       b.classList.toggle('is-active', b.dataset.track === musicTrack);
     });
 
-    const fleet = fleetKey();
+    const bot = (p && p.botConfig) || { size: 10, fleet: 'classic', tactics: false };
+    $$('#set-size button').forEach((b) => {
+      b.classList.toggle('is-active', Number(b.dataset.size) === bot.size);
+    });
+    const fleet = Engine.fleetFor(bot.size, bot.fleet) ? bot.fleet : 'classic';
     $$('#set-fleet button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.fleet === fleet);
+      if (b.dataset.fleet === 'admiral') b.disabled = !Engine.fleetFor(bot.size, 'admiral');
+    });
+    const tacticsOn = !!bot.tactics;
+    $$('#set-tactics button').forEach((b) => {
+      b.classList.toggle('is-active', (b.dataset.tactics === 'on') === tacticsOn);
     });
     const d = difficultyOf();
     $$('#set-difficulty button').forEach((b) => {
@@ -554,11 +616,13 @@
   }
 
   /* ---------------- Доска ---------------- */
-  function buildBoard(el) {
+  function buildBoard(el, size) {
+    const n = size || state.size;
     el.innerHTML = '';
+    el.style.setProperty('--n', n);
     const frag = document.createDocumentFragment();
-    for (let y = 0; y < Engine.SIZE; y++) {
-      for (let x = 0; x < Engine.SIZE; x++) {
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'cell';
@@ -582,9 +646,10 @@
   }
 
   function paintBoard(el, board, reveal) {
-    for (let y = 0; y < Engine.SIZE; y++) {
-      for (let x = 0; x < Engine.SIZE; x++) {
-        const cell = el.children[y * Engine.SIZE + x];
+    const n = (board && board.size) || state.size;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const cell = el.children[y * n + x];
         cell.className = 'cell';
         cell.style.removeProperty('--sd');
         const id = board.grid[y][x];
@@ -607,6 +672,9 @@
   /* ---------------- Матч / расстановка ---------------- */
   function startMatch() {
     state.matchSeq += 1;
+    state.mode = 'bot';
+    state.config = configFor('bot');
+    state.size = state.config.size;
     // Завершённый/просроченный кубок не тянется в обычный бой:
     // чистим и состояние, и сохранение (loadProfile мог его отбросить).
     if (!state.cup) {
@@ -627,7 +695,7 @@
     state.botAvatar = ['🤖', '👾', '🦈', '🐙', '🦑', '🐡', '🦀'][randInt(0, 6)];
     state.bot = new Engine.Bot(level);
     state.enemyBoard = null;
-    state.playerBoard = Engine.createBoard();
+    state.playerBoard = Engine.createBoard(state.size);
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = false;
@@ -671,6 +739,8 @@
     const fleetName = fleetKey() === 'admiral' ? ' · адмиральский флот' : '';
     $('#place-opp').textContent = 'Противник: ' + state.botName + ' · ' + state.botRating +
       ' (' + oppRank.name + ') · ' + DIFFICULTY[difficultyOf()].name + fleetName;
+    const cfgEl = $('#place-config');
+    if (cfgEl) cfgEl.textContent = configLabel(state.config);
     updateReady();
   }
 
@@ -801,8 +871,8 @@
     for (let i = 0; i < size; i++) {
       const gx = p.x + (p.horizontal ? i : 0);
       const gy = p.y + (p.horizontal ? 0 : i);
-      if (gx < 0 || gy < 0 || gx >= Engine.SIZE || gy >= Engine.SIZE) continue;
-      const cell = boards.place.children[gy * Engine.SIZE + gx];
+      if (gx < 0 || gy < 0 || gx >= state.size || gy >= state.size) continue;
+      const cell = boards.place.children[gy * state.size + gx];
       cell.classList.add(p.ok ? 'ghost-ok' : 'ghost-bad');
       if (animate) cell.classList.add('ghost-flip');
       state.ghost.push(cell);
@@ -887,7 +957,7 @@
     const ship = state.playerBoard.ships[ed.shipId];
     if (!ship) return null;
     ship.cells.forEach((c) => {
-      const cell = boards.place.children[c.y * Engine.SIZE + c.x];
+      const cell = boards.place.children[c.y * state.size + c.x];
       if (cell) {
         cell.classList.add('ship-selected');
         cell.setAttribute('aria-label', 'Клетка ' + (c.x + 1) + ', ' + (c.y + 1) +
@@ -907,7 +977,7 @@
     if (panel.classList.contains('is-sheet')) return;
 
     const rects = ship.cells.map((c) => {
-      const cell = boards.place.children[c.y * Engine.SIZE + c.x];
+      const cell = boards.place.children[c.y * state.size + c.x];
       return cell ? cell.getBoundingClientRect() : null;
     }).filter(Boolean);
     if (!rects.length) return;
@@ -954,8 +1024,8 @@
     $$('#board-place .cell').forEach((cell, i) => {
       if (!cell.classList.contains('ship-selected')) return;
       cell.classList.remove('ship-selected');
-      const x = i % Engine.SIZE;
-      const y = Math.floor(i / Engine.SIZE);
+      const x = i % state.size;
+      const y = Math.floor(i / state.size);
       const ship = state.playerBoard ? Engine.shipAt(state.playerBoard, x, y) : null;
       cell.setAttribute('aria-label', 'Клетка ' + (x + 1) + ', ' + (y + 1) + (ship ? ': корабль' : ''));
     });
@@ -1040,7 +1110,7 @@
   function beginBattle() {
     closeShipEditor(false);
     setPlacementLocked(false);
-    state.enemyBoard = Engine.randomBoard(fleetSizes());
+    state.enemyBoard = Engine.randomBoard(fleetSizes(), state.size);
     state.bot = new Engine.Bot(difficultyOf());
     state.gameOver = false;
     state.locked = true;
@@ -1089,18 +1159,24 @@
       : '🏆 Побед в онлайне пока нет — сыграй с другом';
   }
 
-  function startOnlineMatch(foe) {
+  function startOnlineMatch(foe, config) {
     state.matchSeq += 1;
     state.mode = 'online';
     state.net = state.net || {};
-    state.net.foeShips = 10;
+    if (config) state.net.config = config;
+    state.config = state.net.config
+      ? normalizeConfig(state.net.config)
+      : configFor('online');
+    state.size = state.config.size;
+    state.net.foeShips = fleetSizes().length;
+    state.net.foeTotal = fleetSizes().length;
     state.net.fleetSent = false;
     state.botName = (foe && foe.name) || 'Соперник';
     state.botRating = (foe && foe.rating) || 1000;
     state.botAvatar = '🌐';
     state.bot = null;
     state.enemyBoard = null;
-    state.playerBoard = Engine.createBoard();
+    state.playerBoard = Engine.createBoard(state.size);
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = false;
@@ -1128,8 +1204,9 @@
   function beginOnlineBattle(first) {
     closeShipEditor(false);
     setPlacementLocked(false);
-    state.enemyBoard = Engine.createBoard();
-    state.net.foeShips = 10;
+    state.enemyBoard = Engine.createBoard(state.size);
+    state.net.foeShips = fleetSizes().length;
+    state.net.foeTotal = fleetSizes().length;
     state.gameOver = false;
     state.locked = !first;
     state.playerTurn = !!first;
@@ -1162,7 +1239,7 @@
     const horizontal = list.length === 1 ? true : list.every((c) => c.y === list[0].y);
     const ship = { size: list.length, cells: list, horizontal: horizontal };
     list.forEach((c, i) => {
-      const cell = targetEl.children[c.y * Engine.SIZE + c.x];
+      const cell = targetEl.children[c.y * state.size + c.x];
       if (!cell) return;
       cell.style.setProperty('--sd', (i * 70) + 'ms');
       applyShipLook(cell, ship, c.x, c.y);
@@ -1193,7 +1270,7 @@
   }
 
   function applyShotVisual(targetEl, x, y, result, shipCells) {
-    const cell = targetEl.children[y * Engine.SIZE + x];
+    const cell = targetEl.children[y * state.size + x];
     if (!cell) return;
     cell.classList.remove('incoming');
     markShot(targetEl, cell, result);
@@ -1248,7 +1325,7 @@
     clearNetShotTimeout();
     const x = Number(msg.x);
     const y = Number(msg.y);
-    if (x < 0 || y < 0 || x >= Engine.SIZE || y >= Engine.SIZE) return;
+    if (x < 0 || y < 0 || x >= state.size || y >= state.size) return;
 
     if (msg.mine) {
       state.enemyBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
@@ -1258,7 +1335,7 @@
         msg.ship.forEach((c) => {
           const cx = Number(c[0]);
           const cy = Number(c[1]);
-          if (cx >= 0 && cy >= 0 && cx < Engine.SIZE && cy < Engine.SIZE) {
+          if (cx >= 0 && cy >= 0 && cx < state.size && cy < state.size) {
             state.enemyBoard.shots[cy][cx] = 'hit';
           }
         });
@@ -1502,7 +1579,7 @@
     if (!state.enemyBoard || !state.playerBoard) return;
     const online = state.mode === 'online' && !!state.net;
     const foeLeft = online ? state.net.foeShips : Engine.shipsLeft(state.enemyBoard);
-    const foeTotal = online ? 10 : Engine.totalShips(state.enemyBoard);
+    const foeTotal = online ? (state.net.foeTotal || fleetSizes().length) : Engine.totalShips(state.enemyBoard);
     $('#foe-fleet').textContent = foeLeft + ' / ' + foeTotal;
     $('#you-fleet').textContent = Engine.shipsLeft(state.playerBoard) + ' / ' + Engine.totalShips(state.playerBoard);
   }
@@ -1550,7 +1627,7 @@
 
   function revealSunk(targetEl, ship) {
     ship.cells.forEach((c, i) => {
-      const cell = targetEl.children[c.y * Engine.SIZE + c.x];
+      const cell = targetEl.children[c.y * state.size + c.x];
       cell.style.setProperty('--sd', (i * 70) + 'ms');
       applyShipLook(cell, ship, c.x, c.y);
       cell.classList.add('sunk', 'ship-reveal');
@@ -1560,7 +1637,7 @@
   }
 
   async function doShot(targetEl, board, x, y, slow) {
-    const cell = targetEl.children[y * Engine.SIZE + x];
+    const cell = targetEl.children[y * state.size + x];
     if (!cell) return null;
     cell.classList.add('incoming');
     await sleep(slow ? 400 : 230);
@@ -2276,15 +2353,46 @@
       Sfx.play('click');
     });
 
-    $('#set-fleet').addEventListener('click', (e) => {
+    $('#set-size').addEventListener('click', (e) => {
       if (state.screen !== 'menu') return;
-      const btn = e.target.closest('button[data-fleet]');
+      const btn = e.target.closest('button[data-size]');
       if (!btn) return;
-      state.profile.fleet = btn.dataset.fleet === 'admiral' ? 'admiral' : 'classic';
+      const cfg = state.profile.botConfig;
+      cfg.size = Number(btn.dataset.size);
+      if (!Engine.fleetFor(cfg.size, cfg.fleet)) cfg.fleet = 'classic';
+      state.profile.fleet = cfg.fleet;
       syncSettings();
       saveProfile();
       Sfx.play('click');
-      toast('Флот: ' + (state.profile.fleet === 'admiral' ? 'адмиральский 🛳️' : 'классический ⚓'), 'turn');
+      toast('Поле: ' + cfg.size + '×' + cfg.size, 'turn');
+    });
+
+    $('#set-fleet').addEventListener('click', (e) => {
+      if (state.screen !== 'menu') return;
+      const btn = e.target.closest('button[data-fleet]');
+      if (!btn || btn.disabled) return;
+      const cfg = state.profile.botConfig;
+      const key = btn.dataset.fleet === 'admiral' ? 'admiral' : 'classic';
+      if (!Engine.fleetFor(cfg.size, key)) return;
+      cfg.fleet = key;
+      state.profile.fleet = key;
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast('Флот: ' + (key === 'admiral' ? 'адмиральский 🛳️' : 'классический ⚓'), 'turn');
+    });
+
+    $('#set-tactics').addEventListener('click', (e) => {
+      if (state.screen !== 'menu') return;
+      const btn = e.target.closest('button[data-tactics]');
+      if (!btn) return;
+      state.profile.botConfig.tactics = btn.dataset.tactics === 'on';
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast(state.profile.botConfig.tactics
+        ? 'Тактика: выбор двух способностей'
+        : 'Бой без способностей', 'turn');
     });
 
     $('#set-difficulty').addEventListener('click', (e) => {

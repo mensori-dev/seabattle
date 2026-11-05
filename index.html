@@ -169,6 +169,7 @@
           <div class="place-title">
             <h2>Расставь флот</h2>
             <p class="muted" id="place-opp">Противник: загрузка…</p>
+            <p class="place-config" id="place-config"></p>
           </div>
         </div>
 
@@ -393,12 +394,35 @@
 
         <div class="setting-row is-column">
           <div class="setting-text">
+            <b>Поле</b>
+            <small>На большом поле больше кораблей. Рейтинг — только за 10×10 без тактики</small>
+          </div>
+          <div class="segmented" id="set-size">
+            <button type="button" data-size="8">8×8</button>
+            <button type="button" data-size="10" class="is-active">10×10</button>
+            <button type="button" data-size="12">12×12</button>
+          </div>
+        </div>
+
+        <div class="setting-row is-column">
+          <div class="setting-text">
             <b>Флот</b>
-            <small>Адмиральский — с флагманом на 5 клеток. Только против бота</small>
+            <small>Адмиральский — с флагманом на 5 клеток. На 8×8 недоступен</small>
           </div>
           <div class="segmented is-two" id="set-fleet">
             <button type="button" data-fleet="classic" class="is-active">⚓ Классический</button>
             <button type="button" data-fleet="admiral">🛳️ Адмиральский</button>
+          </div>
+        </div>
+
+        <div class="setting-row is-column">
+          <div class="setting-text">
+            <b>Тактика</b>
+            <small>Перед боем выбираешь две способности: авиаудар, ПВО или дым</small>
+          </div>
+          <div class="segmented is-two" id="set-tactics">
+            <button type="button" data-tactics="off" class="is-active">Без тактики</button>
+            <button type="button" data-tactics="on">✈️ Тактика</button>
           </div>
         </div>
 

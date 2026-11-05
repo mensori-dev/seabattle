@@ -11,7 +11,7 @@ package `dev.mensori.seabattle`.
 | GitHub Releases | опубликовано | тег `v1.5.0`, APK/AAB/IPA |
 | Сайт-витрина | опубликовано | https://mensori-dev.github.io/seabattle/site/ |
 | Яндекс Игры | не принимает новые игры | `dist/seabattle-yandex-1.5.0.zip` |
-| VK Games | карточка и URL v3 готовы, реклама включена; ждёт активации исполнителя в кабинете выплат (23:59–00:00), затем модерация | `dist/seabattle-gamepush-1.5.0.zip` |
+| VK Games | заявка на модерацию отправлена 6 ноября 00:23 (ВКонтакте и Одноклассники, Mobile + Web); ждёт проверки | `dist/seabattle-gamepush-1.5.0.zip` |
 | VK Play | материалы загружены в GamePush, ждут обработки/публикации | `dist/gamepush-assets.zip` |
 | GamePush Distribution | заявка отправлена на модерацию: VK Games, OK Games, CrazyGames, GamePush, PlayDeck, Pikabu, Moi Mir | `dist/seabattle-gamepush-1.5.0.zip` |
 | OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.5.0.zip` |

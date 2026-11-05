@@ -213,6 +213,7 @@ only when a connection is available. Progress is stored locally on the device.
 | Таблица результатов | `По набранным очкам` |
 | Цвет фона за иконкой | `#17618F` |
 | Анимация иконки | `assets/vk/icon-animated.json` (96×96, Lottie, 14 КБ) |
+| Company Name (iOS) | `NIZAMETDINOV MAKSIM RINATOVICH` |
 
 Текущий адрес — `https://s3.eponesh.com/games/32533/v3/`. Он открывается и
 подходит для WebView и iframe. Если после публикации GamePush выдаст другой адрес,

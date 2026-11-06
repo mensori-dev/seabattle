@@ -40,8 +40,10 @@ interface Player {
   name: string;
   rating: number;
   board: Board | null;
+  shipsRaw: ShipIn[] | null;
   loadout: string[] | null;
   hintLoadout: string[];
+  lastEmoji: number;
 }
 
 interface Room {
@@ -50,6 +52,9 @@ interface Room {
   players: Player[];
   turn: number;
   started: boolean;
+  over: boolean;
+  lastFirst: number;
+  rematch: boolean[];
   createdAt: number;
   charges: Record<string, number>[];
   loadoutTimer: ReturnType<typeof setTimeout> | null;
@@ -172,6 +177,8 @@ function allSunk(board: Board): boolean {
 
 const ABILITY_IDS = ['airstrike', 'aa', 'smoke'];
 const DEFAULT_LOADOUT = ['airstrike', 'smoke'];
+/* Быстрые фразы: сервер пропускает только этот список. */
+const REACTION_EMOJI = ['👍', '🔥', '😉', '⚓', '😂', '🆘'];
 
 function normalizeLoadout(raw: unknown): string[] | null {
   if (!Array.isArray(raw)) return null;
@@ -245,14 +252,16 @@ function awaitingLoadout(room: Room): boolean {
   return room.config.tactics && !room.players.every((p) => !!p.loadout);
 }
 
-function startBattle(room: Room): void {
-  if (room.started || room.players.length !== 2) return;
+function beginBattle(room: Room, first: number, rematch: boolean): void {
   if (room.loadoutTimer) {
     clearTimeout(room.loadoutTimer);
     room.loadoutTimer = null;
   }
   room.started = true;
-  room.turn = Math.random() < 0.5 ? 0 : 1;
+  room.over = false;
+  room.turn = first;
+  room.lastFirst = first;
+  room.rematch = [false, false];
   room.charges = room.players.map((p) => newAbilityState(p.loadout));
   room.players.forEach((p, i) => {
     const mine = room.players[1 - i];
@@ -260,12 +269,50 @@ function startBattle(room: Room): void {
       t: 'begin',
       you: i,
       first: room.turn === i,
+      rematch: rematch,
       config: room.config,
       loadout: p.loadout,
       foeLoadout: mine.loadout,
       foe: { name: mine.name, rating: mine.rating }
     });
   });
+}
+
+function startBattle(room: Room): void {
+  if (room.started || room.players.length !== 2) return;
+  beginBattle(room, Math.random() < 0.5 ? 0 : 1, false);
+}
+
+/* Реванш: доски пересобираются из уже принятой расстановки, поэтому
+   игрокам не нужно расставлять флот заново. Первым ходит тот, кто
+   в прошлом бою ходил вторым. */
+function restartBattle(room: Room): boolean {
+  if (room.players.length !== 2) return false;
+  const boards: Board[] = [];
+  for (const p of room.players) {
+    if (!p.shipsRaw) return false;
+    const board = buildBoard(p.shipsRaw, room.config);
+    if (!board) return false;
+    boards.push(board);
+  }
+  room.players.forEach((p, i) => { p.board = boards[i]; });
+  beginBattle(room, 1 - room.lastFirst, true);
+  return true;
+}
+
+/* Бой закончен, но комната живёт: соперники могут попросить реванш. */
+function finishBattle(room: Room, winner: number, reason?: string): void {
+  room.started = true;
+  room.over = true;
+  room.rematch = [false, false];
+  room.players.forEach((p, i) => {
+    const msg: Record<string, unknown> = { t: 'end', win: i === winner };
+    if (reason) msg.reason = reason;
+    send(p, msg);
+  });
+  if (winner >= 0 && winner < room.players.length && isClassicRoom(room.config)) {
+    recordWin(room.players[winner].name);
+  }
 }
 
 function maybeBegin(room: Room): void {
@@ -388,7 +435,7 @@ function handle(socket: WebSocket) {
       }
       const config = normalizeConfig(msg.config);
       if (!config) {
-        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
+        send({ ws: socket, name: '', rating: 0, board: null, shipsRaw: null, loadout: null, hintLoadout: [], lastEmoji: 0 }, { t: 'error', msg: 'Некорректные настройки комнаты.' });
         return;
       }
       me = {
@@ -396,8 +443,10 @@ function handle(socket: WebSocket) {
         name: cleanName(msg.name),
         rating: cleanRating(msg.rating),
         board: null,
+        shipsRaw: null,
         loadout: null,
-        hintLoadout: DEFAULT_LOADOUT.slice()
+        hintLoadout: DEFAULT_LOADOUT.slice(),
+        lastEmoji: 0
       };
       room = {
         code: newCode(),
@@ -405,6 +454,9 @@ function handle(socket: WebSocket) {
         players: [me],
         turn: 0,
         started: false,
+        over: false,
+        lastFirst: 0,
+        rematch: [false, false],
         createdAt: Date.now(),
         charges: [],
         loadoutTimer: null
@@ -423,11 +475,11 @@ function handle(socket: WebSocket) {
       const code = String(msg.code || '').replace(/\D/g, '').slice(0, 4);
       const target = rooms.get(code);
       if (!target) {
-        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'Комната не найдена. Проверь код.' });
+        send({ ws: socket, name: '', rating: 0, board: null, shipsRaw: null, loadout: null, hintLoadout: [], lastEmoji: 0 }, { t: 'error', msg: 'Комната не найдена. Проверь код.' });
         return;
       }
       if (target.players.length >= 2) {
-        send({ ws: socket, name: '', rating: 0, board: null, loadout: null, hintLoadout: [] }, { t: 'error', msg: 'В комнате уже двое.' });
+        send({ ws: socket, name: '', rating: 0, board: null, shipsRaw: null, loadout: null, hintLoadout: [], lastEmoji: 0 }, { t: 'error', msg: 'В комнате уже двое.' });
         return;
       }
       me = {
@@ -435,8 +487,10 @@ function handle(socket: WebSocket) {
         name: cleanName(msg.name),
         rating: cleanRating(msg.rating),
         board: null,
+        shipsRaw: null,
         loadout: null,
-        hintLoadout: DEFAULT_LOADOUT.slice()
+        hintLoadout: DEFAULT_LOADOUT.slice(),
+        lastEmoji: 0
       };
       room = target;
       room.players.push(me);
@@ -482,6 +536,10 @@ function handle(socket: WebSocket) {
         return;
       }
       me.board = board;
+      me.shipsRaw = board.ships.map((s) => ({
+        size: s.size,
+        cells: s.cells.map((c) => [c[0], c[1]] as Cell)
+      }));
       send(me, { t: 'fleetOk' });
       const idx = room.players.indexOf(me);
       const foe = room.players[1 - idx];
@@ -492,7 +550,7 @@ function handle(socket: WebSocket) {
     }
 
     if (type === 'ability') {
-      if (!room.started || !room.config.tactics) {
+      if (!room.started || room.over || !room.config.tactics) {
         send(me, { t: 'error', msg: 'Способности недоступны.' });
         return;
       }
@@ -583,11 +641,7 @@ function handle(socket: WebSocket) {
           blocked: blocked
         }));
         if (allSunk(foeBoard)) {
-          send(me, { t: 'end', win: true });
-          send(foe, { t: 'end', win: false });
-          if (isClassicRoom(room.config)) recordWin(me.name);
-          dropRoom(room);
-          room = null;
+          finishBattle(room, idx);
           return;
         }
         advanceTurn(room, idx);
@@ -599,7 +653,7 @@ function handle(socket: WebSocket) {
     }
 
     if (type === 'shot') {
-      if (!room.started) return;
+      if (!room.started || room.over) return;
       const idx = room.players.indexOf(me);
       if (idx !== room.turn) {
         send(me, { t: 'error', msg: 'Сейчас не твой ход.' });
@@ -625,11 +679,7 @@ function handle(socket: WebSocket) {
       send(foe, { t: 'shot', x: res.x, y: res.y, result: res.result, ship: res.ship, mine: false });
 
       if (allSunk(foe.board)) {
-        send(me, { t: 'end', win: true });
-        send(foe, { t: 'end', win: false });
-        if (isClassicRoom(room.config)) recordWin(me.name);
-        dropRoom(room);
-        room = null;
+        finishBattle(room, idx);
         return;
       }
 
@@ -639,22 +689,49 @@ function handle(socket: WebSocket) {
       return;
     }
 
-    if (type === 'surrender') {
-      // Сдаваться можно только в начавшемся бою: иначе победа засчитывается
-      // без единого выстрела (накрутка таблицы побед).
-      if (!room.started) {
-        send(me, { t: 'error', msg: 'Бой ещё не начался.' });
+    if (type === 'emoji') {
+      if (!room.started || room.over) return;
+      const idx = room.players.indexOf(me);
+      const value = String(msg.emoji || '');
+      if (REACTION_EMOJI.indexOf(value) < 0) return;
+      if (Date.now() - me.lastEmoji < 500) return;
+      me.lastEmoji = Date.now();
+      room.players.forEach((p, i) => send(p, { t: 'emoji', emoji: value, from: idx }));
+      return;
+    }
+
+    if (type === 'rematch') {
+      if (!room.started || !room.over) {
+        send(me, { t: 'error', msg: 'Реванш доступен только после боя.' });
         return;
       }
       const idx = room.players.indexOf(me);
       const foe = room.players[1 - idx];
-      if (foe) {
-        send(foe, { t: 'end', win: true, reason: 'surrender' });
-        if (isClassicRoom(room.config)) recordWin(foe.name);
+      if (!foe) {
+        send(me, { t: 'error', msg: 'Соперник уже вышел.' });
+        return;
       }
-      send(me, { t: 'end', win: false, reason: 'surrender' });
-      dropRoom(room);
-      room = null;
+      room.rematch[idx] = true;
+      send(me, { t: 'rematchWait' });
+      send(foe, { t: 'rematchAsked' });
+      if (room.rematch[0] && room.rematch[1]) {
+        if (!restartBattle(room)) {
+          room.rematch = [false, false];
+          room.players.forEach((p) => send(p, { t: 'error', msg: 'Не удалось начать реванш.' }));
+        }
+      }
+      return;
+    }
+
+    if (type === 'surrender') {
+      // Сдаваться можно только в начавшемся бою: иначе победа засчитывается
+      // без единого выстрела (накрутка таблицы побед).
+      if (!room.started || room.over) {
+        send(me, { t: 'error', msg: 'Бой ещё не начался.' });
+        return;
+      }
+      const idx = room.players.indexOf(me);
+      finishBattle(room, 1 - idx, 'surrender');
       return;
     }
 

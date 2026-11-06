@@ -223,6 +223,8 @@
     ability: function () {},
     shot: function () {},
     surrender: function () {},
+    rematch: function () {},
+    emoji: function () {},
     httpUrl: function (p) { return p; }
   };
 

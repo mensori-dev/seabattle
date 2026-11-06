@@ -573,7 +573,7 @@ async function mobileScreens(profileDir) {
 
     console.log('Мобильные скриншоты 1080×1920:');
 
-    await cdp.evaluate(`document.querySelector('#btn-play').click()`);
+    await cdp.evaluate(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await cdp.waitFor(`document.querySelector('#screen-place').classList.contains('is-active')`);
     await cdp.evaluate(`document.querySelector('#btn-random').click()`);
     await sleep(600);
@@ -645,7 +645,7 @@ async function desktopScreens(profileDir) {
     await fitDesktop(cdp);
     await cdp.shot(join(SCREENS, 'desktop-01-menu.png'));
 
-    await cdp.evaluate(`document.querySelector('#btn-play').click()`);
+    await cdp.evaluate(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await cdp.waitFor(`document.querySelector('#screen-place').classList.contains('is-active')`);
     await cdp.evaluate(`document.querySelector('#btn-random').click()`);
     await sleep(500);
@@ -707,7 +707,7 @@ async function recordVideo(profileDir, { w, h, mobile, file }) {
     });
 
     await sleep(1400);
-    await cdp.evaluate(`document.querySelector('#btn-play').click()`);
+    await cdp.evaluate(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await cdp.waitFor(`document.querySelector('#screen-place').classList.contains('is-active')`);
     await sleep(800);
     await cdp.evaluate(`document.querySelector('#btn-random').click()`);

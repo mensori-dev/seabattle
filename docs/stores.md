@@ -13,12 +13,22 @@ package `dev.mensori.seabattle`.
 | Яндекс Игры | не принимает новые игры | `dist/seabattle-yandex-1.5.0.zip` |
 | VK Games | заявка на модерацию отправлена 6 ноября 00:23 (ВКонтакте и Одноклассники, Mobile + Web); ждёт проверки | `dist/seabattle-gamepush-1.5.0.zip` |
 | VK Play | материалы загружены в GamePush, ждут обработки/публикации | `dist/gamepush-assets.zip` |
-| GamePush Distribution | заявка отправлена на модерацию: VK Games, OK Games, CrazyGames, GamePush, PlayDeck, Pikabu, Moi Mir | `dist/seabattle-gamepush-1.5.0.zip` |
+| GamePush Distribution | отказ 6 ноября: нужен более высокий визуальный стиль и удержание; повторная заявка после 1.6.0 | `dist/seabattle-gamepush-1.5.0.zip` |
 | OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.5.0.zip` |
 | Google Play | не начато | `dist/seabattle-1.5.0-release.aab` |
 | App Store | не начато, нужен Apple Developer | unsigned IPA + подпись |
 
 GamePush, VK/OK и VK Play описаны отдельно в `docs/gamepush.md`.
+
+### GamePush Distribution: отказ и повторная заявка
+
+6 ноября GamePush отклонил дистрибуцию с формулировкой: нужны игры с более высоким качеством и визуальным стилем, чтобы игроки оставались дольше и делились игрой. Это не техническая ошибка и не отмена VK-хостинга или VK-модерации: VK-заявка рассматривается отдельно.
+
+План:
+1. Дождаться VK-модерации и RuStore, не менять опубликованный архив v3.
+2. В 1.6.0 сделать упор на визуал и удержание: новый арт меню/поля, анимации воды и попаданий, экран результата, ежедневная серия, таблица лидеров, кнопка «поделиться».
+3. Пересобрать скриншоты и промо-видео под новый стиль.
+4. Подать заявку в GamePush Distribution повторно не раньше чем через 2–4 недели и только с заметно обновлённой игрой.
 
 ## RuStore
 

@@ -200,7 +200,7 @@ async function main() {
     await sleep(700);
     await capture(cdp, path.join(shotsDir, '01-menu-1200x600.png'));
 
-    await cdp.eval(`document.querySelector('#btn-play').click()`);
+    await cdp.eval(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await cdp.waitText('Расставь флот');
     await sleep(500);
     await cdp.eval(`document.querySelector('#btn-random').click()`);
@@ -245,7 +245,7 @@ async function main() {
     })();
 
     await sleep(1600);
-    await cdp.eval(`document.querySelector('#btn-play').click()`);
+    await cdp.eval(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await sleep(2200);
     await cdp.eval(`document.querySelector('#btn-random').click()`);
     await sleep(2200);

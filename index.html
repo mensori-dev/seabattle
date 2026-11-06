@@ -29,7 +29,69 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="ocean" id="ocean" aria-hidden="true"></div>
+  <div class="ocean" id="ocean" aria-hidden="true">
+    <div class="storm" id="storm" aria-hidden="true">
+      <svg class="storm-defs" width="0" height="0" focusable="false" aria-hidden="true">
+        <defs>
+          <path id="storm-wave-a" d="M0,100 C240,180 480,20 720,100 C960,180 1200,20 1440,100 L1440,200 L0,200 Z"/>
+          <path id="storm-wave-b" d="M0,120 C240,60 480,180 720,120 C960,60 1200,180 1440,120 L1440,200 L0,200 Z"/>
+          <path id="storm-wave-c" d="M0,110 C240,164 480,56 720,110 C960,164 1200,56 1440,110 L1440,200 L0,200 Z"/>
+          <path id="storm-wave-d" d="M0,130 C240,90 480,170 720,130 C960,90 1200,170 1440,130 L1440,200 L0,200 Z"/>
+          <linearGradient id="storm-g1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#63c3dc" stop-opacity=".14"/>
+            <stop offset="1" stop-color="#123a4c" stop-opacity=".06"/>
+          </linearGradient>
+          <linearGradient id="storm-g2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#54b3d0" stop-opacity=".18"/>
+            <stop offset="1" stop-color="#0f3446" stop-opacity=".08"/>
+          </linearGradient>
+          <linearGradient id="storm-g3" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3f9dbb" stop-opacity=".24"/>
+            <stop offset="1" stop-color="#0b2c3c" stop-opacity=".12"/>
+          </linearGradient>
+          <linearGradient id="storm-g4" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2f88a6" stop-opacity=".3"/>
+            <stop offset="1" stop-color="#081f2b" stop-opacity=".16"/>
+          </linearGradient>
+          <linearGradient id="storm-gl1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
+            <stop offset="1" stop-color="#bcdbe6" stop-opacity=".18"/>
+          </linearGradient>
+          <linearGradient id="storm-gl2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f2fbff" stop-opacity=".5"/>
+            <stop offset="1" stop-color="#a9cfdd" stop-opacity=".2"/>
+          </linearGradient>
+          <linearGradient id="storm-gl3" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#d9eef6" stop-opacity=".45"/>
+            <stop offset="1" stop-color="#8fb9c9" stop-opacity=".24"/>
+          </linearGradient>
+          <linearGradient id="storm-gl4" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4f8ea3" stop-opacity=".38"/>
+            <stop offset="1" stop-color="#2f6b80" stop-opacity=".28"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="storm-sea">
+        <div class="storm-wave w1"><div class="storm-bob"><div class="storm-track">
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-a"/></svg>
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-a"/></svg>
+        </div></div></div>
+        <div class="storm-wave w2"><div class="storm-bob"><div class="storm-track">
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-b"/></svg>
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-b"/></svg>
+        </div></div></div>
+        <div class="storm-wave w3"><div class="storm-bob"><div class="storm-track">
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-c"/></svg>
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-c"/></svg>
+        </div></div></div>
+        <div class="storm-wave w4"><div class="storm-bob"><div class="storm-track">
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-d"/></svg>
+          <svg viewBox="0 0 1440 200" preserveAspectRatio="none"><use href="#storm-wave-d"/></svg>
+        </div></div></div>
+      </div>
+      <div class="storm-flash"></div>
+    </div>
+  </div>
 
   <div class="app">
     <header class="topbar">
@@ -52,68 +114,89 @@
           <p class="tagline">Сразись с ботом, подними рейтинг и стань легендой флота</p>
         </div>
 
-        <div class="panel profile-card">
-          <div class="profile-main">
-            <div class="avatar" id="avatar">⚓</div>
-            <div class="profile-info">
-              <input id="nickname" class="nick-input" maxlength="16" spellcheck="false" autocomplete="off" title="Нажми, чтобы изменить ник" aria-label="Твой никнейм">
-              <div class="rank-line">
-                <span id="rank-icon">⚓</span>
-                <span id="rank-name">Матрос</span>
+        <div class="menu-shell">
+          <div class="menu-main">
+            <section class="battle-hub" aria-labelledby="hub-title">
+              <div class="hub-head">
+                <span class="hub-kicker">⚡ Быстрый старт</span>
+                <span class="hub-status"><i></i> Соперник готов</span>
+              </div>
+              <h2 class="hub-title" id="hub-title">Случайный соперник</h2>
+              <p class="hub-sub" id="quick-sub">Поле 10×10 · Классика · Без тактики · Обычно</p>
+              <button class="btn btn-primary btn-big btn-quick" id="btn-play" type="button"><span>⚔️ Быстрый бой</span></button>
+              <div class="hub-actions">
+                <button class="btn btn-ghost" id="btn-setup" type="button"><span>🎛️ Настроить</span></button>
+                <button class="btn btn-ghost btn-big btn-online" id="btn-online" type="button"><span>🌐 С другом</span></button>
+              </div>
+            </section>
+
+            <div class="menu-cards has-three">
+              <button class="mini-card" id="btn-cup" type="button">
+                <span class="mini-icon">🎯</span>
+                <span class="mini-text"><b id="cup-title">Испытание дня</b><small id="cup-status">3 боя без поражений</small></span>
+              </button>
+              <button class="mini-card" id="btn-fame" type="button">
+                <span class="mini-icon">🏛️</span>
+                <span class="mini-text"><b>Зал славы</b><small id="fame-sub">Карта выстрелов и реплеи</small></span>
+              </button>
+              <button class="mini-card" id="btn-achievements" type="button">
+                <span class="mini-icon">🏅</span>
+                <span class="mini-text"><b>Достижения</b><small id="ach-count">0 / 14</small></span>
+              </button>
+            </div>
+          </div>
+
+          <aside class="menu-side">
+            <div class="panel profile-card">
+              <div class="profile-main">
+                <div class="avatar" id="avatar">⚓</div>
+                <div class="profile-info">
+                  <input id="nickname" class="nick-input" maxlength="16" spellcheck="false" autocomplete="off" title="Нажми, чтобы изменить ник" aria-label="Твой никнейм">
+                  <div class="rank-line">
+                    <span id="rank-icon">⚓</span>
+                    <span id="rank-name">Матрос</span>
+                  </div>
+                </div>
+                <div class="rating-box">
+                  <div class="rating-value" id="rating-value">1000</div>
+                  <div class="rating-label">рейтинг</div>
+                </div>
+              </div>
+              <div class="progress"><div class="progress-fill" id="rank-progress"></div></div>
+              <div class="rank-next" id="rank-next">до следующего ранга — 100</div>
+              <div class="accuracy-line" id="accuracy-line">🎯 Точность 0% · 0 выстрелов</div>
+              <div class="stats-row">
+                <div><b id="stat-games">0</b><span>боёв</span></div>
+                <div><b id="stat-wr">0%</b><span>побед</span></div>
+                <div><b id="stat-streak">0</b><span>серия</span></div>
+                <div><b id="stat-best">1000</b><span>рекорд</span></div>
               </div>
             </div>
-            <div class="rating-box">
-              <div class="rating-value" id="rating-value">1000</div>
-              <div class="rating-label">рейтинг</div>
+
+            <button class="daily-card" id="daily-card" type="button">
+              <span class="daily-icon" id="daily-icon">🎁</span>
+              <span class="daily-text">
+                <b id="daily-title">Ежедневный бонус</b>
+                <small id="daily-sub">Победи сегодня — +15 к рейтингу</small>
+              </span>
+            </button>
+
+            <div class="menu-links">
+              <button class="btn btn-ghost btn-small" id="btn-ad-bonus" type="button" hidden>🎁 +25 за рекламу</button>
+              <button class="btn btn-ghost btn-small" id="btn-rules" type="button">📖 Правила</button>
+              <button class="btn btn-ghost btn-small" id="btn-reset" type="button">🧹 Сбросить</button>
             </div>
-          </div>
-          <div class="progress"><div class="progress-fill" id="rank-progress"></div></div>
-          <div class="rank-next" id="rank-next">до следующего ранга — 100</div>
-          <div class="accuracy-line" id="accuracy-line">🎯 Точность 0% · 0 выстрелов</div>
-          <div class="stats-row">
-            <div><b id="stat-games">0</b><span>боёв</span></div>
-            <div><b id="stat-wr">0%</b><span>побед</span></div>
-            <div><b id="stat-streak">0</b><span>серия</span></div>
-            <div><b id="stat-best">1000</b><span>рекорд</span></div>
-          </div>
+
+            <!-- подсказка только для Safari на iPhone/iPad, скрывается навсегда -->
+            <div class="ios-install" id="ios-install" hidden>
+              <button class="ios-install-close" id="ios-install-close" type="button" aria-label="Скрыть подсказку">×</button>
+              <b>📱 Добавь на iPhone</b>
+              <span>Нажми «Поделиться» ⬆️ → «На экран Домой». Игра откроется на весь экран, как приложение.</span>
+            </div>
+
+            <a class="privacy-link" href="privacy.html">Политика конфиденциальности</a>
+          </aside>
         </div>
-
-        <button class="btn btn-primary btn-big" id="btn-play" type="button"><span>⚔️ В БОЙ</span></button>
-        <button class="btn btn-ghost btn-big btn-online" id="btn-online" type="button"><span>🌐 Играть с другом</span></button>
-
-        <div class="menu-cards">
-          <button class="mini-card" id="btn-cup" type="button">
-            <span class="mini-icon">🎯</span>
-            <span class="mini-text"><b id="cup-title">Испытание дня</b><small id="cup-status">3 боя без поражений</small></span>
-          </button>
-          <button class="mini-card" id="btn-achievements" type="button">
-            <span class="mini-icon">🏅</span>
-            <span class="mini-text"><b>Достижения</b><small id="ach-count">0 / 11</small></span>
-          </button>
-        </div>
-
-        <button class="daily-card" id="daily-card" type="button">
-          <span class="daily-icon" id="daily-icon">🎁</span>
-          <span class="daily-text">
-            <b id="daily-title">Ежедневный бонус</b>
-            <small id="daily-sub">Победи сегодня — +15 к рейтингу</small>
-          </span>
-        </button>
-
-        <div class="menu-links">
-          <button class="btn btn-ghost btn-small" id="btn-ad-bonus" type="button" hidden>🎁 +25 за рекламу</button>
-          <button class="btn btn-ghost btn-small" id="btn-rules" type="button">📖 Правила</button>
-          <button class="btn btn-ghost btn-small" id="btn-reset" type="button">🧹 Сбросить</button>
-        </div>
-
-        <!-- подсказка только для Safari на iPhone/iPad, скрывается навсегда -->
-        <div class="ios-install" id="ios-install" hidden>
-          <button class="ios-install-close" id="ios-install-close" type="button" aria-label="Скрыть подсказку">×</button>
-          <b>📱 Добавь на iPhone</b>
-          <span>Нажми «Поделиться» ⬆️ → «На экран Домой». Игра откроется на весь экран, как приложение.</span>
-        </div>
-
-        <a class="privacy-link" href="privacy.html">Политика конфиденциальности</a>
 
         <div class="panel history-panel" id="history-panel" hidden>
           <div class="history-title">Последние бои</div>
@@ -185,6 +268,114 @@
             <ol class="lb-list" id="lb-list"><li class="lb-empty">Загрузка…</li></ol>
             <p class="lb-note">Топ считается, пока работает сервер. Персональные данные не сохраняются.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- ================= ПОДГОТОВКА К БОЮ ================= -->
+      <section id="screen-setup" class="screen screen-setup">
+        <div class="prep-head setup-head">
+          <button class="icon-btn back-btn" id="btn-setup-back" type="button" aria-label="В меню">←</button>
+          <div class="place-title">
+            <h2>Подготовка к бою</h2>
+            <p class="muted">Настрой поле, воду и соперника</p>
+          </div>
+        </div>
+
+        <div class="setup-grid">
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">🎨</span>
+              <div class="setup-card-text">
+                <b>Скин поля</b>
+                <small>Вид клеток и кораблей</small>
+              </div>
+            </div>
+            <div class="segmented is-four" id="set-skin">
+              <button type="button" data-skin="classic" class="is-active">⚓ Классика</button>
+              <button type="button" data-skin="grid">📐 Тетрадь</button>
+              <button type="button" data-skin="cyber">🌆 Киберпанк</button>
+              <button type="button" data-skin="navy">🛳️ ВМФ</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">🌊</span>
+              <div class="setup-card-text">
+                <b>Вода</b>
+                <small>Фон и эффекты моря</small>
+              </div>
+            </div>
+            <div class="segmented is-four" id="set-water">
+              <button type="button" data-water="calm" class="is-active">🌊 Спокойная</button>
+              <button type="button" data-water="storm">⛈️ Шторм</button>
+              <button type="button" data-water="night">🔦 Ночной бой</button>
+              <button type="button" data-water="fog">🌫️ Туман</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">📐</span>
+              <div class="setup-card-text">
+                <b>Размер поля</b>
+                <small>Больше поле — больше кораблей</small>
+              </div>
+            </div>
+            <div class="segmented" id="set-size">
+              <button type="button" data-size="8">8×8</button>
+              <button type="button" data-size="10" class="is-active">10×10</button>
+              <button type="button" data-size="12">12×12</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">🛳️</span>
+              <div class="setup-card-text">
+                <b>Флот</b>
+                <small>Адмиральский — с флагманом на 5 клеток</small>
+              </div>
+            </div>
+            <div class="segmented is-two" id="set-fleet">
+              <button type="button" data-fleet="classic" class="is-active">⚓ Классический</button>
+              <button type="button" data-fleet="admiral">🛳️ Адмиральский</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">✈️</span>
+              <div class="setup-card-text">
+                <b>Тактика</b>
+                <small>Две способности перед боем</small>
+              </div>
+            </div>
+            <div class="segmented is-two" id="set-tactics">
+              <button type="button" data-tactics="off" class="is-active">Без тактики</button>
+              <button type="button" data-tactics="on">✈️ Тактика</button>
+            </div>
+          </div>
+
+          <div class="setup-card">
+            <div class="setup-card-head">
+              <span class="setup-emoji" aria-hidden="true">🤖</span>
+              <div class="setup-card-text">
+                <b>Сложность бота</b>
+                <small>Сильнее бот — выше награда за победу</small>
+              </div>
+            </div>
+            <div class="segmented" id="set-difficulty">
+              <button type="button" data-level="easy">Легко</button>
+              <button type="button" data-level="normal" class="is-active">Обычно</button>
+              <button type="button" data-level="hard">Сложно</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-footer">
+          <p class="setup-summary" id="setup-summary">Поле 10×10 · Классика · Без тактики · Обычно</p>
+          <button class="btn btn-primary btn-big" id="btn-setup-go" type="button"><span>⚓ К расстановке</span></button>
         </div>
       </section>
 
@@ -264,6 +455,10 @@
           </div>
         </div>
 
+        <p class="battle-hint" id="battle-hint" hidden>
+          <span aria-hidden="true">🎯</span> Тапни по полю противника. Попал — стреляешь снова.
+        </p>
+
         <div class="ability-bar" id="ability-bar" hidden></div>
 
         <div class="battle-grid" id="battle-grid">
@@ -288,7 +483,21 @@
           </div>
         </div>
 
+        <div class="battle-reactions" id="battle-reactions" hidden>
+          <div class="reaction-quick" aria-label="Быстрые реакции">
+            <button type="button" data-emoji="👍" aria-label="Хорошо">👍</button>
+            <button type="button" data-emoji="🔥" aria-label="Огонь">🔥</button>
+            <button type="button" data-emoji="😉" aria-label="Хитрый ход">😉</button>
+            <button type="button" data-emoji="⚓" aria-label="Держись">⚓</button>
+            <button type="button" data-emoji="😂" aria-label="Смешно">😂</button>
+            <button type="button" data-emoji="🆘" aria-label="Нужна помощь">🆘</button>
+          </div>
+          <button class="reaction-mute" id="btn-reactions-mute" type="button" aria-pressed="false"
+                  aria-label="Заглушить реакции соперника" title="Заглушить реакции">🔔</button>
+        </div>
+
         <button class="btn btn-ghost btn-small btn-surrender" id="btn-surrender" type="button">🏳️ Сдаться</button>
+        <div class="battle-emoji-layer" id="battle-emoji-layer" aria-live="polite"></div>
       </section>
     </main>
 
@@ -319,11 +528,19 @@
         <div class="rank-change" id="rank-change" hidden></div>
         <div class="bonus-line" id="bonus-line" hidden></div>
 
+        <div class="result-stats" id="result-stats">
+          <div><span>Точность</span><b id="res-acc">—</b></div>
+          <div><span>Выстрелы</span><b id="res-shots">—</b></div>
+          <div><span>Время</span><b id="res-time">—</b></div>
+          <div><span>Серия</span><b id="res-streak">—</b></div>
+        </div>
+
         <button class="btn btn-ghost overlay-bonus" id="btn-bonus" type="button" hidden>🎁 Бонус за рекламу: +25 к рейтингу</button>
 
         <div class="overlay-actions">
           <button class="btn btn-primary" id="btn-again" type="button">⚔️ Ещё бой</button>
           <button class="btn btn-ghost" id="btn-menu" type="button">В меню</button>
+          <button class="btn btn-ghost btn-share-result" id="btn-share-result" type="button">📤 Поделиться</button>
         </div>
       </div>
     </div>
@@ -334,6 +551,70 @@
         <h2 class="rules-title">🏅 Достижения</h2>
         <div class="ach-grid" id="ach-grid"></div>
         <button class="btn btn-primary" id="btn-ach-close" type="button">Готово</button>
+      </div>
+    </div>
+
+    <!-- ================= ЗАЛ СЛАВЫ ================= -->
+    <div class="overlay" id="modal-fame" hidden role="dialog" aria-modal="true" aria-label="Зал славы">
+      <div class="overlay-card fame-card">
+        <div class="fame-head">
+          <div>
+            <h2 class="rules-title">🏛️ Зал славы</h2>
+            <p class="fame-subtitle">Твои выстрелы, матчи и сезонные медали</p>
+          </div>
+          <button class="fame-close" id="btn-fame-close" type="button" aria-label="Закрыть зал славы">✕</button>
+        </div>
+
+        <div class="segmented fame-tabs" id="fame-tabs" role="tablist">
+          <button type="button" data-fame-tab="heat" class="is-active" role="tab">🔥 Карта</button>
+          <button type="button" data-fame-tab="history" role="tab">📜 История</button>
+          <button type="button" data-fame-tab="trophies" role="tab">🏆 Трофеи</button>
+        </div>
+
+        <div class="fame-panel" id="fame-heat" role="tabpanel">
+          <div class="fame-panel-head">
+            <span>Куда ты чаще стреляешь</span>
+            <div class="segmented is-three fame-size" id="fame-heat-size">
+              <button type="button" data-heat-size="8">8×8</button>
+              <button type="button" data-heat-size="10" class="is-active">10×10</button>
+              <button type="button" data-heat-size="12">12×12</button>
+            </div>
+          </div>
+          <div class="heatmap" id="heatmap" aria-label="Карта попаданий"></div>
+          <p class="fame-note" id="heat-note"></p>
+        </div>
+
+        <div class="fame-panel" id="fame-history" role="tabpanel" hidden>
+          <div class="fame-history-list" id="fame-history-list"></div>
+          <p class="fame-note">Хранятся последние 20 матчей. Нажми ▶, чтобы посмотреть реплей.</p>
+        </div>
+
+        <div class="fame-panel" id="fame-trophies" role="tabpanel" hidden>
+          <div class="season-card" id="season-card"></div>
+          <div class="medal-grid" id="medal-grid"></div>
+          <p class="fame-note">Бронза — 3 победы подряд, серебро — 5, золото — 10. Серия считается в текущем месяце.</p>
+        </div>
+
+        <button class="btn btn-primary" id="btn-fame-done" type="button">Готово</button>
+      </div>
+    </div>
+
+    <!-- ================= РЕПЛЕЙ ================= -->
+    <div class="overlay" id="modal-replay" hidden role="dialog" aria-modal="true" aria-label="Реплей матча">
+      <div class="overlay-card replay-card">
+        <h2 class="rules-title" id="replay-title">Реплей</h2>
+        <p class="replay-status" id="replay-status">Готовим реплей…</p>
+        <div class="replay-boards">
+          <div class="board-col enemy-col">
+            <div class="board-cap"><span>🎯 Флот противника</span></div>
+            <div class="board board-static" id="replay-enemy"></div>
+          </div>
+          <div class="board-col own-col">
+            <div class="board-cap"><span>🛡️ Твой флот</span></div>
+            <div class="board board-static" id="replay-own"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-replay-close" type="button">Закрыть</button>
       </div>
     </div>
 
@@ -424,50 +705,13 @@
           </div>
         </div>
 
-        <div class="setting-row is-column">
+        <div class="setting-row">
           <div class="setting-text">
-            <b>Сложность бота</b>
-            <small>Сильнее бот — выше его рейтинг и награда за победу</small>
+            <b>Реакции соперника</b>
+            <small>Показывать эмодзи и быстрые фразы в онлайн-бою</small>
           </div>
-          <div class="segmented" id="set-difficulty">
-            <button type="button" data-level="easy">Легко</button>
-            <button type="button" data-level="normal" class="is-active">Обычно</button>
-            <button type="button" data-level="hard">Сложно</button>
-          </div>
-        </div>
-
-        <div class="setting-row is-column">
-          <div class="setting-text">
-            <b>Поле</b>
-            <small>На большом поле больше кораблей. Рейтинг — только за 10×10 без тактики</small>
-          </div>
-          <div class="segmented" id="set-size">
-            <button type="button" data-size="8">8×8</button>
-            <button type="button" data-size="10" class="is-active">10×10</button>
-            <button type="button" data-size="12">12×12</button>
-          </div>
-        </div>
-
-        <div class="setting-row is-column">
-          <div class="setting-text">
-            <b>Флот</b>
-            <small>Адмиральский — с флагманом на 5 клеток. На 8×8 недоступен</small>
-          </div>
-          <div class="segmented is-two" id="set-fleet">
-            <button type="button" data-fleet="classic" class="is-active">⚓ Классический</button>
-            <button type="button" data-fleet="admiral">🛳️ Адмиральский</button>
-          </div>
-        </div>
-
-        <div class="setting-row is-column">
-          <div class="setting-text">
-            <b>Тактика</b>
-            <small>Перед боем выбираешь две способности: авиаудар, ПВО или дым</small>
-          </div>
-          <div class="segmented is-two" id="set-tactics">
-            <button type="button" data-tactics="off" class="is-active">Без тактики</button>
-            <button type="button" data-tactics="on">✈️ Тактика</button>
-          </div>
+          <button class="switch is-on" id="set-reactions" type="button" role="switch" aria-checked="true"
+                  aria-label="Реакции соперника"><i></i></button>
         </div>
 
         <div class="settings-actions">
@@ -493,7 +737,7 @@
           <li><b>ELO</b> начисляется только за бой с ботом на 10×10 без тактики. Победа над сильным соперником даёт больше рейтинга, поражение от слабого отнимает больше.</li>
           <li><b>Бонус дня:</b> первая рейтинговая победа за день даёт +15…+40 к рейтингу, серия растёт, если играть каждый день.</li>
           <li><b>Испытание дня:</b> конфиг дня одинаков для всех. Три боя подряд без поражения дают +60 к рейтингу — один раз в день, даже если конфиг дня нерейтинговый.</li>
-          <li><b>Достижения:</b> 11 медалей за победы, точность, онлайн, адмиральский флот и испытание дня.</li>
+          <li><b>Достижения:</b> 14 медалей за победы, точность, онлайн, адмиральский флот и испытание дня.</li>
           <li><b>Ранги:</b> Юнга → Матрос → Боцман → Штурман → Капитан → Адмирал → Легенда.</li>
         </ul>
         <button class="btn btn-primary" id="btn-rules-close" type="button">Понятно</button>

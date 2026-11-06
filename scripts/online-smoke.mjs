@@ -240,16 +240,34 @@ try {
   check(sunk === 10, 'потоплены все 10 кораблей (' + sunk + ')');
   check(!defender.inbox.some((m) => m.t === 'turn'), 'при попаданиях ход не переходил');
 
-  // победа, поражение и закрытие комнаты
+  // победа, поражение и реванш без повторной расстановки
   check((await defender.take('end', (m) => m.win === true)).win === true, 'победитель получил end');
   check((await shooter.take('end', (m) => m.win === false)).win === false, 'проигравший получил end');
 
-  await sleep(200);
-  const c = client('C');
-  await c.open();
-  c.send({ t: 'join', code: roomA.code, name: 'Тест Ц', rating: 1000 });
-  check((await c.take('error')).msg.includes('не найдена'), 'после боя комната закрыта');
-  c.ws.close();
+  // Первый предлагает реванш, второй подтверждает.
+  defender.send({ t: 'rematch' });
+  check((await defender.take('rematchWait')).t === 'rematchWait', 'предложивший ждёт ответа');
+  check((await shooter.take('rematchAsked')).t === 'rematchAsked', 'соперник получил предложение');
+  shooter.send({ t: 'rematch' });
+
+  const againA = await a.take('begin');
+  const againB = await b.take('begin');
+  check(againA.rematch === true && againB.rematch === true, 'реванш начался с флагом rematch');
+  check(againA.you === 0 && againB.you === 1, 'стороны в реванше сохранились');
+  check(againA.first !== beginA.first, 'первый ход в реванше перешёл сопернику');
+  check(againA.first !== againB.first, 'первый ход в реванше только у одного');
+
+  // Реакции доступны в бою и приходят обоим игрокам.
+  a.send({ t: 'emoji', emoji: '👍' });
+  check((await a.take('emoji', (m) => m.from === 0 && m.emoji === '👍')).emoji === '👍', 'реакция пришла отправителю');
+  check((await b.take('emoji', (m) => m.from === 0 && m.emoji === '👍')).emoji === '👍', 'реакция пришла сопернику');
+
+  // Доски пересобраны из сохранённого флота: выстрел снова проходит.
+  const againShooter = againA.first ? a : b;
+  const againDefender = againA.first ? b : a;
+  againShooter.send({ t: 'shot', x: 0, y: 0 });
+  check((await againShooter.take('shot', (m) => m.mine === true && m.x === 0 && m.y === 0)).result === 'hit', 'после реванша выстрел засчитан');
+  check((await againDefender.take('shot', (m) => m.mine === false && m.x === 0 && m.y === 0)).result === 'hit', 'соперник увидел выстрел реванша');
 
   await tacticalScenario();
 } catch (err) {

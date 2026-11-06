@@ -487,12 +487,23 @@ html.no-bubbles .bubble{display:none}
 
 /* корабли */
 .cell.ship{
-  background:linear-gradient(165deg,#bfe9ff 0%,#7cc3ef 45%,#4a9ad6 100%);
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.55),transparent 20% 78%,rgba(8,42,70,.38)),
+    repeating-linear-gradient(90deg,rgba(255,255,255,.16) 0 2px,transparent 2px 26%),
+    linear-gradient(165deg,#bfe9ff 0%,#7cc3ef 45%,#4a9ad6 100%);
   box-shadow:
-    inset 0 2px 0 rgba(255,255,255,.6),
-    inset 0 -2px 0 rgba(10,60,100,.35),
-    0 1px 3px rgba(0,0,0,.3);
+    inset 0 2px 0 rgba(255,255,255,.72),
+    inset 0 -3px 0 rgba(8,48,80,.4),
+    inset 0 0 0 1px rgba(230,250,255,.22),
+    0 2px 4px rgba(0,0,0,.32);
   border-radius:3px;
+}
+.cell.ship.h{background-position:0 0,0 0,0 0}
+.cell.ship.v:not(.hit):not(.sunk){
+  background:
+    linear-gradient(90deg,rgba(255,255,255,.55),transparent 20% 78%,rgba(8,42,70,.38)),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.16) 0 2px,transparent 2px 26%),
+    linear-gradient(165deg,#bfe9ff 0%,#7cc3ef 45%,#4a9ad6 100%);
 }
 .cell.ship.h.s-first{border-top-left-radius:9px;border-bottom-left-radius:9px}
 .cell.ship.h.s-last{border-top-right-radius:9px;border-bottom-right-radius:9px}
@@ -533,6 +544,48 @@ html.no-bubbles .bubble{display:none}
 .board.is-spotlight::after{background:rgba(3,12,24,.62)}
 
 /* всплывающий значок попадания/промаха над клеткой */
+/* снаряд: маленький светящийся шар, летит от доски стрелка к клетке */
+.shell{
+  position:fixed;
+  z-index:90;
+  width:10px;height:10px;
+  margin:-5px 0 0 -5px;
+  border-radius:50%;
+  pointer-events:none;
+  background:radial-gradient(circle at 38% 32%,#fffbe0,#ffd166 42%,#ff7a3d 78%,rgba(255,90,30,0));
+  box-shadow:0 0 12px rgba(255,196,80,.95),0 0 26px rgba(255,120,40,.55);
+  transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .12s ease .28s;
+}
+.shell::after{
+  content:'';
+  position:absolute;
+  right:60%;top:50%;
+  width:34px;height:4px;
+  transform:translateY(-50%);
+  border-radius:4px;
+  background:linear-gradient(90deg,rgba(255,180,70,0),rgba(255,210,120,.75));
+  filter:blur(1px);
+}
+.shell.is-flying{opacity:0}
+@keyframes impactRing{
+  0%{transform:translate(-50%,-50%) scale(.2);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}
+}
+.impact-ring{
+  position:absolute;z-index:4;pointer-events:none;
+  width:26px;height:26px;border-radius:50%;
+  transform:translate(-50%,-50%);
+  animation:impactRing .55s ease-out both;
+}
+.impact-ring.is-miss{
+  border:2px solid rgba(170,235,255,.95);
+  box-shadow:0 0 18px rgba(100,205,255,.6),inset 0 0 12px rgba(160,230,255,.35);
+}
+.impact-ring.is-hit{
+  border:2px solid rgba(255,220,140,.95);
+  box-shadow:0 0 26px rgba(255,150,50,.8),inset 0 0 16px rgba(255,190,90,.55);
+}
+
 .shot-flag{
   position:absolute;
   z-index:5;
@@ -593,6 +646,16 @@ html.no-bubbles .bubble{display:none}
   font-size:clamp(15px,3.4vw,24px);line-height:1;color:#ffd9c8;
   text-shadow:0 1px 6px rgba(0,0,0,.75);opacity:1;z-index:2;
 }
+.battle-hint{
+  margin:2px auto 0;max-width:420px;
+  padding:8px 12px;border-radius:12px;
+  font-size:11px;font-weight:800;line-height:1.35;text-align:center;
+  color:#bde9ff;background:rgba(53,224,210,.09);
+  border:1px solid rgba(53,224,210,.28);
+  animation:hintPulse 2.4s ease-in-out infinite;
+}
+.battle-hint[hidden]{display:none}
+@keyframes hintPulse{0%,100%{opacity:.78}50%{opacity:1}}
 .shot-legend{
   margin:8px 0 0;text-align:center;font-size:11px;font-weight:700;
   color:var(--muted);letter-spacing:.02em;
@@ -642,6 +705,57 @@ html.no-bubbles .bubble{display:none}
 }
 .place-hint{font-size:12px;font-weight:700;color:#8fb0c9;margin:0;text-align:center}
 .place-config{font-size:11px;color:#7b93a8;margin:2px 0 0;text-align:center}
+
+/* ---------- экран подготовки к бою ---------- */
+.screen-setup{width:100%}
+.setup-head{margin-bottom:12px}
+.setup-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(10px,2vw,16px);
+  width:100%;max-width:760px;
+}
+.setup-card{
+  display:flex;flex-direction:column;gap:12px;min-width:0;
+  padding:14px;
+  border-radius:18px;
+  background:linear-gradient(160deg,var(--panel-a),var(--panel-b));
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+.setup-card-head{display:flex;align-items:flex-start;gap:10px}
+.setup-emoji{
+  flex:0 0 auto;display:grid;place-items:center;
+  width:34px;height:34px;border-radius:11px;
+  background:rgba(53,224,210,.1);
+  border:1px solid rgba(53,224,210,.18);
+  font-size:17px;line-height:1;
+}
+.setup-card-text{min-width:0}
+.setup-card-text b{display:block;font-size:13px;font-weight:800;line-height:1.2}
+.setup-card-text small{
+  display:block;margin-top:3px;
+  font-size:11px;font-weight:700;line-height:1.35;color:var(--muted);
+}
+.setup-card .segmented{width:100%}
+.setup-footer{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  width:100%;max-width:760px;margin-top:16px;
+}
+.setup-summary{
+  margin:0;text-align:center;
+  font-size:11px;font-weight:700;line-height:1.4;color:var(--muted);
+}
+#btn-setup-go{max-width:420px;margin-top:0}
+html.theme-light .setup-emoji{
+  background:rgba(20,140,140,.08);
+  border-color:rgba(20,140,140,.16);
+}
+@media (max-width:640px){
+  .setup-grid{grid-template-columns:1fr}
+  .setup-card{padding:12px}
+  .setup-footer{margin-top:12px}
+}
 
 /* ---------- подготовка к бою ---------- */
 .prep-head{
@@ -959,7 +1073,16 @@ html.no-bubbles .bubble{display:none}
 }
 .rank-change.down{background:rgba(255,107,94,.1);color:#ffb0a7;border-color:rgba(255,107,94,.3)}
 .bonus-line{margin-top:8px;font-size:12px;font-weight:800;color:#ffe3a1;letter-spacing:.02em;line-height:1.4}
+.result-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  margin:14px 0 2px;padding:10px 6px;border-radius:16px;
+  background:rgba(3,16,30,.45);border:1px solid rgba(120,200,255,.1);
+}
+.result-stats>div{display:flex;flex-direction:column;gap:3px;align-items:center;min-width:0}
+.result-stats span{font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7fa3bd}
+.result-stats b{font-family:'Rubik',sans-serif;font-size:15px;color:#d9ecf8;white-space:nowrap}
 .overlay-actions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:20px}
+.overlay-actions .btn-share-result{grid-column:1/-1;min-height:40px;font-size:12px}
 .overlay-bonus{
   width:100%;margin-top:16px;color:#ffe08a;
   background:rgba(255,209,102,.12);border-color:rgba(255,209,102,.45);
@@ -1212,7 +1335,7 @@ html.theme-amoled .cell{
   background:rgba(255,255,255,.045);
   box-shadow:inset 0 0 0 1px rgba(120,200,255,.07);
 }
-html.theme-amoled .cell.ship{
+html.theme-amoled .cell.ship:not(.hit):not(.sunk){
   background:linear-gradient(165deg,#2f7fa8 0%,#174c6b 55%,#0a273c 100%);
   box-shadow:inset 0 2px 0 rgba(255,255,255,.32), inset 0 -2px 0 rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.6);
 }
@@ -1344,6 +1467,11 @@ html.theme-light .cell.ship{
   background:linear-gradient(165deg,#3aa0c4 0%,#1f7398 48%,#0d4a68 100%);
   box-shadow:inset 0 2px 0 rgba(255,255,255,.5), inset 0 -2px 0 rgba(5,40,60,.45), 0 1px 3px rgba(10,50,80,.35);
 }
+/* Вертикальный корабль специфичнее темы из-за :not(.hit)/:not(.sunk) —
+   возвращаем ему тот же тёмный корпус, что и горизонтальному. */
+html.theme-light .cell.ship.v:not(.hit):not(.sunk){
+  background:linear-gradient(90deg,#3aa0c4 0%,#1f7398 48%,#0d4a68 100%);
+}
 html.theme-light .cell.ghost-ok{
   background:rgba(0,150,136,.46);
   box-shadow:inset 0 0 0 2px rgba(0,105,100,.85), 0 0 16px rgba(0,140,130,.42);
@@ -1446,4 +1574,604 @@ html.theme-light .toast.miss{color:#205a7a;border-color:rgba(20,90,130,.28)}
 html.theme-light .toast.turn{color:#066a63;border-color:rgba(14,140,140,.45);box-shadow:0 12px 30px rgba(10,50,80,.18)}
 html.theme-light .toast.error{color:#a8352a;border-color:rgba(200,70,60,.4)}
 
+/* ============================================================
+   СКИНЫ ПОЛЯ
+   Классы вешаются на <html>: skin-grid / skin-cyber / skin-navy.
+   Базовые клетки исключают состояния, чтобы не перебивать
+   попадания, потопления и призраков расстановки.
+   ============================================================ */
+.menu-cards.has-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.segmented.is-four{grid-template-columns:repeat(2,minmax(0,1fr))}
+.segmented.is-four button{padding:8px 5px;font-size:11px}
 
+/* ---------- тетрадь в клеточку ---------- */
+html.skin-grid .board{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.5),rgba(244,241,224,.9)),
+    #fbf8ea;
+  border-color:rgba(58,102,158,.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.55),
+    inset 0 0 34px rgba(90,120,160,.12),
+    0 16px 34px rgba(0,0,0,.28);
+}
+html.skin-grid .board::after{
+  background:
+    repeating-linear-gradient(0deg,transparent 0 calc(10% - 1px),rgba(70,118,176,.24) calc(10% - 1px) 10%),
+    repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),rgba(70,118,176,.24) calc(10% - 1px) 10%);
+  opacity:.7;
+}
+html.skin-grid .cell:not(.ship):not(.miss):not(.hit):not(.sunk):not(.ghost-ok):not(.ghost-bad):not(.incoming){
+  background:rgba(255,255,255,.58);
+  box-shadow:inset 0 0 0 1px rgba(64,112,170,.24);
+  border-radius:3px;
+}
+html.skin-grid .cell.ship:not(.hit):not(.sunk){
+  background:linear-gradient(165deg,#86b4dc 0%,#4f84b8 52%,#2b5688 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.65),
+    inset 0 -2px 0 rgba(24,52,90,.4),
+    0 1px 3px rgba(30,50,80,.3);
+}
+html.skin-grid .cell.miss{background:rgba(105,145,190,.34)}
+
+/* ---------- киберпанк ---------- */
+html.skin-cyber .board{
+  background:
+    radial-gradient(120% 100% at 50% 0%,rgba(63,0,120,.75),rgba(5,1,18,.98) 72%),
+    #05010f;
+  border-color:rgba(255,43,214,.5);
+  box-shadow:
+    inset 0 0 48px rgba(123,44,255,.32),
+    0 0 28px rgba(0,240,255,.12),
+    0 16px 34px rgba(0,0,0,.5);
+}
+html.skin-cyber .board::after{
+  background:
+    repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,240,255,.07) 3px 4px),
+    radial-gradient(80% 60% at 50% 0%,rgba(255,43,214,.12),transparent 70%);
+  opacity:1;
+}
+html.skin-cyber .cell:not(.ship):not(.miss):not(.hit):not(.sunk):not(.ghost-ok):not(.ghost-bad):not(.incoming){
+  background:rgba(13,3,35,.58);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,240,255,.24),
+    inset 0 0 9px rgba(123,44,255,.16);
+  border-radius:2px;
+}
+html.skin-cyber .cell.ship:not(.hit):not(.sunk){
+  background:linear-gradient(135deg,#00f0ff 0%,#2a7bff 46%,#b52bff 100%);
+  box-shadow:
+    0 0 10px rgba(0,240,255,.55),
+    inset 0 0 0 1px rgba(255,255,255,.3);
+}
+html.skin-cyber .cell.miss{background:rgba(0,88,120,.55)}
+html.skin-cyber .cell.miss::after{box-shadow:0 0 12px rgba(0,240,255,.9),0 0 0 4px rgba(0,240,255,.16)}
+
+/* ---------- классика ВМФ ---------- */
+html.skin-navy .board{
+  background:linear-gradient(160deg,#18384f 0%,#0a2133 55%,#061622 100%);
+  border-color:rgba(214,178,94,.46);
+  box-shadow:
+    inset 0 0 42px rgba(0,0,0,.55),
+    0 0 0 2px rgba(214,178,94,.08),
+    0 16px 34px rgba(0,0,0,.42);
+}
+html.skin-navy .board::after{
+  background:
+    linear-gradient(180deg,rgba(214,178,94,.08),transparent 28%),
+    repeating-linear-gradient(90deg,transparent 0 22px,rgba(214,178,94,.035) 22px 23px);
+}
+html.skin-navy .cell:not(.ship):not(.miss):not(.hit):not(.sunk):not(.ghost-ok):not(.ghost-bad):not(.incoming){
+  background:rgba(42,72,92,.5);
+  box-shadow:inset 0 0 0 1px rgba(184,212,225,.16);
+  border-radius:2px;
+}
+html.skin-navy .cell.ship:not(.hit):not(.sunk){
+  background:linear-gradient(165deg,#eef4f7 0%,#b8c8d2 52%,#718693 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.8),
+    inset 0 -2px 0 rgba(24,44,58,.45),
+    0 1px 3px rgba(0,0,0,.35);
+}
+html.skin-navy .cell.miss{background:rgba(30,72,102,.6)}
+
+/* ============================================================
+   ВОДА: шторм, ночной бой, туман
+   ============================================================ */
+html.water-storm .ocean{
+  background:
+    radial-gradient(110% 75% at 50% -18%,rgba(45,78,94,.7),transparent 68%),
+    linear-gradient(180deg,#071b27 0%,#0a2a38 46%,#05141d 100%);
+}
+html.water-storm .ocean::before{
+  inset:-16% -14% auto;
+  height:78%;
+  background:
+    radial-gradient(70% 62% at 18% 0%,rgba(21,44,58,.86),transparent 70%),
+    radial-gradient(55% 52% at 80% 10%,rgba(15,38,52,.76),transparent 72%);
+  filter:blur(18px);
+  animation:stormClouds 16s ease-in-out infinite alternate;
+  will-change:transform;
+}
+html.water-storm .ocean::after{
+  inset:auto -18% -30%;
+  height:66%;
+  background:
+    radial-gradient(48% 64% at 28% 78%,rgba(35,105,118,.3),transparent 72%),
+    radial-gradient(42% 56% at 78% 68%,rgba(18,78,96,.26),transparent 70%);
+  filter:blur(14px);
+  animation:stormSea 18s ease-in-out infinite alternate;
+  will-change:transform;
+}
+html.water-storm .board::before{
+  content:'';
+  position:absolute;inset:0;
+  border-radius:inherit;pointer-events:none;
+  z-index:1;
+  background:
+    radial-gradient(62% 46% at 22% 14%,rgba(150,220,240,.14),transparent 72%),
+    radial-gradient(54% 42% at 76% 82%,rgba(110,195,220,.1),transparent 74%),
+    linear-gradient(200deg,rgba(150,225,245,.05),transparent 55%);
+  opacity:.9;
+  animation:stormBoard 11s ease-in-out infinite alternate;
+  will-change:transform;
+}
+html.theme-light.water-storm .ocean{
+  background:
+    radial-gradient(110% 75% at 50% -18%,rgba(120,150,165,.5),transparent 68%),
+    linear-gradient(180deg,#b9d3de 0%,#9fc2ce 46%,#7fa8b7 100%);
+}
+html.theme-light.water-storm .ocean::before{
+  background:
+    radial-gradient(70% 62% at 18% 0%,rgba(92,120,135,.42),transparent 70%),
+    radial-gradient(55% 52% at 80% 10%,rgba(80,110,125,.36),transparent 72%);
+}
+html.theme-light.water-storm .ocean::after{
+  background:
+    radial-gradient(48% 64% at 28% 78%,rgba(60,125,140,.22),transparent 72%),
+    radial-gradient(42% 56% at 78% 68%,rgba(45,105,120,.18),transparent 70%);
+}
+html.theme-light.water-storm .board::before{
+  background:
+    radial-gradient(62% 46% at 22% 14%,rgba(255,255,255,.26),transparent 72%),
+    radial-gradient(54% 42% at 76% 82%,rgba(45,120,140,.12),transparent 74%);
+  opacity:.8;
+}
+
+/* ---------- шторм: слои волн и далёкая молния ---------- */
+.storm{display:none;position:absolute;inset:0;pointer-events:none;overflow:hidden}
+html.water-storm .storm{display:block}
+.storm-defs{position:absolute;width:0;height:0;overflow:hidden}
+html.water-storm .bubble{display:none}
+.storm-sea{
+  position:absolute;left:-4%;right:-4%;bottom:-1px;
+  height:52vh;min-height:200px;max-height:560px;
+}
+.storm-wave{position:absolute;left:0;right:0;bottom:0;height:var(--h,50%)}
+.storm-wave svg{display:block;width:100%;height:100%}
+.storm-bob{height:100%;animation:stormBob var(--bob,9s) ease-in-out infinite alternate;will-change:transform}
+.storm-track{
+  display:flex;width:200%;height:100%;
+  animation:stormDrift var(--drift,30s) linear infinite;
+  will-change:transform;
+}
+.storm-track > svg{flex:0 0 50%;width:50%}
+.storm-wave.w1{--h:100%;--drift:53s;--bob:12s;fill:url(#storm-g1)}
+.storm-wave.w2{--h:82%;--drift:41s;--bob:9.5s;fill:url(#storm-g2)}
+.storm-wave.w3{--h:62%;--drift:32s;--bob:7.5s;fill:url(#storm-g3)}
+.storm-wave.w4{--h:44%;--drift:26s;--bob:6s;fill:url(#storm-g4)}
+.storm-flash{
+  position:absolute;inset:0;opacity:0;
+  background:
+    radial-gradient(52% 38% at 68% 4%,rgba(210,240,255,.55),transparent 72%),
+    radial-gradient(80% 50% at 50% 0%,rgba(150,205,235,.22),transparent 78%);
+  animation:stormFlash 24s linear infinite;
+  will-change:opacity;
+}
+html.theme-light.water-storm .storm-wave.w1{fill:url(#storm-gl1)}
+html.theme-light.water-storm .storm-wave.w2{fill:url(#storm-gl2)}
+html.theme-light.water-storm .storm-wave.w3{fill:url(#storm-gl3)}
+html.theme-light.water-storm .storm-wave.w4{fill:url(#storm-gl4)}
+html.theme-light.water-storm .storm-flash{
+  background:radial-gradient(52% 38% at 68% 4%,rgba(255,255,255,.6),transparent 72%);
+}
+@keyframes stormDrift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@keyframes stormBob{from{transform:translate3d(0,1.4%,0)}to{transform:translate3d(0,-1.6%,0)}}
+@keyframes stormFlash{
+  0%,82%,100%{opacity:0}
+  83%{opacity:.32}
+  84%{opacity:.04}
+  85.5%{opacity:.2}
+  87%{opacity:0}
+}
+
+html.water-night body{
+  background:radial-gradient(120% 80% at 50% -10%,#0a1a33 0%,#040b18 45%,#01040a 100%);
+}
+html.water-night .ocean::before{
+  background:
+    radial-gradient(32% 28% at 74% 8%,rgba(205,235,255,.24),transparent 70%),
+    radial-gradient(60% 60% at 50% 0%,rgba(30,70,120,.3),transparent 72%);
+  filter:blur(13px);
+}
+html.water-night .ocean::after{
+  background:radial-gradient(50% 60% at 50% 100%,rgba(15,70,120,.3),transparent 72%);
+}
+html.water-night .board::before{
+  content:'';
+  position:absolute;inset:-12%;border-radius:inherit;pointer-events:none;
+  z-index:1;
+  background:
+    conic-gradient(from 208deg at 20% 6%,transparent 0deg,rgba(190,232,255,.2) 10deg,transparent 25deg),
+    conic-gradient(from 148deg at 82% 2%,transparent 0deg,rgba(190,232,255,.16) 9deg,transparent 23deg);
+  mix-blend-mode:screen;
+  opacity:.7;
+  animation:searchlight 8s ease-in-out infinite alternate;
+  transform-origin:50% 0;
+}
+
+html.water-fog .ocean::before{
+  background:
+    radial-gradient(46% 42% at 28% 22%,rgba(222,236,245,.2),transparent 72%),
+    radial-gradient(50% 46% at 74% 64%,rgba(222,236,245,.16),transparent 74%);
+  filter:blur(20px);
+  animation:fogDrift 16s ease-in-out infinite alternate;
+}
+html.water-fog .board::before{
+  content:'';
+  position:absolute;inset:-8%;border-radius:inherit;pointer-events:none;
+  z-index:1;
+  background:
+    radial-gradient(42% 38% at 24% 30%,rgba(214,232,242,.18),transparent 72%),
+    radial-gradient(46% 42% at 76% 68%,rgba(214,232,242,.14),transparent 74%);
+  mix-blend-mode:screen;
+  animation:fogDrift 13s ease-in-out infinite alternate;
+}
+
+@keyframes stormClouds{from{transform:translate3d(-2%,0,0)}to{transform:translate3d(2%,0,0)}}
+@keyframes stormSea{from{transform:translate3d(-1.5%,1%,0)}to{transform:translate3d(1.5%,-1%,0)}}
+@keyframes stormBoard{from{transform:translate3d(-2%,-1.5%,0)}to{transform:translate3d(2%,1.5%,0)}}
+@keyframes searchlight{from{transform:rotate(-4deg);opacity:.5}to{transform:rotate(5deg);opacity:.8}}
+@keyframes fogDrift{from{transform:translate3d(-4%,2%,0) scale(1.02)}to{transform:translate3d(5%,-3%,0) scale(1.08)}}
+
+/* ============================================================
+   ЗАЛ СЛАВЫ, РЕПЛЕЙ, РЕАКЦИИ
+   ============================================================ */
+.fame-card{
+  max-width:560px;width:100%;text-align:left;
+  max-height:min(820px,calc(100dvh - 36px));
+  display:flex;flex-direction:column;
+}
+.fame-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.fame-head .rules-title{margin:0;text-align:left;font-size:21px}
+.fame-subtitle{margin:4px 0 0;font-size:11px;font-weight:700;color:var(--muted);line-height:1.35}
+.fame-close{
+  flex:0 0 auto;width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(120,200,255,.08);
+  color:var(--text);font-size:15px;line-height:1;cursor:pointer;
+  transition:background .18s ease,transform .18s ease;
+}
+.fame-close:hover{background:rgba(120,200,255,.16);transform:rotate(90deg)}
+.fame-tabs{margin:14px 0 12px;flex:0 0 auto}
+.fame-panel{min-height:0;overflow-y:auto;padding:2px 2px 0;-webkit-overflow-scrolling:touch}
+.fame-panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:10px;font-size:12px;font-weight:800;color:var(--muted);
+}
+.fame-size{width:174px;flex:0 0 auto}
+.fame-size button{padding:6px 3px;font-size:10px}
+.heatmap{
+  display:grid;grid-template-columns:repeat(var(--n,10),1fr);gap:3px;
+  width:100%;max-width:390px;margin:0 auto;padding:8px;border-radius:14px;
+  background:rgba(120,200,255,.05);border:1px solid var(--line);
+}
+.heat-cell{
+  aspect-ratio:1/1;border-radius:3px;display:grid;place-items:center;
+  font-size:clamp(7px,1.7vw,10px);font-weight:800;line-height:1;
+  color:rgba(255,255,255,.9);text-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:transform .15s ease;
+}
+.heat-cell:not(.is-empty):hover{transform:scale(1.12);z-index:2}
+.fame-note{margin:10px 0 0;font-size:10.5px;font-weight:700;line-height:1.4;color:var(--muted);text-align:center}
+.fame-empty{margin:18px 0;font-size:12px;font-weight:700;line-height:1.45;color:var(--muted);text-align:center}
+.fame-history-list{display:flex;flex-direction:column;max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.fame-history-row{display:flex;align-items:center;gap:9px;padding:9px 2px;border-top:1px solid var(--line)}
+.fame-history-row:first-child{border-top:0}
+.fame-history-row .h-dot{flex:0 0 auto}
+.fame-history-main{flex:1;min-width:0}
+.fame-history-main b{display:block;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fame-history-main small{display:block;margin-top:2px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fame-history-row .h-delta{flex:0 0 auto;min-width:42px;text-align:right}
+.fame-replay-btn{
+  flex:0 0 auto;width:32px;height:32px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(120,200,255,.08);
+  color:var(--text);font-size:12px;line-height:1;cursor:pointer;
+  transition:background .18s ease,transform .18s ease;
+}
+.fame-replay-btn:hover:not(:disabled){background:rgba(53,224,210,.18);transform:scale(1.06)}
+.fame-replay-btn:disabled{opacity:.28;cursor:default}
+.season-card{
+  padding:14px 15px;border-radius:16px;
+  background:linear-gradient(150deg,rgba(255,209,102,.14),rgba(120,200,255,.05));
+  border:1px solid rgba(255,209,102,.32);
+}
+.season-head{display:flex;align-items:center;gap:11px}
+.season-head>span{font-size:30px;line-height:1}
+.season-head b{display:block;font-size:14px;font-weight:900}
+.season-head small{display:block;margin-top:2px;font-size:10px;font-weight:700;color:var(--muted)}
+.season-progress{height:8px;margin:12px 0 0;border-radius:99px;overflow:hidden;background:rgba(120,200,255,.12);border:1px solid var(--line)}
+.season-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#35e0d2,#ffd166);transition:width .45s ease}
+.medal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.medal-item{
+  display:flex;align-items:center;gap:9px;padding:10px;border-radius:14px;
+  background:rgba(120,200,255,.06);border:1px solid var(--line);
+}
+.medal-icon{font-size:24px;line-height:1;flex:0 0 auto}
+.medal-text{min-width:0}
+.medal-text b{display:block;font-size:11px;font-weight:800}
+.medal-text small{display:block;margin-top:2px;font-size:9px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fame-card>.btn-primary{width:100%;margin-top:14px;flex:0 0 auto}
+
+.replay-card{max-width:720px;width:100%;max-height:calc(100dvh - 36px);overflow-y:auto}
+.replay-status{margin:6px 0 0;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.replay-boards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0 18px}
+.replay-boards .board{max-width:330px;margin:0 auto}
+.replay-boards .board-col{gap:6px}
+.replay-boards .board-cap{font-size:10px;letter-spacing:.05em}
+.replay-card>.btn-primary{width:100%}
+
+.battle-reactions{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  margin:14px auto 0;max-width:460px;
+}
+.reaction-quick{
+  display:flex;gap:3px;padding:5px 6px;border-radius:999px;
+  background:rgba(5,24,42,.78);border:1px solid var(--line);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.reaction-quick button{
+  appearance:none;border:0;background:transparent;color:inherit;
+  width:34px;height:34px;border-radius:50%;font-size:19px;line-height:1;
+  cursor:pointer;transition:transform .15s ease,background .15s ease;
+}
+.reaction-quick button:hover{background:rgba(120,200,255,.14);transform:translateY(-2px)}
+.reaction-quick button:active{transform:scale(.86)}
+.reaction-mute{
+  flex:0 0 auto;width:36px;height:36px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(5,24,42,.78);
+  color:var(--text);font-size:16px;line-height:1;cursor:pointer;
+  transition:background .18s ease,opacity .18s ease;
+}
+.reaction-mute[aria-pressed="true"]{opacity:.55;background:rgba(255,107,94,.14);border-color:rgba(255,107,94,.4)}
+.battle-emoji-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
+.battle-emoji{
+  position:absolute;bottom:26%;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px 14px;border-radius:18px;
+  background:rgba(5,24,42,.88);border:1px solid var(--line);
+  box-shadow:0 12px 30px rgba(0,0,0,.42);
+  animation:reactionPop 2.2s cubic-bezier(.2,.9,.3,1.15) both;
+}
+.battle-emoji.is-you{left:8%}
+.battle-emoji.is-foe{right:8%;border-color:rgba(255,107,94,.42)}
+.battle-emoji b{font-size:34px;line-height:1}
+.battle-emoji small{font-size:10px;font-weight:800;color:var(--muted);white-space:nowrap}
+@keyframes reactionPop{
+  0%{opacity:0;transform:translateY(18px) scale(.6)}
+  14%{opacity:1;transform:translateY(0) scale(1.08)}
+  70%{opacity:1;transform:translateY(-14px) scale(1)}
+  100%{opacity:0;transform:translateY(-70px) scale(.94)}
+}
+
+html.theme-light .fame-close{background:rgba(20,90,130,.06);border-color:rgba(20,90,130,.16);color:#12384f}
+html.theme-light .fame-close:hover{background:rgba(20,90,130,.12)}
+html.theme-light .fame-history-row{border-top-color:rgba(20,90,130,.1)}
+html.theme-light .fame-replay-btn{background:rgba(20,90,130,.06);border-color:rgba(20,90,130,.16);color:#12384f}
+html.theme-light .fame-replay-btn:hover:not(:disabled){background:rgba(53,224,210,.18)}
+html.theme-light .heatmap{background:rgba(20,90,130,.05);border-color:rgba(20,90,130,.14)}
+html.theme-light .season-card{background:linear-gradient(150deg,rgba(255,209,102,.24),rgba(255,255,255,.35));border-color:rgba(190,140,20,.4)}
+html.theme-light .season-progress{background:rgba(20,90,130,.12);border-color:rgba(20,90,130,.14)}
+html.theme-light .medal-item{background:rgba(20,90,130,.05);border-color:rgba(20,90,130,.12)}
+html.theme-light .reaction-quick,
+html.theme-light .reaction-mute{background:rgba(255,255,255,.9);border-color:rgba(20,90,130,.18);color:#12384f}
+html.theme-light .battle-emoji{background:rgba(255,255,255,.95);border-color:rgba(20,90,130,.18);box-shadow:0 12px 30px rgba(10,50,80,.18)}
+
+@media (max-width:560px){
+  .menu-cards.has-three{gap:7px}
+  .menu-cards.has-three .mini-card{padding:10px 7px;gap:6px}
+  .menu-cards.has-three .mini-icon{font-size:18px}
+  .menu-cards.has-three .mini-text b{font-size:11px}
+  .menu-cards.has-three .mini-text small{font-size:9px}
+  .fame-card{padding:20px 14px 16px;border-radius:24px}
+  .fame-panel-head{flex-direction:column;align-items:stretch}
+  .fame-size{width:100%}
+  .fame-history-list{max-height:38vh}
+  .medal-grid{grid-template-columns:1fr}
+  .replay-boards{grid-template-columns:1fr;gap:10px}
+  .replay-boards .board{max-width:300px}
+  .battle-reactions{gap:7px}
+  .reaction-quick button{width:30px;height:30px;font-size:17px}
+  .reaction-mute{width:32px;height:32px;font-size:14px}
+  .battle-emoji.is-you{left:4%}
+  .battle-emoji.is-foe{right:4%}
+}
+
+@media (prefers-reduced-motion:reduce){
+  html.water-storm .ocean::before,
+  html.water-storm .ocean::after,
+  html.water-storm .board::before,
+  html.water-storm .storm-track,
+  html.water-storm .storm-bob,
+  html.water-storm .storm-flash,
+  html.water-night .board::before,
+  html.water-fog .ocean::before,
+  html.water-fog .board::before{animation:none}
+  .battle-emoji{animation:none;opacity:1;transform:none}
+  .battle-hint,.impact-ring,.shell{animation:none;transition:none}
+  .shell{display:none}
+}
+
+
+/* ============================================================
+   МЕНЮ: хаб быстрого боя
+   ============================================================ */
+.menu-shell{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  width:100%;max-width:900px;margin-top:2px;
+}
+.menu-main,.menu-side{
+  display:flex;flex-direction:column;gap:12px;
+  width:100%;max-width:540px;min-width:0;
+}
+.menu-main .menu-cards{margin-top:0}
+.menu-side .daily-card{margin-top:0}
+.menu-side .menu-links{margin-top:0}
+
+.battle-hub{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+  width:100%;padding:18px;
+  border-radius:24px;
+  background:
+    radial-gradient(120% 130% at 88% -12%,rgba(53,224,210,.2),transparent 62%),
+    linear-gradient(160deg,rgba(18,54,90,.94),rgba(5,22,38,.97));
+  border:1px solid rgba(80,230,225,.26);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,.38),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 34px rgba(53,224,210,.08);
+}
+.battle-hub::before{
+  content:'';
+  position:absolute;right:-78px;top:-78px;
+  width:250px;height:250px;border-radius:50%;
+  background:
+    radial-gradient(circle,rgba(53,224,210,.2) 0 2px,transparent 3px),
+    repeating-radial-gradient(circle,rgba(53,224,210,.13) 0 1px,transparent 1px 26px);
+  opacity:.65;pointer-events:none;
+}
+.hub-head{
+  position:relative;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.hub-kicker{
+  font-family:'Rubik',sans-serif;font-size:10px;font-weight:800;
+  letter-spacing:.16em;text-transform:uppercase;color:#8ff7ef;
+}
+.hub-status{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:#9fc4d8;
+}
+.hub-status i{
+  width:7px;height:7px;border-radius:50%;
+  background:#5ff0b8;box-shadow:0 0 10px rgba(95,240,184,.9);
+  animation:hubPulse 2.6s ease-in-out infinite;
+}
+.hub-title{
+  position:relative;
+  margin:9px 0 0;
+  font-family:'Rubik',sans-serif;font-size:clamp(20px,5vw,24px);
+  font-weight:900;line-height:1.15;color:#fff;
+}
+.hub-sub{
+  position:relative;
+  margin:5px 0 0;
+  font-size:11px;font-weight:700;line-height:1.4;color:#9dbdd4;
+}
+.btn-quick{position:relative;margin-top:14px;max-width:none}
+.hub-actions{
+  position:relative;
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+  margin-top:10px;
+}
+.hub-actions .btn{
+  margin-top:0;padding:12px 10px;
+  font-size:13px;border-radius:14px;
+}
+@keyframes hubPulse{
+  0%,100%{opacity:.55;transform:scale(.85)}
+  50%{opacity:1;transform:scale(1.15)}
+}
+
+/* режимы: вертикальные плитки вместо строк */
+.menu-cards.has-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mini-card{
+  flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  gap:8px;min-height:96px;padding:12px;
+  background:linear-gradient(160deg,rgba(120,200,255,.11),rgba(120,200,255,.03));
+}
+.mini-icon{
+  display:grid;place-items:center;
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(53,224,210,.1);
+  border:1px solid rgba(53,224,210,.16);
+  font-size:17px;line-height:1;
+}
+.mini-text b{white-space:normal;line-height:1.2}
+.mini-text small{white-space:normal;line-height:1.3}
+
+/* капитанский профиль: лёгкий блик */
+.profile-card{position:relative;overflow:hidden}
+.profile-card::before{
+  content:'';
+  position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(90% 60% at 100% 0%,rgba(53,224,210,.1),transparent 62%);
+}
+
+@media (min-width:960px){
+  .menu-shell{
+    display:grid;
+    grid-template-columns:minmax(0,540px) minmax(0,330px);
+    align-items:start;justify-content:center;gap:18px;
+  }
+  .menu-main,.menu-side{max-width:none}
+}
+@media (max-width:520px){
+  .menu-cards.has-three{grid-template-columns:1fr}
+  .mini-card{flex-direction:row;align-items:center;min-height:58px;gap:10px}
+}
+
+/* светлая тема */
+html.theme-light .battle-hub{
+  background:
+    radial-gradient(120% 130% at 88% -12%,rgba(20,160,160,.16),transparent 62%),
+    linear-gradient(160deg,rgba(255,255,255,.96),rgba(222,242,252,.98));
+  border-color:rgba(14,140,140,.24);
+  box-shadow:0 16px 34px rgba(10,50,80,.16),inset 0 1px 0 rgba(255,255,255,.9);
+}
+html.theme-light .battle-hub::before{color:rgba(20,120,150,.07)}
+html.theme-light .hub-kicker{color:#0b7d86}
+html.theme-light .hub-title{color:#0b2233}
+html.theme-light .hub-sub{color:#4f6b80}
+html.theme-light .hub-status{color:#5b7d92}
+html.theme-light .mini-icon{background:rgba(20,160,160,.09);border-color:rgba(20,140,140,.16)}
+
+/* AMOLED */
+html.theme-amoled .battle-hub{
+  background:
+    radial-gradient(120% 130% at 88% -12%,rgba(53,224,210,.14),transparent 62%),
+    linear-gradient(160deg,#0b0b0d,#000);
+  border-color:rgba(53,224,210,.18);
+  box-shadow:0 18px 40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* онлайн-кнопку вырезают сборки — одиночная кнопка занимает весь ряд */
+.hub-actions .btn:only-child{grid-column:1 / -1}
+
+/* липкий низ экрана подготовки: кнопка старта всегда под рукой */
+.setup-footer{
+  position:sticky;bottom:calc(8px + var(--safe-bottom));z-index:6;
+  padding:10px 12px 12px;
+  border-radius:18px;
+  background:rgba(6,22,40,.84);
+  border:1px solid var(--line);
+  box-shadow:0 14px 30px rgba(0,0,0,.35);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+html.theme-light .setup-footer{
+  background:rgba(255,255,255,.88);
+  box-shadow:0 12px 26px rgba(10,50,80,.16);
+}
+html.theme-amoled .setup-footer{background:rgba(0,0,0,.9)}

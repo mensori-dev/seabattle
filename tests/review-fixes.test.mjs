@@ -33,8 +33,8 @@ test('профиль из localStorage нормализует числа, ист
 
 test('сборка Яндекса исправляет стартовый счётчик достижений', () => {
   const build = read('scripts/build-yandex.mjs');
-  assert.match(build, /id="ach-count">0 \/ 11</);
-  assert.match(build, /id="ach-count">0 \/ 10</);
+  assert.match(build, /id="ach-count">0 \/ 14</);
+  assert.match(build, /id="ach-count">0 \/ 13</);
 });
 
 test('повторный create/join получает ошибку, а не тишину', () => {

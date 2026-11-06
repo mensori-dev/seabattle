@@ -163,6 +163,8 @@
     ability: function (kind, x, y) { send({ t: 'ability', kind: kind, x: x, y: y }); },
     shot: function (x, y) { send({ t: 'shot', x: x, y: y }); },
     surrender: function () { send({ t: 'surrender' }); },
+    rematch: function () { send({ t: 'rematch' }); },
+    emoji: function (value) { send({ t: 'emoji', emoji: value }); },
     leave: function () {
       stopHeartbeat();
       send({ t: 'leave' });

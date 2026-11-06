@@ -99,12 +99,28 @@ class Cdp {
   }
 }
 
+/* Валидная расстановка 10×10: без касаний даже углами. */
+const SEED_FLEET = [
+  { size: 4, cells: [[0, 0], [1, 0], [2, 0], [3, 0]] },
+  { size: 3, cells: [[5, 0], [6, 0], [7, 0]] },
+  { size: 3, cells: [[0, 2], [1, 2], [2, 2]] },
+  { size: 2, cells: [[5, 2], [6, 2]] },
+  { size: 2, cells: [[8, 2], [9, 2]] },
+  { size: 2, cells: [[0, 4], [0, 5]] },
+  { size: 1, cells: [[2, 4]] },
+  { size: 1, cells: [[4, 4]] },
+  { size: 1, cells: [[6, 4]] },
+  { size: 1, cells: [[8, 4]] }
+];
+
 /* Заполняем онлайн-рейтинг через настоящие матчи: гость сдаётся. */
 function seedLeaderboard(pairs) {
   return Promise.all(pairs.map(([hostName, guestName]) => new Promise((resolve) => {
     let host = null;
     let guest = null;
     let finished = false;
+    let hostFleet = false;
+    let guestFleet = false;
     const done = () => {
       if (finished) return;
       finished = true;
@@ -112,7 +128,7 @@ function seedLeaderboard(pairs) {
       try { if (guest) guest.close(); } catch (_e) { /* ignore */ }
       resolve();
     };
-    const timer = setTimeout(done, 5000);
+    const timer = setTimeout(done, 8000);
     try {
       host = new WebSocket(WS);
     } catch (_e) {
@@ -124,6 +140,10 @@ function seedLeaderboard(pairs) {
     host.onmessage = (ev) => {
       let msg = null;
       try { msg = JSON.parse(ev.data); } catch (_e) { return; }
+      if (msg.t === 'start' && !hostFleet) {
+        hostFleet = true;
+        host.send(JSON.stringify({ t: 'fleet', ships: SEED_FLEET }));
+      }
       if (msg.t !== 'room') return;
       const code = String(msg.code);
       guest = new WebSocket(WS);
@@ -132,7 +152,12 @@ function seedLeaderboard(pairs) {
       guest.onmessage = (ev2) => {
         let g = null;
         try { g = JSON.parse(ev2.data); } catch (_e) { return; }
-        if (g.t !== 'start') return;
+        if (g.t === 'start' && !guestFleet) {
+          guestFleet = true;
+          guest.send(JSON.stringify({ t: 'fleet', ships: SEED_FLEET }));
+          return;
+        }
+        if (g.t !== 'begin') return;
         guest.send(JSON.stringify({ t: 'surrender' }));
         clearTimeout(timer);
         setTimeout(done, 300);
@@ -233,7 +258,7 @@ async function main() {
     await cdp.shot('01-menu.png');
 
     // расстановка (адмиральский флот)
-    await cdp.evaluate(`document.querySelector('#btn-play').click()`);
+    await cdp.evaluate(`document.querySelector('#btn-setup').click(); document.querySelector('#btn-setup-go').click()`);
     await cdp.waitFor(`document.querySelector('#screen-place').classList.contains('is-active')`);
     await cdp.evaluate(`document.querySelector('#btn-random').click()`);
     await sleep(450);
@@ -265,9 +290,10 @@ async function main() {
     await sleep(1600);
     await cdp.shot('03-battle.png');
 
-    // правила
-    await cdp.evaluate(`document.querySelector('#btn-back').click()`);
+    // правила: перезагружаем страницу, потому что в бою нет кнопки «назад»
+    await cdp.send('Page.navigate', { url: APP + '?shots=' + Date.now() });
     await cdp.waitFor(`document.querySelector('#screen-menu').classList.contains('is-active')`);
+    await sleep(700);
     await cdp.evaluate(`document.querySelector('#btn-rules').click()`);
     await sleep(550);
     await cdp.shot('04-rules.png');

@@ -24,7 +24,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v31';
+  const SW_VERSION = 'sb-v38';
 
   const state = {
     profile: null,
@@ -46,6 +46,8 @@
     ghost: [],
     hover: null,           // последняя клетка под курсором при расстановке
     matchStats: { shots: 0, hits: 0, firstShot: true, firstShotSunk: false },
+    matchStartedAt: 0,     // начало текущего боя для истории
+    matchLog: [],          // выстрелы текущего боя для реплея
     size: 10,              // размер текущей доски
     config: { size: 10, fleet: 'classic', tactics: false },
     loadout: ['airstrike', 'smoke'],
@@ -54,7 +56,8 @@
     pendingAbility: null,  // выбранная способность в режиме прицела
     prepGo: null,          // что запустить после экрана подготовки
     cup: null,             // «Испытание дня»: { round, wins }
-    cupMatch: false        // текущий бой идёт в зачёт испытания
+    cupMatch: false,       // текущий бой идёт в зачёт испытания
+    quickBattle: false     // расстановка открыта кнопкой «Быстрый бой»
   };
 
   let netShotTimer = null;
@@ -103,6 +106,10 @@
       motion: 'on',         // 'on' | 'off' — анимации
       bubbles: true,        // пузыри в фоне (на телефоне их можно выключить)
       theme: 'dark',        // 'dark' | 'light' | 'amoled'
+      skin: 'classic',      // 'classic' | 'grid' | 'cyber' | 'navy'
+      water: 'calm',        // 'calm' | 'storm' | 'night' | 'fog'
+      reactionsMuted: false, // не показывать реакции соперника
+      hintSeen: false,      // подсказка первого выстрела уже показана
       difficulty: 'normal', // 'easy' | 'normal' | 'hard'
       fleet: 'classic',     // 'classic' | 'admiral' — старый ключ, читается как фолбэк
       botConfig: { size: 10, fleet: 'classic', tactics: false },
@@ -111,6 +118,9 @@
       daily: { date: '', streak: 0 },   // последний день с победой и серия
       achievements: {},     // id → когда получено
       stats: { shots: 0, hits: 0 },
+      heat: {},             // размер:x:y → сколько раз игрок стрелял сюда
+      season: { id: seasonId(), wins: 0, streak: 0, bestStreak: 0 },
+      medals: [],           // сезонные медали: { tier, season, ts }
       onlineWins: 0,        // победы в онлайн-матчах — только на этом устройстве
       onlineGames: 0,       // сколько онлайн-матчей сыграно
       cup: null,            // активная цепочка «Испытания дня»
@@ -151,6 +161,84 @@
     return Math.min(1, Math.max(0, n));
   }
 
+  function seasonId(ts) {
+    const d = ts === undefined ? new Date() : new Date(ts);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  }
+
+  function seasonName(id) {
+    const m = /^(\d{4})-(\d{2})$/.exec(String(id || ''));
+    const months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+      'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    if (!m) return 'Текущий сезон';
+    const month = months[Number(m[2]) - 1] || '';
+    return month.charAt(0).toUpperCase() + month.slice(1) + ' ' + m[1];
+  }
+
+  function normalizeHeat(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    Object.keys(raw).forEach((key) => {
+      const m = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(key);
+      if (!m) return;
+      const size = Number(m[1]);
+      if ([8, 10, 12].indexOf(size) < 0) return;
+      const x = Number(m[2]);
+      const y = Number(m[3]);
+      if (x < 0 || y < 0 || x >= size || y >= size) return;
+      const count = toInt(raw[key], 0, 9999, 0);
+      if (count > 0) out[key] = count;
+    });
+    return out;
+  }
+
+  function normalizeSeason(raw) {
+    const current = seasonId();
+    const s = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const id = typeof s.id === 'string' && /^\d{4}-\d{2}$/.test(s.id) ? s.id : current;
+    if (id !== current) {
+      return { id: current, wins: 0, streak: 0, bestStreak: 0 };
+    }
+    return {
+      id: id,
+      wins: toInt(s.wins, 0, 100000, 0),
+      streak: toInt(s.streak, 0, 100000, 0),
+      bestStreak: toInt(s.bestStreak, 0, 100000, 0)
+    };
+  }
+
+  function normalizeMedals(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = {};
+    const out = [];
+    raw.forEach((m) => {
+      if (!m || typeof m !== 'object') return;
+      const tier = ['bronze', 'silver', 'gold'].indexOf(m.tier) >= 0 ? m.tier : '';
+      const season = typeof m.season === 'string' && /^\d{4}-\d{2}$/.test(m.season) ? m.season : '';
+      if (!tier || !season) return;
+      const key = season + ':' + tier;
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({ tier: tier, season: season, ts: toInt(m.ts, 0, Number.MAX_SAFE_INTEGER, 0) });
+    });
+    return out.slice(-48);
+  }
+
+  function normalizeReplay(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    raw.forEach((s) => {
+      if (!s || typeof s !== 'object') return;
+      const x = toInt(s.x, 0, 11, -1);
+      const y = toInt(s.y, 0, 11, -1);
+      const result = ['miss', 'hit', 'sunk'].indexOf(s.result) >= 0 ? s.result : 'miss';
+      const side = s.side === 'own' ? 'own' : 'enemy';
+      if (x < 0 || y < 0) return;
+      out.push({ x: x, y: y, result: result, side: side });
+    });
+    return out.slice(-160);
+  }
+
   function normalizeHistory(raw) {
     if (!Array.isArray(raw)) return [];
     return raw.filter((h) => h && typeof h === 'object').map((h) => ({
@@ -159,8 +247,13 @@
       delta: toInt(h.delta, -5000, 5000, 0),
       win: !!h.win,
       rated: h.rated !== false,
-      ts: toInt(h.ts, 0, Number.MAX_SAFE_INTEGER, 0)
-    })).slice(0, 8);
+      ts: toInt(h.ts, 0, Number.MAX_SAFE_INTEGER, 0),
+      duration: toInt(h.duration, 0, 6 * 60 * 60 * 1000, 0),
+      moves: toInt(h.moves, 0, 5000, Array.isArray(h.replay) ? h.replay.length : 0),
+      size: [8, 10, 12].indexOf(Number(h.size)) >= 0 ? Number(h.size) : 10,
+      mode: ['bot', 'cup', 'online'].indexOf(h.mode) >= 0 ? h.mode : 'bot',
+      replay: normalizeReplay(h.replay)
+    })).slice(0, 20);
   }
 
   function loadProfile() {
@@ -171,7 +264,7 @@
         if (!p || typeof p !== 'object' || Array.isArray(p)) return defaultProfile();
         const prof = Object.assign(defaultProfile(), p, {
           name: typeof p.name === 'string' && p.name.trim()
-            ? p.name.trim().slice(0, 20) : Engine.randomName(),
+            ? p.name.trim().slice(0, 16) : Engine.randomName(),
           rating: toInt(p.rating, 0, 5000, 1000),
           games: toInt(p.games, 0, 10000000, 0),
           wins: toInt(p.wins, 0, 10000000, 0),
@@ -186,6 +279,10 @@
           motion: p.motion === 'off' ? 'off' : 'on',
           difficulty: DIFFICULTY[p.difficulty] ? p.difficulty : 'normal',
           theme: ['dark', 'light', 'amoled'].indexOf(p.theme) >= 0 ? p.theme : 'dark',
+          skin: ['classic', 'grid', 'cyber', 'navy'].indexOf(p.skin) >= 0 ? p.skin : 'classic',
+          water: ['calm', 'storm', 'night', 'fog'].indexOf(p.water) >= 0 ? p.water : 'calm',
+          reactionsMuted: !!p.reactionsMuted,
+          hintSeen: !!p.hintSeen,
           musicTrack: ['pirate', 'ambient', 'tavern'].indexOf(p.musicTrack) >= 0 ? p.musicTrack : 'pirate',
           onlineWins: toInt(p.onlineWins, 0, 10000000, 0),
           onlineGames: toInt(p.onlineGames, 0, 10000000, 0),
@@ -209,6 +306,9 @@
         prof.stats = { shots: shots, hits: Math.min(shots, toInt(stats.hits, 0, 1000000000, 0)) };
         prof.achievements = (p.achievements && typeof p.achievements === 'object' &&
           !Array.isArray(p.achievements)) ? p.achievements : {};
+        prof.heat = normalizeHeat(p.heat);
+        prof.season = normalizeSeason(p.season);
+        prof.medals = normalizeMedals(p.medals);
 
         const cup = p.cup && typeof p.cup === 'object' ? p.cup : null;
         if (cup && cup.date === dayKey() && cup.round >= 1 && cup.round <= 3 && !cup.finished) {
@@ -379,7 +479,10 @@
     { id: 'online', icon: '🌐', name: 'Морской волк', desc: 'Сыграй онлайн с другом' },
     { id: 'daily3', icon: '📅', name: 'Три дня в море', desc: '3 дня подряд с победой' },
     { id: 'admiral', icon: '🛳️', name: 'Адмирал', desc: 'Победи в адмиральском флоте' },
-    { id: 'cup', icon: '🏆', name: 'Испытание дня', desc: 'Пройди испытание дня без поражений' }
+    { id: 'cup', icon: '🏆', name: 'Испытание дня', desc: 'Пройди испытание дня без поражений' },
+    { id: 'streak3', icon: '🌊', name: 'Волна', desc: 'Выиграй 3 боя подряд' },
+    { id: 'streak10', icon: '🌋', name: 'Девятый вал', desc: 'Выиграй 10 боёв подряд' },
+    { id: 'season_medal', icon: '🏅', name: 'Сезонный кубок', desc: 'Получи медаль за серию побед в сезоне' }
   ];
 
   /* Локальная дата в виде YYYY-MM-DD: серия считается по календарю телефона. */
@@ -483,11 +586,17 @@
   }
 
   function applyTheme() {
-    const theme = state.profile ? state.profile.theme : 'dark';
+    const p = state.profile || {};
+    const theme = p.theme || 'dark';
     const light = theme === 'light';
     const amoled = theme === 'amoled';
-    document.documentElement.classList.toggle('theme-light', light);
-    document.documentElement.classList.toggle('theme-amoled', amoled);
+    const root = document.documentElement;
+    root.classList.toggle('theme-light', light);
+    root.classList.toggle('theme-amoled', amoled);
+    const skin = ['grid', 'cyber', 'navy'].indexOf(p.skin) >= 0 ? p.skin : 'classic';
+    ['grid', 'cyber', 'navy'].forEach((key) => root.classList.toggle('skin-' + key, skin === key));
+    const water = ['storm', 'night', 'fog'].indexOf(p.water) >= 0 ? p.water : 'calm';
+    ['storm', 'night', 'fog'].forEach((key) => root.classList.toggle('water-' + key, water === key));
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', amoled ? '#000000' : light ? '#cfe9f8' : '#04101f');
   }
@@ -540,6 +649,23 @@
       b.classList.toggle('is-active', b.dataset.theme === theme);
     });
 
+    const skin = ['grid', 'cyber', 'navy'].indexOf(p.skin) >= 0 ? p.skin : 'classic';
+    $$('#set-skin button').forEach((b) => {
+      b.classList.toggle('is-active', (b.dataset.skin || 'classic') === skin);
+    });
+
+    const water = ['storm', 'night', 'fog'].indexOf(p.water) >= 0 ? p.water : 'calm';
+    $$('#set-water button').forEach((b) => {
+      b.classList.toggle('is-active', (b.dataset.water || 'calm') === water);
+    });
+
+    const reactions = $('#set-reactions');
+    if (reactions) {
+      const on = !p.reactionsMuted;
+      reactions.classList.toggle('is-on', on);
+      reactions.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
     const musicTrack = p.musicTrack === 'ambient' || p.musicTrack === 'tavern'
       ? p.musicTrack : 'pirate';
     $$('#set-music-track button').forEach((b) => {
@@ -563,6 +689,10 @@
     $$('#set-difficulty button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.level === d);
     });
+    const summary = $('#setup-summary');
+    if (summary) {
+      summary.textContent = configLabel(configFor('bot')) + ' · ' + DIFFICULTY[d].name;
+    }
   }
 
   /* ---------------- Музыка ---------------- */
@@ -614,6 +744,10 @@
     const acc = st.shots ? Math.round((st.hits / st.shots) * 100) : 0;
     $('#accuracy-line').textContent = '🎯 Точность ' + acc + '% · ' + st.shots + ' выстрелов';
     $('#btn-sound').textContent = (!p.muted || p.music !== false) ? '🔊' : '🔇';
+    const quickSub = $('#quick-sub');
+    if (quickSub) {
+      quickSub.textContent = configLabel(configFor('bot')) + ' · ' + DIFFICULTY[difficultyOf()].name;
+    }
     syncSettings();
     updateDailyCard();
     updateSideCards();
@@ -661,6 +795,12 @@
     if (count) {
       const got = Object.keys(p.achievements || {}).length;
       count.textContent = got + ' / ' + ACHIEVEMENTS.length;
+    }
+    const fameSub = $('#fame-sub');
+    if (fameSub) {
+      const medals = (p.medals || []).length;
+      const matches = (p.history || []).length;
+      fameSub.textContent = medals + ' медалей · ' + matches + ' матчей в истории';
     }
     const day = Engine.dailyChallenge(dayKey());
     const size = day.config.size + '×' + day.config.size;
@@ -721,12 +861,96 @@
     }).join('');
   }
 
+  /* ---------------- Зал славы: карта, реплеи, сезоны ---------------- */
+  function recordHeat(x, y) {
+    const p = state.profile;
+    if (!p || !Number.isInteger(x) || !Number.isInteger(y)) return;
+    const size = state.size || 10;
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    p.heat = p.heat || {};
+    const key = size + ':' + x + ':' + y;
+    p.heat[key] = Math.min(9999, (p.heat[key] || 0) + 1);
+  }
+
+  function recordReplay(side, x, y, result) {
+    if (!state.matchLog) state.matchLog = [];
+    if (state.matchLog.length >= 160) return;
+    state.matchLog.push({
+      x: x,
+      y: y,
+      result: result === 'sunk' ? 'sunk' : result === 'hit' ? 'hit' : 'miss',
+      side: side === 'own' ? 'own' : 'enemy'
+    });
+  }
+
+  function makeHistory(base, mode) {
+    const duration = state.matchStartedAt
+      ? Math.max(0, Math.min(6 * 60 * 60 * 1000, Date.now() - state.matchStartedAt))
+      : 0;
+    return Object.assign({
+      duration: duration,
+      moves: (state.matchLog || []).length,
+      size: state.size,
+      mode: mode || 'bot',
+      replay: (state.matchLog || []).slice(-160)
+    }, base);
+  }
+
+  function medalName(tier) {
+    return tier === 'gold' ? 'Золото' : tier === 'silver' ? 'Серебро' : 'Бронза';
+  }
+
+  function medalIcon(tier) {
+    return tier === 'gold' ? '🥇' : tier === 'silver' ? '🥈' : '🥉';
+  }
+
+  function hasSeasonMedal(season, tier) {
+    return (state.profile.medals || []).some((m) => m.season === season && m.tier === tier);
+  }
+
+  function awardSeasonMedals() {
+    const p = state.profile;
+    if (!p.season) return [];
+    const gained = [];
+    const tiers = [
+      { tier: 'bronze', need: 3 },
+      { tier: 'silver', need: 5 },
+      { tier: 'gold', need: 10 }
+    ];
+    for (const t of tiers) {
+      if (p.season.bestStreak < t.need || hasSeasonMedal(p.season.id, t.tier)) continue;
+      p.medals = p.medals || [];
+      p.medals.push({ tier: t.tier, season: p.season.id, ts: Date.now() });
+      gained.push(t.tier);
+    }
+    if (gained.length) unlockAchievement('season_medal', 1200);
+    return gained;
+  }
+
+  function updateSeason(win) {
+    const p = state.profile;
+    const id = seasonId();
+    if (!p.season || p.season.id !== id) {
+      p.season = { id: id, wins: 0, streak: 0, bestStreak: 0 };
+    }
+    const s = p.season;
+    if (win) {
+      s.wins = (s.wins || 0) + 1;
+      s.streak = (s.streak || 0) + 1;
+      s.bestStreak = Math.max(s.bestStreak || 0, s.streak);
+    } else {
+      s.streak = 0;
+    }
+    return awardSeasonMedals();
+  }
+
   function showScreen(name) {
-    Object.keys({ menu: 1, online: 1, place: 1, prepare: 1, battle: 1 }).forEach((key) => {
+    Object.keys({ menu: 1, online: 1, setup: 1, place: 1, prepare: 1, battle: 1 }).forEach((key) => {
       const screen = $('#screen-' + key);
       if (screen) screen.classList.toggle('is-active', key === name);
     });
     state.screen = name;
+    if (name === 'setup') syncSettings();
     if (name === 'online') {
       // ссылка-приглашение имеет смысл только в браузере (не file://)
       const share = $('#btn-share-room');
@@ -838,6 +1062,8 @@
     state.locked = true;
     state.playerTurn = false;
     state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
+    state.matchStartedAt = Date.now();
+    state.matchLog = [];
     setupPlacement();
     showScreen('place');
     Sfx.play('start');
@@ -1440,6 +1666,20 @@
     }
   }
 
+  /* Клетка под дымом соперника: проверяем локально, чтобы не гонять
+     заведомо отклонённый выстрел на сервер и не пугать игрока ответом. */
+  function netSmokeBlocks(x, y) {
+    if (!state.net) return false;
+    const you = state.net.you;
+    for (const z of (state.net.zones || [])) {
+      if (!z || z.turnsLeft <= 0 || z.owner === you) continue;
+      for (const c of (z.cells || [])) {
+        if (Number(c.x) === x && Number(c.y) === y) return true;
+      }
+    }
+    return false;
+  }
+
   function sendNetAbility(kind, x, y) {
     if (state.mode !== 'online' || !state.net) return;
     state.pendingAbility = null;
@@ -1487,6 +1727,8 @@
         const x = Number(hit.x);
         const y = Number(hit.y);
         if (!board || x < 0 || y < 0 || x >= state.size || y >= state.size) continue;
+        if (msg.foe) recordHeat(x, y);
+        recordReplay(msg.foe ? 'enemy' : 'own', x, y, hit.result);
         if (msg.foe) {
           board.shots[y][x] = hit.result === 'miss' ? 'miss' : 'hit';
         } else {
@@ -1541,6 +1783,8 @@
     renderAbilityBar();
 
     for (const hit of res.cells) {
+      recordHeat(hit.x, hit.y);
+      recordReplay('enemy', hit.x, hit.y, hit.result);
       const cell = boards.enemy.children[hit.y * state.size + hit.x];
       if (!cell) continue;
       cell.classList.add('strike');
@@ -1613,6 +1857,20 @@
   }
 
   /* ---------------- Бой ---------------- */
+  function updateBattleHint() {
+    const hint = $('#battle-hint');
+    if (!hint) return;
+    hint.hidden = !!(state.profile.hintSeen || (state.profile.games || 0) >= 3);
+  }
+
+  function markHintSeen() {
+    const hint = $('#battle-hint');
+    if (hint) hint.hidden = true;
+    if (state.profile.hintSeen) return;
+    state.profile.hintSeen = true;
+    saveProfile();
+  }
+
   function beginBattle() {
     closeShipEditor(false);
     setPlacementLocked(false);
@@ -1624,6 +1882,8 @@
     state.pendingAbility = null;
     state.abilities = state.config.tactics ? Engine.newAbilityState(state.loadout) : null;
     state.botAbilities = state.config.tactics ? Engine.newAbilityState(botLoadout()) : null;
+    state.matchStartedAt = Date.now();
+    state.matchLog = [];
 
     buildBoard(boards.enemy);
     buildBoard(boards.own);
@@ -1643,7 +1903,9 @@
     $('#b-foe-avatar').textContent = state.botAvatar;
 
     updateFleet();
+    updateReactionBar();
     showScreen('battle');
+    updateBattleHint();
     if (YG) YG.gameplayStart();
     setTurn(true);
     state.locked = false;
@@ -1684,6 +1946,7 @@
     state.net.foeShips = fleetSizes().length;
     state.net.foeTotal = fleetSizes().length;
     state.net.fleetSent = false;
+    state.net.foeGone = false;
     state.botName = (foe && foe.name) || 'Соперник';
     state.botRating = (foe && foe.rating) || 1000;
     state.botAvatar = '🌐';
@@ -1693,6 +1956,8 @@
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = false;
+    state.matchStartedAt = Date.now();
+    state.matchLog = [];
     setupPlacement();
     showScreen('place');
     Sfx.play('start');
@@ -1730,16 +1995,49 @@
     toast('⏳ Ждём соперника', 'turn');
   }
 
-  function beginOnlineBattle(first) {
+  /* Реванш не заставляет расставлять флот заново: сервер пересобирает доски
+     из принятой расстановки, а клиент сбрасывает только следы выстрелов. */
+  function resetOwnBoardForRematch() {
+    const old = state.playerBoard;
+    if (!old || !Array.isArray(old.ships)) {
+      state.playerBoard = Engine.createBoard(state.size);
+      return;
+    }
+    const fresh = Engine.createBoard(state.size);
+    old.ships.filter(Boolean).forEach((ship) => {
+      const id = fresh.ships.length;
+      const copy = {
+        id: id,
+        size: ship.size,
+        horizontal: !!ship.horizontal,
+        cells: ship.cells.map((c) => ({ x: c.x, y: c.y })),
+        hits: 0,
+        sunk: false
+      };
+      copy.cells.forEach((c) => { fresh.grid[c.y][c.x] = id; });
+      fresh.ships.push(copy);
+    });
+    state.playerBoard = fresh;
+  }
+
+  function beginOnlineBattle(first, rematch) {
     closeShipEditor(false);
     setPlacementLocked(false);
+    if (rematch) {
+      closeOverlay($('#overlay'));
+      resetOwnBoardForRematch();
+    }
     state.enemyBoard = Engine.createBoard(state.size);
     state.net.foeShips = fleetSizes().length;
     state.net.foeTotal = fleetSizes().length;
+    state.net.rematchPending = false;
+    state.net.foeGone = false;
     state.gameOver = false;
     state.locked = !first;
     state.playerTurn = !!first;
     state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
+    state.matchStartedAt = Date.now();
+    state.matchLog = [];
 
     state.abilities = state.config.tactics
       ? Engine.newAbilityState((state.net && state.net.loadout) || state.loadout)
@@ -1766,7 +2064,9 @@
     $('#b-foe-avatar').textContent = '🌐';
 
     updateFleet();
+    updateReactionBar();
     showScreen('battle');
+    updateBattleHint();
     setTurn(state.playerTurn);
     state.locked = !state.playerTurn;
     Sfx.play('start');
@@ -1790,21 +2090,53 @@
 
   /* Яркая метка последнего выстрела: подсветка клетки, лёгкое затемнение
      остального поля и всплывающий значок — сразу видно, куда прилетело. */
+  /* Снаряд летит от своего поля к цели. Координаты считаем по экрану:
+     доски могут стоять рядом на десктопе и друг под другом на телефоне. */
+  function launchShell(targetEl, cell, fromEl) {
+    if (!motionOn() || !targetEl || !cell || !document.body) return;
+    const target = cell.getBoundingClientRect();
+    const srcEl = (fromEl && fromEl.getBoundingClientRect) ? fromEl : targetEl;
+    const src = srcEl.getBoundingClientRect();
+    const startX = src.left + src.width / 2;
+    const startY = src.top + src.height * (srcEl === targetEl ? 0.12 : 0.5);
+    const endX = target.left + target.width / 2;
+    const endY = target.top + target.height / 2;
+    const shell = document.createElement('span');
+    shell.className = 'shell';
+    shell.setAttribute('aria-hidden', 'true');
+    shell.style.left = startX + 'px';
+    shell.style.top = startY + 'px';
+    document.body.appendChild(shell);
+    requestAnimationFrame(() => {
+      shell.style.transform = 'translate(' + (endX - startX) + 'px,' + (endY - startY) + 'px) scale(.55)';
+      shell.classList.add('is-flying');
+    });
+    setTimeout(() => shell.remove(), 460);
+  }
+
   function markShot(targetEl, cell, result) {
     if (!targetEl || !cell) return;
     const miss = result === 'miss';
     cell.classList.add(miss ? 'is-last-miss' : 'is-last-hit');
     targetEl.classList.add('is-spotlight');
+    const cx = cell.offsetLeft + cell.offsetWidth / 2;
+    const cy = cell.offsetTop + cell.offsetHeight / 2;
+    const ring = document.createElement('span');
+    ring.className = 'impact-ring ' + (miss ? 'is-miss' : 'is-hit');
+    ring.style.left = cx + 'px';
+    ring.style.top = cy + 'px';
+    targetEl.appendChild(ring);
     const flag = document.createElement('span');
     flag.className = 'shot-flag ' + (miss ? 'is-miss' : 'is-hit');
     flag.textContent = miss ? '🌊' : '💥';
-    flag.style.left = (cell.offsetLeft + cell.offsetWidth / 2) + 'px';
-    flag.style.top = (cell.offsetTop + cell.offsetHeight / 2) + 'px';
+    flag.style.left = cx + 'px';
+    flag.style.top = cy + 'px';
     targetEl.appendChild(flag);
     setTimeout(() => targetEl.classList.remove('is-spotlight'), 700);
     setTimeout(() => {
       cell.classList.remove('is-last-miss', 'is-last-hit');
       flag.remove();
+      ring.remove();
     }, 1100);
   }
 
@@ -1861,10 +2193,10 @@
 
   function onNetShot(msg) {
     if (state.mode !== 'online' || state.gameOver || !state.enemyBoard || !state.playerBoard) return;
-    clearNetShotTimeout();
     const x = Number(msg.x);
     const y = Number(msg.y);
     if (x < 0 || y < 0 || x >= state.size || y >= state.size) return;
+    clearNetShotTimeout();
 
     if (msg.mine) {
       state.enemyBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
@@ -1879,6 +2211,9 @@
           }
         });
       }
+      recordHeat(x, y);
+      recordReplay('enemy', x, y, msg.result);
+      launchShell(boards.enemy, boards.enemy.children[y * state.size + x], boards.own);
       applyShotVisual(boards.enemy, x, y, msg.result, msg.ship);
       if (state.matchStats) {
         state.matchStats.shots += 1;
@@ -1902,6 +2237,8 @@
     // счётчик «твой флот» уменьшается так же, как у соперника.
     const own = Engine.fire(state.playerBoard, x, y);
     if (!own) state.playerBoard.shots[y][x] = msg.result === 'miss' ? 'miss' : 'hit';
+    recordReplay('own', x, y, msg.result);
+    launchShell(boards.own, boards.own.children[y * state.size + x], boards.enemy);
     applyShotVisual(boards.own, x, y, msg.result, msg.ship);
     updateFleet();
     if (msg.result === 'miss') toast('🌊 Соперник промахнулся', 'miss');
@@ -2127,14 +2464,15 @@
     });
 
     Online.on('begin', (msg) => {
-      if (state.screen !== 'place' && state.screen !== 'prepare') return;
+      const rematch = !!msg.rematch && state.mode === 'online' && state.screen === 'battle';
+      if (state.screen !== 'place' && state.screen !== 'prepare' && !rematch) return;
       if (state.net) {
         state.net.you = typeof msg.you === 'number' ? msg.you : state.net.you;
         if (msg.config) state.net.config = normalizeConfig(msg.config);
         if (Array.isArray(msg.loadout)) state.net.loadout = msg.loadout.slice();
         if (Array.isArray(msg.foeLoadout)) state.net.foeLoadout = msg.foeLoadout.slice();
       }
-      beginOnlineBattle(!!msg.first);
+      beginOnlineBattle(!!msg.first, rematch);
     });
 
     Online.on('shot', onNetShot);
@@ -2145,6 +2483,26 @@
       toast('💨 Ход пропущен: всё под дымом', 'turn');
     });
 
+    Online.on('emoji', (msg) => {
+      if (state.mode !== 'online' || !state.net) return;
+      const mine = Number(msg.from) === state.net.you;
+      showReaction(mine ? 'you' : 'foe', msg.emoji);
+    });
+
+    Online.on('rematchAsked', () => {
+      if (state.mode !== 'online') return;
+      toast('🔁 Соперник предлагает реванш', 'turn');
+    });
+
+    Online.on('rematchWait', () => {
+      if (state.mode !== 'online') return;
+      const btn = $('#btn-again');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Ждём соперника…';
+      }
+    });
+
     Online.on('end', (msg) => {
       clearNetShotTimeout();
       if (state.mode !== 'online' || state.gameOver) return;
@@ -2153,7 +2511,12 @@
 
     Online.on('foeLeft', () => {
       toast('👋 Соперник вышел', 'miss');
-      if (state.mode === 'online' && !state.gameOver) {
+      if (state.mode !== 'online') return;
+      if (state.net) {
+        state.net.foeGone = true;
+        state.net.rematchPending = false;
+      }
+      if (!state.gameOver) {
         state.gameOver = true;
         state.locked = true;
         setTimeout(() => {
@@ -2161,6 +2524,14 @@
           updateMenu();
           showScreen('menu');
         }, 1200);
+        return;
+      }
+      // Бой уже закончен: реванш невозможен, но результат должен остаться
+      // на экране. Просто гасим кнопку, чтобы не ждать ответа вечно.
+      const btn = $('#btn-again');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Соперник вышел';
       }
     });
 
@@ -2279,11 +2650,12 @@
     });
   }
 
-  async function doShot(targetEl, board, x, y, slow) {
+  async function doShot(targetEl, board, x, y, slow, fromEl) {
     const cell = targetEl.children[y * state.size + x];
     if (!cell) return null;
+    launchShell(targetEl, cell, fromEl);
     cell.classList.add('incoming');
-    await sleep(slow ? 400 : 230);
+    await sleep(slow ? 400 : 260);
     cell.classList.remove('incoming');
     const shot = Engine.fire(board, x, y);
     if (!shot) return null;
@@ -2314,12 +2686,13 @@
   async function playerShoot(x, y) {
     if (state.paused) return;
     if (state.locked || !state.playerTurn || state.gameOver || !state.enemyBoard) return;
+    markHintSeen();
     if (state.pendingAbility === 'airstrike') {
       if (state.mode === 'online') { sendNetAbility('airstrike', x, y); return; }
       await useAirstrike(x, y);
       return;
     }
-    if (Engine.smokeBlocks(state.enemyBoard, x, y)) {
+    if (Engine.smokeBlocks(state.enemyBoard, x, y) || netSmokeBlocks(x, y)) {
       toast('💨 Сюда нельзя: дым соперника', 'miss');
       return;
     }
@@ -2334,12 +2707,14 @@
 
     const seq = state.matchSeq;
     state.locked = true;
-    const shot = await doShot(boards.enemy, state.enemyBoard, x, y);
+    const shot = await doShot(boards.enemy, state.enemyBoard, x, y, false, boards.own);
     if (seq !== state.matchSeq || state.gameOver) return;
     if (!shot) {
       state.locked = false;
       return;
     }
+    recordHeat(x, y);
+    recordReplay('enemy', x, y, shot.result);
     if (state.matchStats) {
       state.matchStats.shots += 1;
       if (shot.result !== 'miss') state.matchStats.hits += 1;
@@ -2411,10 +2786,11 @@
       }
       if (Engine.smokeBlocks(state.playerBoard, move.x, move.y)) break;
 
-      const shot = await doShot(boards.own, state.playerBoard, move.x, move.y, true);
+      const shot = await doShot(boards.own, state.playerBoard, move.x, move.y, true, boards.enemy);
       if (seq !== state.matchSeq || state.gameOver) return;
       if (!shot) continue;
 
+      recordReplay('own', move.x, move.y, shot.result);
       state.bot.report(move.x, move.y, shot);
       updateFleet();
 
@@ -2430,6 +2806,7 @@
         if (res.ok) {
           state.botAbilities.airstrike -= 1;
           for (const hit of res.cells) {
+            recordReplay('own', hit.x, hit.y, hit.result);
             const cell = boards.own.children[hit.y * state.size + hit.x];
             if (!cell) continue;
             cell.classList.add('strike');
@@ -2517,6 +2894,9 @@
 
     const ms = state.matchStats || { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
     const p = state.profile;
+    // Сезонные медали — только за рейтинговые бот-бои, иначе их можно
+    // нафармить в кастомной комнате или онлайне без роста рейтинга.
+    const seasonMedals = (state.mode === 'bot' && isRatedBattle()) ? updateSeason(playerWon) : [];
 
     if (state.mode === 'online') {
       const same = Math.round(p.rating);
@@ -2530,10 +2910,18 @@
       if (playerWon && isClassicConfig(state.config)) {
         p.onlineWins = (p.onlineWins || 0) + 1;
       }
+      p.history = [makeHistory({
+        name: state.botName,
+        rating: Math.round(state.botRating),
+        delta: 0,
+        win: !!playerWon,
+        rated: false,
+        ts: Date.now()
+      }, 'online')].concat(p.history || []).slice(0, 20);
       unlockAchievement('online', 700);
       saveProfile();
       updateMenu();
-      showResult(playerWon, same, same, 0, reason, { rated: false });
+      showResult(playerWon, same, same, 0, reason, { rated: false, seasonMedals: seasonMedals });
       return;
     }
 
@@ -2575,19 +2963,19 @@
       p.stats = p.stats || { shots: 0, hits: 0 };
       p.stats.shots += ms.shots;
       p.stats.hits += ms.hits;
-      p.history = [{
+      p.history = [makeHistory({
         name: state.botName,
         rating: Math.round(state.botRating),
         delta: 0,
         win: !!playerWon,
         rated: false,
         ts: Date.now()
-      }].concat(p.history || []).slice(0, 8);
+      }, state.cupMatch ? 'cup' : 'bot')].concat(p.history || []).slice(0, 20);
       if (cupInfo && cupInfo.done && cupInfo.won) unlockAchievement('cup', 900);
       saveProfile();
       updateMenu();
       showResult(playerWon, oldRating, oldRating + cupGain, cupGain, reason,
-        { rated: false, cupInfo: cupInfo });
+        { rated: false, cupInfo: cupInfo, seasonMedals: seasonMedals });
       return;
     }
 
@@ -2616,13 +3004,14 @@
     p.stats = p.stats || { shots: 0, hits: 0 };
     p.stats.shots += ms.shots;
     p.stats.hits += ms.hits;
-    p.history = [{
+    p.history = [makeHistory({
       name: state.botName,
       rating: Math.round(state.botRating),
       delta: newRating - oldRating,
       win: !!playerWon,
+      rated: true,
       ts: Date.now()
-    }].concat(p.history || []).slice(0, 8);
+    }, state.cupMatch ? 'cup' : 'bot')].concat(p.history || []).slice(0, 20);
 
     // достижения — проверяем после обновления статистики
     let achOrder = 0;
@@ -2630,7 +3019,9 @@
     if (playerWon) unlock('first_win');
     if (playerWon && ms.shots > 0 && ms.hits === ms.shots) unlock('perfect');
     if (ms.firstShotSunk) unlock('first_blood');
+    if (p.streak >= 3) unlock('streak3');
     if (p.streak >= 5) unlock('win5');
+    if (p.streak >= 10) unlock('streak10');
     if ((p.wins || 0) >= 10) unlock('win10');
     if ((p.wins || 0) >= 50) unlock('win50');
     if (newRating >= 1500) unlock('rank1500');
@@ -2645,7 +3036,86 @@
     updateMenu();
 
     showResult(playerWon, oldRating, newRating, delta + dailyGain + cupGain, reason,
-      { dailyGain: dailyGain, cupInfo: cupInfo });
+      { dailyGain: dailyGain, cupInfo: cupInfo, seasonMedals: seasonMedals });
+  }
+
+  /* ---------------- Реванш и реакции ---------------- */
+  function requestRematch() {
+    if (!state.net || state.net.rematchPending) return;
+    if (state.net.foeGone) {
+      toast('Соперник вышел — реванш недоступен', 'miss');
+      return;
+    }
+    state.net.rematchPending = true;
+    Online.rematch();
+    const btn = $('#btn-again');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Ждём соперника…';
+    }
+    toast('🔁 Реванш предложен', 'turn');
+    // Если соперник закрыл вкладку или не отвечает, кнопка не должна
+    // оставаться заблокированной навсегда.
+    setTimeout(() => {
+      if (!state.net || !state.net.rematchPending) return;
+      state.net.rematchPending = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⚔️ Ещё бой';
+      }
+      toast('Соперник не отвечает — можно выйти в меню', 'miss');
+    }, 8000);
+  }
+
+  const REACTION_PHRASES = {
+    '🆘': 'Нужна помощь',
+    '😉': 'Хитрый ход',
+    '⚓': 'Держись!',
+    '🔥': 'Огонь!',
+    '😂': 'Смешно',
+    '👍': 'Хорошо'
+  };
+
+  function updateReactionBar() {
+    const bar = $('#battle-reactions');
+    if (!bar) return;
+    const online = state.mode === 'online';
+    bar.hidden = !online;
+    const mute = $('#btn-reactions-mute');
+    if (mute) {
+      const muted = !!(state.profile && state.profile.reactionsMuted);
+      mute.textContent = muted ? '🔕' : '🔔';
+      mute.setAttribute('aria-pressed', muted ? 'true' : 'false');
+      mute.setAttribute('aria-label', muted ? 'Включить реакции соперника' : 'Заглушить реакции соперника');
+      mute.title = muted ? 'Реакции соперника выключены' : 'Заглушить реакции';
+    }
+  }
+
+  function showReaction(from, emoji) {
+    const layer = $('#battle-emoji-layer');
+    if (!layer) return;
+    if (from !== 'you' && state.profile && state.profile.reactionsMuted) return;
+    const node = document.createElement('span');
+    node.className = 'battle-emoji ' + (from === 'you' ? 'is-you' : 'is-foe');
+    const b = document.createElement('b');
+    b.textContent = String(emoji || '');
+    const small = document.createElement('small');
+    small.textContent = REACTION_PHRASES[emoji] ||
+      (from === 'you' ? state.profile.name : state.botName || 'Соперник');
+    node.appendChild(b);
+    node.appendChild(small);
+    layer.appendChild(node);
+    setTimeout(() => node.remove(), 2200);
+    while (layer.children.length > 3) layer.firstElementChild.remove();
+  }
+
+  function toggleReactionMute() {
+    state.profile.reactionsMuted = !state.profile.reactionsMuted;
+    updateReactionBar();
+    syncSettings();
+    saveProfile();
+    toast(state.profile.reactionsMuted ? '🔕 Реакции соперника выключены' : '🔔 Реакции включены', 'turn');
+    Sfx.play('click');
   }
 
   function animateNumber(el, from, to, duration) {
@@ -2659,7 +3129,47 @@
     requestAnimationFrame(frame);
   }
 
+  function shareResult() {
+    const r = state.lastResult || {};
+    const lines = [
+      r.win ? '🏆 Победа в «Морском бое — Морская арена»!' : '⚓ Бой в «Морском бое — Морская арена»',
+      r.opp ? 'Соперник: ' + r.opp : '',
+      r.rating ? 'Рейтинг: ' + Math.round(r.rating) : '',
+      r.delta ? 'За бой: ' + (r.delta > 0 ? '+' : '') + r.delta : '',
+      'Сыграй и ты:'
+    ].filter(Boolean);
+    const url = location.protocol === 'file:'
+      ? 'https://mensori-dev.github.io/seabattle/'
+      : location.origin + location.pathname;
+    const text = lines.join('\n') + '\n' + url;
+    if (navigator.share) {
+      navigator.share({ title: 'Морской бой — Морская арена', text: text }).catch(() => {});
+      return;
+    }
+    const done = (ok) => toast(ok ? '📤 Скопировано — отправь другу' : url, ok ? 'turn' : 'miss');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+      return;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    done(ok);
+  }
+
   function showResult(win, oldRating, newRating, delta, reason, extras) {
+    state.lastResult = {
+      win: !!win,
+      reason: reason || '',
+      delta: delta,
+      rating: newRating,
+      opp: state.botName
+    };
     const overlay = $('#overlay');
     overlay.classList.toggle('is-lose', !win);
     overlay.hidden = false;
@@ -2684,8 +3194,10 @@
       ratedBadge.textContent = rated ? '' : 'Без рейтинга';
     }
 
+    const againBtn = $('#btn-again');
+    if (againBtn) againBtn.disabled = false;
     if (online) {
-      $('#btn-again').textContent = '🔁 Новая комната';
+      $('#btn-again').textContent = '🔁 Реванш';
     } else if (state.cupMatch && state.cup && state.cup.finished) {
       $('#btn-again').textContent = '🎯 Новое испытание';
     } else if (state.cupMatch && state.cup && state.cup.round > 1) {
@@ -2708,8 +3220,30 @@
         } else if (c.done) parts.push('🎯 Испытание дня сорвано — начни заново из меню');
         else parts.push('🎯 Испытание дня: раунд ' + c.round + ' из 3');
       }
+      if (extras && Array.isArray(extras.seasonMedals) && extras.seasonMedals.length) {
+        parts.push(extras.seasonMedals.map((t) => medalIcon(t) + ' ' +
+          medalName(t) + ' сезона').join(' · '));
+      }
       bonusEl.hidden = !parts.length;
       bonusEl.textContent = parts.join(' · ');
+    }
+
+    const stats = state.matchStats || { shots: 0, hits: 0 };
+    const accEl = $('#res-acc');
+    const shotsEl = $('#res-shots');
+    const timeEl = $('#res-time');
+    const streakEl = $('#res-streak');
+    if (accEl) accEl.textContent = stats.shots ? Math.round(stats.hits / stats.shots * 100) + '%' : '—';
+    if (shotsEl) shotsEl.textContent = stats.shots || '—';
+    if (timeEl) {
+      const total = Math.max(1, Math.round((Date.now() - (state.matchStartedAt || Date.now())) / 1000));
+      timeEl.textContent = total >= 60
+        ? Math.floor(total / 60) + 'м ' + (total % 60) + 'с'
+        : total + 'с';
+    }
+    if (streakEl) {
+      const streak = (online || !rated) ? 0 : (state.profile.streak || 0);
+      streakEl.textContent = streak > 0 ? '🔥 ' + streak : (streak < 0 ? '❄️ ' + Math.abs(streak) : '—');
     }
 
     $('#elo-before').textContent = oldRating;
@@ -2867,6 +3401,9 @@
       motion: p.motion,
       bubbles: p.bubbles,
       theme: p.theme,
+      skin: p.skin,
+      water: p.water,
+      reactionsMuted: p.reactionsMuted,
       difficulty: p.difficulty,
       fleet: p.fleet
     };
@@ -2879,6 +3416,194 @@
     applyTheme();
     applyMusicSettings();
     updateMenu();
+  }
+
+  /* ---------------- Зал славы ---------------- */
+  let fameTab = 'heat';
+  let fameHeatSize = 10;
+  let replayTimer = null;
+
+  function openFame() {
+    renderFame();
+    const modal = $('#modal-fame');
+    if (!modal) return;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+  }
+
+  function renderFame() {
+    $$('#fame-tabs button').forEach((b) => {
+      const active = b.dataset.fameTab === fameTab;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+      b.tabIndex = active ? 0 : -1;
+    });
+    const panels = { heat: $('#fame-heat'), history: $('#fame-history'), trophies: $('#fame-trophies') };
+    Object.keys(panels).forEach((key) => {
+      if (panels[key]) panels[key].hidden = key !== fameTab;
+    });
+    if (fameTab === 'heat') renderHeatmap();
+    else if (fameTab === 'history') renderFameHistory();
+    else renderTrophies();
+  }
+
+  function renderHeatmap() {
+    const grid = $('#heatmap');
+    if (!grid) return;
+    const p = state.profile;
+    const size = [8, 10, 12].indexOf(fameHeatSize) >= 0 ? fameHeatSize : 10;
+    $$('#fame-heat-size button').forEach((b) => {
+      b.classList.toggle('is-active', Number(b.dataset.heatSize) === size);
+    });
+    grid.style.setProperty('--n', size);
+    grid.innerHTML = '';
+    let total = 0;
+    let max = 0;
+    let best = null;
+    const values = [];
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const count = Number((p.heat || {})[size + ':' + x + ':' + y]) || 0;
+        values.push(count);
+        total += count;
+        if (count > max) { max = count; best = { x: x, y: y, count: count }; }
+      }
+    }
+    values.forEach((count, i) => {
+      const x = i % size;
+      const y = Math.floor(i / size);
+      const cell = document.createElement('span');
+      cell.className = 'heat-cell' + (count ? '' : ' is-empty');
+      cell.style.background = count
+        ? 'rgba(255,107,94,' + (0.16 + (count / (max || 1)) * 0.76).toFixed(3) + ')'
+        : 'rgba(120,200,255,.055)';
+      cell.textContent = count ? String(count) : '';
+      cell.title = 'Клетка ' + (x + 1) + ', ' + (y + 1) + ': ' + count + ' выстрелов';
+      grid.appendChild(cell);
+    });
+    const note = $('#heat-note');
+    if (note) {
+      note.textContent = total
+        ? 'Всего выстрелов: ' + total + ' · чаще всего: ' + (best.x + 1) + ', ' + (best.y + 1) +
+          ' (' + best.count + ' раз). Карта копится по всем боям на этом устройстве.'
+        : 'Карта пока пустая. Сыграй бой — и увидишь свои любимые клетки.';
+    }
+  }
+
+  function formatDuration(ms) {
+    const total = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+    const min = Math.floor(total / 60);
+    return min + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  function renderFameHistory() {
+    const list = $('#fame-history-list');
+    if (!list) return;
+    const hist = state.profile.history || [];
+    if (!hist.length) {
+      list.innerHTML = '<p class="fame-empty">История пока пуста — сыграй первый бой.</p>';
+      return;
+    }
+    list.innerHTML = hist.map((h, i) => {
+      const rated = h.rated !== false;
+      const delta = Number(h.delta) || 0;
+      const deltaText = rated ? (delta >= 0 ? '+' : '') + delta : '—';
+      const date = h.ts ? new Date(h.ts).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—';
+      const mode = h.mode === 'online' ? 'онлайн' : h.mode === 'cup' ? 'испытание' : 'с ботом';
+      return '<div class="fame-history-row">' +
+        '<span class="h-dot ' + (h.win ? 'win' : 'lose') + '"></span>' +
+        '<span class="fame-history-main"><b>' + escapeHtml(h.name) + '</b>' +
+          '<small>' + date + ' · ' + mode + ' · ' + formatDuration(h.duration) +
+          ' · ' + (h.moves || 0) + ' выстр.</small></span>' +
+        '<span class="h-delta ' + (rated ? (delta >= 0 ? 'plus' : 'minus') : 'na') + '">' + deltaText + '</span>' +
+        '<button class="fame-replay-btn" type="button" data-replay-index="' + i + '"' +
+          (h.replay && h.replay.length ? '' : ' disabled') + ' aria-label="Смотреть реплей">▶</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderTrophies() {
+    const p = state.profile;
+    const s = p.season || { id: seasonId(), wins: 0, streak: 0, bestStreak: 0 };
+    const next = s.bestStreak >= 10 ? 10 : s.bestStreak >= 5 ? 10 : s.bestStreak >= 3 ? 5 : 3;
+    const pct = Math.min(100, (s.bestStreak / next) * 100);
+    const seasonCard = $('#season-card');
+    if (seasonCard) {
+      seasonCard.innerHTML =
+        '<div class="season-head"><span>🏆</span><div><b>' + escapeHtml(seasonName(s.id)) + '</b>' +
+        '<small>Сезон ' + escapeHtml(s.id) + ' · побед: ' + (s.wins || 0) + '</small></div></div>' +
+        '<div class="season-progress"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+        '<p class="fame-note">Текущая серия: ' + (s.streak || 0) + ' · лучшая: ' + (s.bestStreak || 0) +
+        ' · до следующей медали: ' + Math.max(0, next - (s.bestStreak || 0)) + '</p>';
+    }
+    const grid = $('#medal-grid');
+    if (!grid) return;
+    const medals = (p.medals || []).slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    if (!medals.length) {
+      grid.innerHTML = '<p class="fame-empty">Медалей пока нет. Выиграй 3 боя подряд в одном месяце — получишь бронзу.</p>';
+      return;
+    }
+    grid.innerHTML = medals.map((m) =>
+      '<div class="medal-item"><span class="medal-icon">' + medalIcon(m.tier) + '</span>' +
+      '<span class="medal-text"><b>' + medalName(m.tier) + '</b>' +
+      '<small>' + escapeHtml(seasonName(m.season)) + '</small></span></div>'
+    ).join('');
+  }
+
+  function replayCell(el, shot) {
+    const cell = el.children[shot.y * Number(el.style.getPropertyValue('--n') || 10) + shot.x];
+    if (!cell) return;
+    if (shot.result === 'miss') cell.classList.add('miss');
+    else {
+      cell.classList.add('hit');
+      if (shot.result === 'sunk') cell.classList.add('sunk');
+    }
+    cell.dataset.result = shot.result;
+  }
+
+  function closeReplay() {
+    if (replayTimer) clearTimeout(replayTimer);
+    replayTimer = null;
+    closeOverlay($('#modal-replay'));
+  }
+
+  function openReplay(index) {
+    const entry = (state.profile.history || [])[index];
+    if (!entry || !entry.replay || !entry.replay.length) {
+      toast('У этого матча нет реплея', 'miss');
+      return;
+    }
+    const size = [8, 10, 12].indexOf(Number(entry.size)) >= 0 ? Number(entry.size) : 10;
+    const enemy = $('#replay-enemy');
+    const own = $('#replay-own');
+    if (!enemy || !own) return;
+    buildBoard(enemy, size);
+    buildBoard(own, size);
+    const title = $('#replay-title');
+    if (title) title.textContent = (entry.win ? 'Победа' : 'Поражение') + ' · ' + entry.name;
+    const status = $('#replay-status');
+    if (status) status.textContent = 'Готовим реплей…';
+    const modal = $('#modal-replay');
+    if (modal) {
+      modal.hidden = false;
+      requestAnimationFrame(() => modal.classList.add('is-open'));
+    }
+    if (replayTimer) clearTimeout(replayTimer);
+    let step = 0;
+    const shots = entry.replay;
+    const play = () => {
+      if (step >= shots.length) {
+        replayTimer = null;
+        if (status) status.textContent = 'Реплей завершён';
+        return;
+      }
+      const shot = shots[step];
+      replayCell(shot.side === 'own' ? own : enemy, shot);
+      step += 1;
+      if (status) status.textContent = 'Выстрел ' + step + ' из ' + shots.length;
+      replayTimer = setTimeout(play, 220);
+    };
+    replayTimer = setTimeout(play, 260);
   }
 
   /* ---------------- События ---------------- */
@@ -2896,7 +3621,13 @@
       Sfx.play('click');
       state.mode = 'bot';
       state.cupMatch = false;
+      state.quickBattle = true;
       startMatch();
+    });
+
+    $('#btn-setup').addEventListener('click', () => {
+      Sfx.play('click');
+      showScreen('setup');
     });
 
     $('#btn-online').addEventListener('click', () => {
@@ -3008,6 +3739,35 @@
       if (next) Sfx.play('click');
     });
 
+    $('#btn-setup-back').addEventListener('click', () => {
+      Sfx.play('click');
+      showScreen('menu');
+    });
+    $('#btn-setup-go').addEventListener('click', () => {
+      if (state.screen !== 'setup') return;
+      Sfx.play('click');
+      state.quickBattle = false;
+      state.cupMatch = false; // «Настроить» — обычный бой, не раунд испытания
+      startMatch();
+    });
+
+    const reactionBar = $('#battle-reactions');
+    if (reactionBar) {
+      reactionBar.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-reactions-mute')) {
+          toggleReactionMute();
+          return;
+        }
+        const btn = e.target.closest('button[data-emoji]');
+        if (!btn) return;
+        const emoji = btn.dataset.emoji;
+        if (state.mode !== 'online') return;
+        Online.emoji(emoji);
+        showReaction('you', emoji);
+        Sfx.play('click');
+      });
+    }
+
     $('#nickname').addEventListener('change', commitNickname);
     $('#nickname').addEventListener('blur', commitNickname);
     $('#nickname').addEventListener('keydown', (e) => {
@@ -3034,6 +3794,49 @@
     });
     $('#modal-achievements').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
+    });
+
+    $('#btn-fame').addEventListener('click', () => {
+      Sfx.play('click');
+      openFame();
+    });
+    $('#btn-fame-close').addEventListener('click', () => {
+      Sfx.play('click');
+      closeOverlay($('#modal-fame'));
+    });
+    $('#btn-fame-done').addEventListener('click', () => {
+      Sfx.play('click');
+      closeOverlay($('#modal-fame'));
+    });
+    $('#modal-fame').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
+    });
+    $('#fame-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-fame-tab]');
+      if (!btn) return;
+      fameTab = btn.dataset.fameTab;
+      Sfx.play('click');
+      renderFame();
+    });
+    $('#fame-heat-size').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-heat-size]');
+      if (!btn) return;
+      fameHeatSize = Number(btn.dataset.heatSize) || 10;
+      Sfx.play('click');
+      renderHeatmap();
+    });
+    $('#fame-history-list').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-replay-index]');
+      if (!btn || btn.disabled) return;
+      Sfx.play('click');
+      openReplay(Number(btn.dataset.replayIndex));
+    });
+    $('#btn-replay-close').addEventListener('click', () => {
+      Sfx.play('click');
+      closeReplay();
+    });
+    $('#modal-replay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeReplay();
     });
 
     $('#btn-cup').addEventListener('click', () => {
@@ -3155,6 +3958,32 @@
       Sfx.play('click');
     });
 
+    $('#set-skin').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-skin]');
+      if (!btn) return;
+      const value = btn.dataset.skin;
+      state.profile.skin = ['grid', 'cyber', 'navy'].indexOf(value) >= 0 ? value : 'classic';
+      applyTheme();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast('Скин поля: ' + btn.textContent.trim(), 'turn');
+    });
+
+    $('#set-water').addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-water]');
+      if (!btn) return;
+      const value = btn.dataset.water;
+      state.profile.water = ['storm', 'night', 'fog'].indexOf(value) >= 0 ? value : 'calm';
+      applyTheme();
+      syncSettings();
+      saveProfile();
+      Sfx.play('click');
+      toast('Вода: ' + btn.textContent.trim(), 'turn');
+    });
+
+    $('#set-reactions').addEventListener('click', toggleReactionMute);
+
     $('#set-music-track').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-track]');
       if (!btn) return;
@@ -3167,7 +3996,7 @@
     });
 
     $('#set-size').addEventListener('click', (e) => {
-      if (state.screen !== 'menu') return;
+      if (state.screen !== 'setup') return;
       const btn = e.target.closest('button[data-size]');
       if (!btn) return;
       const cfg = state.profile.botConfig;
@@ -3181,7 +4010,7 @@
     });
 
     $('#set-fleet').addEventListener('click', (e) => {
-      if (state.screen !== 'menu') return;
+      if (state.screen !== 'setup') return;
       const btn = e.target.closest('button[data-fleet]');
       if (!btn || btn.disabled) return;
       const cfg = state.profile.botConfig;
@@ -3196,7 +4025,7 @@
     });
 
     $('#set-tactics').addEventListener('click', (e) => {
-      if (state.screen !== 'menu') return;
+      if (state.screen !== 'setup') return;
       const btn = e.target.closest('button[data-tactics]');
       if (!btn) return;
       state.profile.botConfig.tactics = btn.dataset.tactics === 'on';
@@ -3209,7 +4038,7 @@
     });
 
     $('#set-difficulty').addEventListener('click', (e) => {
-      if (state.screen !== 'menu') return;
+      if (state.screen !== 'setup') return;
       const btn = e.target.closest('button[data-level]');
       if (!btn) return;
       state.profile.difficulty = btn.dataset.level;
@@ -3236,6 +4065,18 @@
         leaveOnline();
         resetOnlineRoom();
         showScreen('online');
+        return;
+      }
+      // После «Быстрого боя» возвращаемся в меню, из настроек — к настройкам:
+      // так можно поменять воду, поле или флот, не выходя из сценария.
+      if (state.mode === 'bot' && !state.cupMatch) {
+        if (state.quickBattle) {
+          state.quickBattle = false;
+          showScreen('menu');
+          updateMenu();
+        } else {
+          showScreen('setup');
+        }
         return;
       }
       showScreen('menu');
@@ -3437,19 +4278,20 @@
     /* --- результат --- */
     $('#btn-again').addEventListener('click', () => {
       Sfx.play('click');
-      closeOverlay($('#overlay'));
       if (state.mode === 'online') {
-        leaveOnline();
-        resetOnlineRoom();
-        showScreen('online');
+        requestRematch();
         return;
       }
+      closeOverlay($('#overlay'));
+      const wasCup = state.cupMatch;
       const next = () => {
-        if (state.cupMatch && state.cup && state.cup.finished) {
+        if (wasCup && state.cup && state.cup.finished) {
           startCup();
           return;
         }
-        state.cupMatch = !!(state.cup && !state.cup.finished);
+        // Продолжаем цепочку только если только что был её раунд;
+        // после обычного боя «Ещё бой» не должен возвращать в испытание.
+        state.cupMatch = !!(wasCup && state.cup && !state.cup.finished);
         startMatch();
       };
       showInterstitialBetweenMatches(next);
@@ -3460,6 +4302,11 @@
     if (bonusBtn) bonusBtn.addEventListener('click', watchAdBonus);
     const adBonusBtn = $('#btn-ad-bonus');
     if (adBonusBtn) adBonusBtn.addEventListener('click', watchAdBonus);
+    const shareBtn = $('#btn-share-result');
+    if (shareBtn) shareBtn.addEventListener('click', () => {
+      Sfx.play('click');
+      shareResult();
+    });
     $('#btn-menu').addEventListener('click', () => {
       Sfx.play('click');
       closeOverlay($('#overlay'));
@@ -3488,6 +4335,10 @@
         if (!modal.hidden) closeOverlay(modal);
         const ach = $('#modal-achievements');
         if (!ach.hidden) closeOverlay(ach);
+        const fame = $('#modal-fame');
+        if (fame && !fame.hidden) closeOverlay(fame);
+        const replay = $('#modal-replay');
+        if (replay && !replay.hidden) closeReplay();
       }
     });
 

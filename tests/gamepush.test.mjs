@@ -202,8 +202,8 @@ test('GamePush-сборка вырезает онлайн и оставляет 
   const build = fs.readFileSync(path.join(root, 'scripts', 'build-gamepush.mjs'), 'utf8');
   assert.match(build, /btn-online/);
   assert.match(build, /screen-online/);
-  assert.match(build, /0 \/ 11/);
-  assert.match(build, /0 \/ 10/);
+  assert.match(build, /0 \/ 14/);
+  assert.match(build, /0 \/ 13/);
   assert.match(build, /js\/gamepush\.js/);
   assert.match(build, /must\(!s\.includes\('js\/online\.js'\)/);
 });

@@ -227,6 +227,9 @@ async function main() {
       String(today.getMonth() + 1).padStart(2, '0') + '-' +
       String(today.getDate()).padStart(2, '0');
     const yesterday = new Date(Date.now() - 86400000);
+    const yesterdayKey = yesterday.getFullYear() + '-' +
+      String(yesterday.getMonth() + 1).padStart(2, '0') + '-' +
+      String(yesterday.getDate()).padStart(2, '0');
 
     await cdp.evaluate(`(() => {
       const p = {
@@ -240,6 +243,13 @@ async function main() {
           first_win: 1, win10: 1, first_blood: 1, online: 1, rank1500: 1, admiral: 1
         },
         stats: { shots: 642, hits: 389 },
+        campaign: {
+          completed: [1, 2, 3, 4, 5, 6],
+          stars: { 1: 5, 2: 4, 3: 5, 4: 3, 5: 4, 6: 5 },
+          lastId: 7,
+          captain: 'navigator',
+          daily: { date: '${yesterdayKey}', streak: 4, tokens: 6, rewardDate: '', milestones: { 3: '${yesterdayKey}' } }
+        },
         history: [
           { name: 'Адмирал Кальмар', rating: 1490, delta: 12, win: true, ts: Date.now() },
           { name: 'Штурман Компас', rating: 1442, delta: -8, win: false, ts: Date.now() - 600000 },
@@ -305,6 +315,24 @@ async function main() {
     await sleep(550);
     await cdp.shot('05-achievements.png');
     await cdp.evaluate(`document.querySelector('#btn-ach-close').click()`);
+    await sleep(450);
+
+    // кампания: карточки капитанов, миссия дня и карта актов
+    await cdp.evaluate(`document.querySelector('#btn-campaign').click()`);
+    await cdp.waitFor(`document.querySelector('#screen-campaign').classList.contains('is-active')`);
+    await sleep(900);
+    // карта сама прокручивается к текущей миссии — возвращаемся к капитанам
+    await cdp.evaluate(`(() => {
+      let el = document.querySelector('#campaign-captains');
+      while (el) {
+        if (el.scrollHeight > el.clientHeight + 4) el.scrollTop = 0;
+        el = el.parentElement;
+      }
+      window.scrollTo(0, 0);
+    })()`);
+    await sleep(400);
+    await cdp.shot('07-campaign.png');
+    await cdp.evaluate(`document.querySelector('#btn-campaign-back').click()`);
     await sleep(450);
 
     // онлайн + рейтинг

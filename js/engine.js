@@ -69,6 +69,147 @@
     } };
   }
 
+  // Кампания 1.7.0: 12 миссий, 3 акта по 4 миссии, 3 босса.
+  // Модификаторы — только идентификаторы. Поведение появится на шагах 3–4.
+  const CAMPAIGN_MODIFIERS = Object.freeze([
+    'extra-ship', 'airstrike-only', 'single-deck-fleet', 'fog',
+    'smoke', 'storm-refund', 'few-ships',
+    'boss-double-turn', 'boss-aa', 'boss-smoke', 'boss-airstrike'
+  ]);
+
+  // stars — максимум звёзд за миссию. Фазы босса идут по убыванию порога `at`.
+  const CAMPAIGN = [
+    { id: 1, act: 1, title: 'Первый выход', size: 8, fleet: 'classic',
+      bot: 'easy', mods: [], boss: null, stars: 5 },
+    { id: 2, act: 1, title: 'Лишний корабль', size: 8, fleet: 'classic',
+      bot: 'easy', mods: ['extra-ship'], boss: null, stars: 5 },
+    { id: 3, act: 1, title: 'Авиаудар', size: 10, fleet: 'classic',
+      bot: 'normal', mods: ['airstrike-only'], boss: null, stars: 5 },
+    { id: 4, act: 1, title: 'Старый Пират', size: 10, fleet: 'classic',
+      bot: 'hard', mods: ['boss-double-turn'],
+      boss: { name: 'Старый Пират', phases: [
+        { at: 100, mods: ['boss-double-turn'] },
+        { at: 50, mods: ['boss-double-turn'] }
+      ] }, stars: 5 },
+
+    { id: 5, act: 2, title: 'Москитный флот', size: 10, fleet: 'classic',
+      bot: 'normal', mods: ['single-deck-fleet'], boss: null, stars: 5 },
+    { id: 6, act: 2, title: 'Туман войны', size: 10, fleet: 'classic',
+      bot: 'normal', mods: ['fog'], boss: null, stars: 5 },
+    { id: 7, act: 2, title: 'Дымовая завеса', size: 12, fleet: 'classic',
+      bot: 'hard', mods: ['smoke'], boss: null, stars: 5 },
+    { id: 8, act: 2, title: 'Адмирал Гроза', size: 12, fleet: 'classic',
+      bot: 'hard', mods: ['boss-smoke'],
+      boss: { name: 'Адмирал Гроза', phases: [
+        { at: 100, mods: ['boss-smoke'] },
+        { at: 50, mods: ['boss-smoke', 'boss-airstrike'] }
+      ] }, stars: 5 },
+
+    { id: 9, act: 3, title: 'Штормовой отлив', size: 10, fleet: 'classic',
+      bot: 'hard', mods: ['storm-refund'], boss: null, stars: 5 },
+    { id: 10, act: 3, title: 'Три корабля', size: 10, fleet: 'classic',
+      bot: 'hard', mods: ['few-ships'], boss: null, stars: 5 },
+    { id: 11, act: 3, title: 'Ледяная армада', size: 12, fleet: 'admiral',
+      bot: 'hard', mods: [], boss: null, stars: 5 },
+    { id: 12, act: 3, title: 'Ледяной Король', size: 12, fleet: 'admiral',
+      bot: 'hard', mods: ['boss-aa', 'boss-smoke', 'boss-airstrike'],
+      boss: { name: 'Ледяной Король', phases: [
+        { at: 100, mods: ['boss-smoke'] },
+        { at: 66, mods: ['boss-airstrike'] },
+        { at: 33, mods: ['boss-double-turn'] }
+      ] }, stars: 5 }
+  ];
+
+  function campaignById(id) {
+    const n = Number(id);
+    for (const mission of CAMPAIGN) {
+      if (mission.id === n) return mission;
+    }
+    return null;
+  }
+
+  function campaignCompleted(progress, id) {
+    if (!progress) return false;
+    if (Array.isArray(progress)) {
+      return progress.some((item) => {
+        if (Number(item) === id) return true;
+        if (!item || typeof item !== 'object') return false;
+        return Number(item.id) === id &&
+          (item.completed === true || item.done === true || Number(item.stars) > 0);
+      });
+    }
+    if (typeof progress !== 'object') return false;
+
+    const direct = progress[id];
+    if (direct === true) return true;
+    if (typeof direct === 'number') return direct > 0;
+    if (direct && typeof direct === 'object') {
+      if (direct.completed === true || direct.done === true || Number(direct.stars) > 0) return true;
+    }
+
+    const completed = progress.completed;
+    if (Array.isArray(completed)) {
+      if (completed.some((v) => Number(v) === id)) return true;
+    } else if (completed && typeof completed === 'object') {
+      const v = completed[id];
+      if (v === true || Number(v) > 0) return true;
+      if (v && typeof v === 'object' &&
+        (v.completed === true || v.done === true || Number(v.stars) > 0)) return true;
+    }
+
+    const missions = progress.missions;
+    if (Array.isArray(missions)) {
+      if (missions.some((v) => Number(v) === id)) return true;
+    } else if (missions && typeof missions === 'object') {
+      const m = missions[id];
+      if (m === true || Number(m) > 0) return true;
+      if (m && typeof m === 'object' &&
+        (m.completed === true || m.done === true || Number(m.stars) > 0)) return true;
+    }
+
+    const stars = progress.stars;
+    if (stars && typeof stars === 'object' && Number(stars[id]) > 0) return true;
+    return false;
+  }
+
+  // Первая миссия открыта всегда, следующая — только после прохождения предыдущей.
+  function campaignUnlocked(progress, id) {
+    const mission = campaignById(id);
+    if (!mission) return false;
+    if (mission.id === 1) return true;
+    return campaignCompleted(progress, mission.id - 1);
+  }
+
+  // Победа без потерь — 5, победа с потерями — 3, поражение — 0.
+  // Поражение можно передать явно через won/win/victory === false или result: 'loss'.
+  function campaignStars(result) {
+    const r = result && typeof result === 'object' ? result : {};
+    let won;
+    if (typeof r.won === 'boolean') won = r.won;
+    else if (typeof r.win === 'boolean') won = r.win;
+    else if (typeof r.victory === 'boolean') won = r.victory;
+    else if (typeof r.result === 'string') won = ['win', 'won', 'victory'].indexOf(r.result.toLowerCase()) >= 0;
+
+    if (won === undefined && r.shots && typeof r.shots === 'object' && !Array.isArray(r.shots)) {
+      const s = r.shots;
+      if (typeof s.won === 'boolean') won = s.won;
+      else if (typeof s.win === 'boolean') won = s.win;
+      else if (typeof s.result === 'string') {
+        won = ['win', 'won', 'victory'].indexOf(s.result.toLowerCase()) >= 0;
+      }
+    }
+
+    if (won === undefined) won = r.lostShips !== null && r.lostShips !== undefined;
+    if (!won) return 0;
+
+    const lost = r.lostShips;
+    let count = 0;
+    if (Array.isArray(lost)) count = lost.length;
+    else if (lost && typeof lost === 'object') count = Object.keys(lost).length;
+    else count = Math.max(0, Number(lost) || 0);
+    return count === 0 ? 5 : 3;
+  }
+
   function createBoard(size) {
     const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
@@ -575,6 +716,7 @@
   global.Engine = {
     SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS, CONFIG,
     fleetsFor, fleetFor, isRatedBattle, DAILY_PRESETS, dailyChallenge,
+    CAMPAIGN, CAMPAIGN_MODIFIERS, campaignById, campaignStars, campaignUnlocked,
     createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,

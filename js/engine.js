@@ -210,6 +210,156 @@
     return count === 0 ? 5 : 3;
   }
 
+  function campaignHasMod(mission, id) {
+    return !!(mission && Array.isArray(mission.mods) && mission.mods.indexOf(id) >= 0);
+  }
+
+  // Флот игрока в миссии: модификаторы меняют состав до расстановки.
+  function campaignPlayerFleet(mission) {
+    if (!mission) return FLEET.slice();
+    const base = (fleetFor(mission.size, mission.fleet) || FLEET).slice();
+    if (campaignHasMod(mission, 'single-deck-fleet')) {
+      return base.map(() => 1);
+    }
+    if (campaignHasMod(mission, 'few-ships')) {
+      return [3, 2, 1];
+    }
+    return base;
+  }
+
+  // Флот бота: extra-ship добавляет самый маленький корабль.
+  function campaignBotFleet(mission) {
+    if (!mission) return FLEET.slice();
+    const base = (fleetFor(mission.size, mission.fleet) || FLEET).slice();
+    if (campaignHasMod(mission, 'extra-ship')) base.push(1);
+    return base;
+  }
+
+  // Лоадаут игрока: airstrike-only оставляет только авиаудар,
+  // smoke гарантирует дым у игрока.
+  function campaignLoadout(mission, base) {
+    const source = Array.isArray(base) ? base.filter((id) => ABILITIES[id]) : [];
+    if (campaignHasMod(mission, 'airstrike-only')) return ['airstrike'];
+    const out = source.slice(0, 2);
+    if (campaignHasMod(mission, 'smoke') && out.indexOf('smoke') < 0) {
+      if (out.length >= 2) out[1] = 'smoke';
+      else out.push('smoke');
+    }
+    return out;
+  }
+
+  // Способности бота: обычный дым плюс способности текущей фазы босса.
+  function campaignBotLoadout(mission, phase) {
+    if (!mission) return [];
+    const out = [];
+    const add = (id) => {
+      if (ABILITIES[id] && out.indexOf(id) < 0) out.push(id);
+    };
+    if (campaignHasMod(mission, 'smoke')) add('smoke');
+    for (const id of campaignBossMods(mission, phase || 1)) {
+      if (id === 'boss-smoke') add('smoke');
+      if (id === 'boss-airstrike') add('airstrike');
+      if (id === 'boss-aa') add('aa');
+    }
+    return out;
+  }
+
+  // Фаза босса по доле оставшихся кораблей: 100% → 1, ниже порога → 2/3.
+  function campaignBossPhase(mission, shipsLeft, totalShips) {
+    const boss = mission && mission.boss;
+    if (!boss || !Array.isArray(boss.phases) || !boss.phases.length) return 1;
+    const total = Math.max(1, Number(totalShips) || 0);
+    const left = Math.max(0, Math.min(total, Number(shipsLeft) || 0));
+    const pct = left / total * 100;
+    const phases = boss.phases.slice().sort((a, b) => Number(b.at) - Number(a.at));
+    let phase = 1;
+    for (let i = 1; i < phases.length; i++) {
+      if (pct <= Number(phases[i].at)) phase = i + 1;
+    }
+    return Math.max(1, Math.min(3, phase));
+  }
+
+  // Модификаторы босса накапливаются: способности прошлых фаз не исчезают.
+  // ПВО действует с первой фазы, остальные boss-* открываются по фазам.
+  function campaignBossMods(mission, phase) {
+    const boss = mission && mission.boss;
+    if (!boss || !Array.isArray(boss.phases)) return [];
+    const upto = Math.max(1, Math.min(3, Number(phase) || 1));
+    const out = [];
+    const add = (id) => {
+      if (typeof id === 'string' && id.indexOf('boss-') === 0 && out.indexOf(id) < 0) out.push(id);
+    };
+    if (campaignHasMod(mission, 'boss-aa')) add('boss-aa');
+    boss.phases.slice(0, upto).forEach((p) => {
+      (p.mods || []).forEach(add);
+    });
+    return out;
+  }
+
+  function campaignHasBossMod(mission, id, phase) {
+    return campaignBossMods(mission, phase || 1).indexOf(id) >= 0;
+  }
+
+  // Туман: несколько случайных клеток врага скрыты до первого выстрела.
+  function campaignFogCells(board, count) {
+    const n = (board && board.size) || SIZE;
+    const cells = [];
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) cells.push({ x: x, y: y });
+    }
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = cells[i];
+      cells[i] = cells[j];
+      cells[j] = tmp;
+    }
+    return cells.slice(0, Math.max(0, Math.min(cells.length, Number(count) || 5)));
+  }
+
+  // Каждый пятый промах в «Штормовом отливе» не передаёт ход.
+  function campaignStormRefund(mission, missCount) {
+    return campaignHasMod(mission, 'storm-refund') &&
+      Number(missCount) > 0 && Number(missCount) % 5 === 0;
+  }
+
+  function campaignNextId(id) {
+    const mission = campaignById(id);
+    if (!mission) return 0;
+    return campaignById(mission.id + 1) ? mission.id + 1 : 0;
+  }
+
+  // Чистый расчёт прогресса: звёзды только растут, победа закрывает миссию.
+  function campaignRecord(progress, id, result) {
+    const src = progress && typeof progress === 'object' ? progress : {};
+    const mission = campaignById(id);
+    if (!mission) return src;
+    const stars = campaignStars(result);
+    const completed = [];
+    if (Array.isArray(src.completed)) {
+      src.completed.forEach((value) => {
+        const n = Math.round(Number(value && typeof value === 'object' ? value.id : value));
+        if (n >= 1 && completed.indexOf(n) < 0) completed.push(n);
+      });
+    }
+    const starMap = {};
+    if (src.stars && typeof src.stars === 'object' && !Array.isArray(src.stars)) {
+      Object.keys(src.stars).forEach((key) => {
+        const n = Math.round(Number(key));
+        const v = Math.max(0, Math.min(5, Number(src.stars[key]) || 0));
+        if (n >= 1 && v > 0) {
+          starMap[n] = v;
+          if (completed.indexOf(n) < 0) completed.push(n);
+        }
+      });
+    }
+    if (stars > 0) {
+      if (completed.indexOf(mission.id) < 0) completed.push(mission.id);
+      starMap[mission.id] = Math.max(starMap[mission.id] || 0, stars);
+    }
+    completed.sort((a, b) => a - b);
+    return { completed: completed, stars: starMap, lastId: mission.id };
+  }
+
   function createBoard(size) {
     const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
@@ -717,6 +867,9 @@
     SIZE, FLEET, FLEETS, SHIP_LABEL, RANKS, CONFIG,
     fleetsFor, fleetFor, isRatedBattle, DAILY_PRESETS, dailyChallenge,
     CAMPAIGN, CAMPAIGN_MODIFIERS, campaignById, campaignStars, campaignUnlocked,
+    campaignHasMod, campaignPlayerFleet, campaignBotFleet, campaignLoadout,
+    campaignBotLoadout, campaignBossPhase, campaignBossMods, campaignHasBossMod,
+    campaignFogCells, campaignStormRefund, campaignNextId, campaignRecord,
     createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,

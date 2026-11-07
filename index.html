@@ -476,6 +476,16 @@
           </div>
         </div>
 
+        <div class="campaign-phase" id="campaign-phase" hidden>
+          <span class="campaign-phase-name" id="campaign-phase-name">Босс</span>
+          <div class="campaign-phase-track" aria-hidden="true">
+            <span data-phase="1"></span>
+            <span data-phase="2"></span>
+            <span data-phase="3"></span>
+          </div>
+          <b id="campaign-phase-label">Фаза 1</b>
+        </div>
+
         <p class="battle-hint" id="battle-hint" hidden>
           <span aria-hidden="true">🎯</span> Тапни по полю противника. Попал — стреляешь снова.
         </p>
@@ -533,6 +543,11 @@
         <p class="result-sub" id="result-sub">Флот противника на дне</p>
         <p class="result-opp" id="result-opp"></p>
 
+        <div class="campaign-result" id="campaign-result" hidden>
+          <div class="campaign-result-stars" id="campaign-result-stars" aria-hidden="true"></div>
+          <p class="campaign-result-label" id="campaign-result-label"></p>
+        </div>
+
         <div class="elo-row">
           <div class="elo-cell">
             <span class="elo-cap">было</span>
@@ -562,6 +577,12 @@
           <button class="btn btn-primary" id="btn-again" type="button">⚔️ Ещё бой</button>
           <button class="btn btn-ghost" id="btn-menu" type="button">В меню</button>
           <button class="btn btn-ghost btn-share-result" id="btn-share-result" type="button">📤 Поделиться</button>
+        </div>
+
+        <div class="overlay-actions campaign-result-actions" id="campaign-result-actions" hidden>
+          <button class="btn btn-primary" id="btn-campaign-next" type="button">Дальше</button>
+          <button class="btn btn-ghost" id="btn-campaign-retry" type="button">Повторить</button>
+          <button class="btn btn-ghost" id="btn-campaign-map" type="button">К карте</button>
         </div>
       </div>
     </div>

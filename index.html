@@ -144,6 +144,9 @@
                 <span class="mini-text"><b>Достижения</b><small id="ach-count">0 / 14</small></span>
               </button>
             </div>
+
+            <!-- rustore-shop-button -->
+            <button class="mini-card shop-entry" id="btn-shop" type="button"><span class="mini-icon">🛒</span><span class="mini-text"><b>Магазин</b><small>Поддержка проекта и косметика</small></span></button>
           </div>
 
           <aside class="menu-side">
@@ -555,6 +558,60 @@
         <button class="btn btn-primary" id="btn-ach-close" type="button">Готово</button>
       </div>
     </div>
+
+    <!-- rustore-shop-start -->
+    <!-- ================= МАГАЗИН ================= -->
+    <div class="overlay" id="modal-shop" hidden role="dialog" aria-modal="true" aria-label="Магазин">
+      <div class="overlay-card shop-card">
+        <div class="shop-head">
+          <div>
+            <h2 class="rules-title">🛒 Магазин</h2>
+            <p class="shop-subtitle">Покупки через RuStore · без подписок</p>
+          </div>
+          <button class="fame-close" id="btn-shop-close" type="button" aria-label="Закрыть магазин">✕</button>
+        </div>
+
+        <p class="shop-note" id="shop-note">Покупки доступны только в RuStore</p>
+
+        <section class="shop-section" aria-labelledby="shop-ads-title">
+          <h3 class="shop-section-title" id="shop-ads-title">Убрать рекламу</h3>
+          <div class="shop-item">
+            <div class="shop-item-text">
+              <b>Без принудительной рекламы</b>
+              <small>Полноэкранная реклама между боями больше не появится. Rewarded-бонус остаётся по желанию.</small>
+            </div>
+            <button class="btn btn-primary shop-buy" id="shop-buy-remove-ads" data-product="remove_ads" type="button" disabled>149 ₽</button>
+          </div>
+          <p class="shop-status" id="shop-remove-status" hidden>✅ Реклама отключена</p>
+        </section>
+
+        <section class="shop-section" aria-labelledby="shop-support-title">
+          <h3 class="shop-section-title" id="shop-support-title">Поддержать проект</h3>
+          <div class="shop-item">
+            <div class="shop-item-text">
+              <b>Спасибо капитану</b>
+              <small>Добровольная поддержка разработки. Без бонусов, ELO и игровых преимуществ.</small>
+            </div>
+            <button class="btn btn-ghost shop-buy" id="shop-buy-support" data-product="support_99" type="button" disabled>99 ₽</button>
+          </div>
+          <p class="shop-status" id="shop-support-status" hidden>💙 Спасибо за поддержку!</p>
+        </section>
+
+        <section class="shop-section" aria-labelledby="shop-soon-title">
+          <h3 class="shop-section-title" id="shop-soon-title">Скоро</h3>
+          <div class="shop-soon-grid">
+            <div class="shop-soon"><span class="shop-lock" aria-hidden="true">🔒</span><b>Набор «Море»</b><small>Косметика · в разработке</small></div>
+            <div class="shop-soon"><span class="shop-lock" aria-hidden="true">🔒</span><b>Корпус «Легенда»</b><small>Скин кораблей · в разработке</small></div>
+            <div class="shop-soon"><span class="shop-lock" aria-hidden="true">🔒</span><b>Вода «Бирюза»</b><small>Оформление · в разработке</small></div>
+          </div>
+          <p class="shop-hint">Косметика не влияет на бой. Текущие скины и вода остаются бесплатными.</p>
+        </section>
+
+        <button class="btn btn-primary" id="btn-shop-done" type="button">Готово</button>
+        <p class="shop-footnote">ELO, способности и преимущества не продаются. Pay-to-win нет.</p>
+      </div>
+    </div>
+    <!-- rustore-shop-end -->
 
     <!-- ================= ЗАЛ СЛАВЫ ================= -->
     <div class="overlay" id="modal-fame" hidden role="dialog" aria-modal="true" aria-label="Зал славы">

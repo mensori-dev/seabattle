@@ -1,0 +1,3 @@
+# Linux-файлы должны попадать на сервер с LF, иначе bash и systemd ругаются.
+deploy/* text eol=lf
+server/* text eol=lf

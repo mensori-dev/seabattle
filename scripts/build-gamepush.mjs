@@ -129,6 +129,9 @@ function buildHtml(creds) {
   s = s.replace(onlineScript,
     '  <script src="js/gamepush.js"></script>\n' + sdk);
 
+  // RuStore-платежи в VK/OK не нужны: не тащим мёртвый скрипт.
+  s = s.replace('  <script src="js/rustore.js"></script>\n', '');
+
   must(s.includes('js/gamepush.js'), 'не подключил js/gamepush.js');
   must(!s.includes('js/online.js'), 'остался онлайн-клиент');
   must(!s.includes('rel="manifest"'), 'остался manifest');

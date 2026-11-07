@@ -161,6 +161,21 @@ var PROD_URL = 'wss://mensori-seabattle.mensori-dev.deno.net/ws';
 После деплоя токен можно отозвать: **Account settings → Personal access
 tokens → Delete**. Токен даёт доступ ко всему аккаунту Deno Deploy.
 
+## Свой VPS в России (рекомендуется)
+
+Deno Deploy удобен, но это США: для РКН это трансграничная передача.
+Свой сервер в РФ снимает вопрос и ускоряет комнаты.
+
+Полная инструкция — `deploy/README.md`, установка одной командой:
+
+```bash
+sudo bash deploy/setup.sh <домен>
+```
+
+Скрипт поднимает Deno, systemd-юнит `seabattle`, nginx с `/ws` и
+`/api/leaderboard`, TLS от Let's Encrypt. После установки меняется только
+`PROD_URL` в `js/online.js`.
+
 ## Что важно помнить
 
 - Сервер не хранит персональные данные: ники, флоты и выстрелы живут в памяти

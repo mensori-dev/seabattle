@@ -360,6 +360,62 @@
     return { completed: completed, stars: starMap, lastId: mission.id };
   }
 
+  // Ежедневная миссия: детерминированный выбор из пройденных миссий.
+  function campaignDayValue(dayKey) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dayKey || ''));
+    if (!m) return NaN;
+    return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+
+  function campaignDailySeed(dayKey) {
+    let hash = 2166136261;
+    const text = String(dayKey || '');
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function campaignDaily(dayKey, progress) {
+    const done = CAMPAIGN.filter((m) => campaignCompleted(progress, m.id)).map((m) => m.id);
+    const pool = done.length ? done : CAMPAIGN.map((m) => m.id);
+    const seed = campaignDailySeed(dayKey);
+    const mission = campaignById(pool[seed % pool.length]);
+    return { id: mission.id, mods: mission.mods.slice(), seed: seed };
+  }
+
+  function campaignDailyProgress(profile) {
+    if (!profile || typeof profile !== 'object') return null;
+    if (profile.campaign && profile.campaign.daily &&
+      typeof profile.campaign.daily === 'object') return profile.campaign.daily;
+    if (profile.campaignDaily && typeof profile.campaignDaily === 'object') {
+      return profile.campaignDaily;
+    }
+    if (profile.daily && profile.daily.campaign &&
+      typeof profile.daily.campaign === 'object') return profile.daily.campaign;
+    return null;
+  }
+
+  function campaignDailyReward(dayKey, profile) {
+    const daily = campaignDailyProgress(profile);
+    if (daily && String(daily.rewardDate || '') === String(dayKey || '')) return 0;
+    return 30;
+  }
+
+  function campaignDailyStreak(profile, dayKey) {
+    const daily = campaignDailyProgress(profile);
+    if (!daily) return 0;
+    const streak = Math.max(0, Math.floor(Number(daily.streak) || 0));
+    if (!streak) return 0;
+    const today = campaignDayValue(dayKey);
+    const last = campaignDayValue(daily.date);
+    if (!isFinite(today) || !isFinite(last)) return 0;
+    const days = Math.round((today - last) / 86400000);
+    if (days === 0 || days === 1) return streak;
+    return 0;
+  }
+
   function createBoard(size) {
     const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
@@ -870,6 +926,7 @@
     campaignHasMod, campaignPlayerFleet, campaignBotFleet, campaignLoadout,
     campaignBotLoadout, campaignBossPhase, campaignBossMods, campaignHasBossMod,
     campaignFogCells, campaignStormRefund, campaignNextId, campaignRecord,
+    campaignDaily, campaignDailyReward, campaignDailyStreak,
     createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,

@@ -18,6 +18,7 @@ const CORE = [
   './js/app.js',
   './manifest.webmanifest',
   './privacy.html',
+  './terms.html',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/icon-maskable-512.png',

@@ -222,7 +222,30 @@
           </div>
           <div class="campaign-stars-total" id="campaign-stars" aria-label="Собрано звёзд">⭐ 0 / 60</div>
         </div>
-        <div class="campaign-daily" id="campaign-daily">
+        <div class="campaign-captains" id="campaign-captains" aria-label="Капитаны кампании">
+        <div class="campaign-captains-head">
+          <b>Капитан</b>
+          <span class="muted">Пассивка действует только в кампании</span>
+        </div>
+        <div class="campaign-captains-grid" id="campaign-captains-grid">
+          <button class="campaign-captain" type="button" data-captain="bosun">
+            <span class="campaign-captain-name">Боцман</span>
+            <span class="campaign-captain-passive">+1 выстрел при первом попадании</span>
+            <span class="campaign-captain-lock">Откроется в акте I</span>
+          </button>
+          <button class="campaign-captain" type="button" data-captain="navigator">
+            <span class="campaign-captain-name">Штурман</span>
+            <span class="campaign-captain-passive">Видна одна клетка корабля соперника</span>
+            <span class="campaign-captain-lock">Откроется в акте II</span>
+          </button>
+          <button class="campaign-captain" type="button" data-captain="mechanic">
+            <span class="campaign-captain-name">Механик</span>
+            <span class="campaign-captain-passive">Дым соперника на 1 ход дольше</span>
+            <span class="campaign-captain-lock">Откроется в акте III</span>
+          </button>
+        </div>
+      </div>
+      <div class="campaign-daily" id="campaign-daily">
           <div class="campaign-daily-head">
             <span class="campaign-daily-badge">🎯 Миссия дня</span>
             <span class="campaign-daily-token" id="campaign-daily-token">🎫 0</span>

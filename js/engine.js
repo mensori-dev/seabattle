@@ -416,6 +416,79 @@
     return 0;
   }
 
+  // Капитаны кампании: пассивки работают только в одиночных миссиях.
+  const CAPTAINS = Object.freeze([
+    Object.freeze({
+      id: 'bosun', name: 'Боцман', act: 1, unlock: 'act1',
+      desc: 'Первый выстрел по кораблю даёт ещё один выстрел',
+      passive: 'first-hit-extra'
+    }),
+    Object.freeze({
+      id: 'navigator', name: 'Штурман', act: 2, unlock: 'act2',
+      desc: 'В начале боя видна одна клетка корабля соперника',
+      passive: 'reveal-one'
+    }),
+    Object.freeze({
+      id: 'mechanic', name: 'Механик', act: 3, unlock: 'act3',
+      desc: 'Дым соперника держится на 1 ход дольше',
+      passive: 'smoke-longer'
+    })
+  ]);
+
+  function captainById(id) {
+    const key = String(id == null ? '' : id);
+    for (const captain of CAPTAINS) {
+      if (captain.id === key) return captain;
+    }
+    return null;
+  }
+
+  function captainsForAct(act) {
+    const n = Math.round(Number(act));
+    return CAPTAINS.filter((captain) => captain.act === n);
+  }
+
+  function captainUnlocked(progress, id) {
+    const captain = captainById(id);
+    if (!captain) return false;
+    if (captain.unlock === 'act1') return true;
+    const required = captain.unlock === 'act2' ? 4 : 8;
+    return campaignCompleted(progress, required);
+  }
+
+  function captainPassive(captain, passive) {
+    const c = typeof captain === 'string' ? captainById(captain) : captain;
+    return !!(c && c.passive === passive);
+  }
+
+  function captainFirstHitExtra(captain, firstHit, used) {
+    return !!(firstHit && !used && captainPassive(captain, 'first-hit-extra'));
+  }
+
+  function captainRevealCell(captain, board, random) {
+    if (!captainPassive(captain, 'reveal-one') || !board || !Array.isArray(board.ships)) {
+      return null;
+    }
+    const cells = [];
+    board.ships.forEach((ship) => {
+      (ship.cells || []).forEach((cell) => {
+        if (!board.shots[cell.y] || board.shots[cell.y][cell.x] == null) {
+          cells.push({ x: cell.x, y: cell.y });
+        }
+      });
+    });
+    if (!cells.length) return null;
+    const roll = typeof random === 'function' ? random() : Math.random();
+    const idx = Math.max(0, Math.min(cells.length - 1, Math.floor(roll * cells.length)));
+    return { x: cells[idx].x, y: cells[idx].y };
+  }
+
+  function captainSmokeTurns(captain, mission, base) {
+    const turns = Math.max(1, Math.round(Number(base) || 3));
+    if (!captainPassive(captain, 'smoke-longer')) return turns;
+    return campaignHasMod(mission, 'smoke') ? turns + 1 : turns;
+  }
+
   function createBoard(size) {
     const n = CONFIG.sizes.indexOf(size) >= 0 ? size : SIZE;
     return {
@@ -671,13 +744,14 @@
     return { ok: true, cells: hit };
   }
 
-  function placeSmoke(board, x, y) {
+  function placeSmoke(board, x, y, turns) {
     const cells = areaCells(board.size, abilitySide(board.size), x, y);
     if (!cells.length) return { ok: false, reason: 'bounds' };
     const free = cells.filter((c) => !board.shots[c.y][c.x]);
     if (!free.length) return { ok: false, reason: 'empty' };
-    board.smoke.push({ cells, turnsLeft: 3 });
-    return { ok: true, cells, turnsLeft: 3 };
+    const turnsLeft = Math.max(1, Math.round(Number(turns) || 3));
+    board.smoke.push({ cells, turnsLeft });
+    return { ok: true, cells, turnsLeft };
   }
 
   function smokeBlocks(board, x, y) {
@@ -927,6 +1001,8 @@
     campaignBotLoadout, campaignBossPhase, campaignBossMods, campaignHasBossMod,
     campaignFogCells, campaignStormRefund, campaignNextId, campaignRecord,
     campaignDaily, campaignDailyReward, campaignDailyStreak,
+    CAPTAINS, captainById, captainsForAct, captainUnlocked, captainPassive,
+    captainFirstHitExtra, captainRevealCell, captainSmokeTurns,
     createBoard, inBounds, canPlace, placeShip, removeShipAt, randomBoard,
     shipAt, canPlaceCells, rotateShip,
     fire, allSunk, shipsLeft, totalShips,

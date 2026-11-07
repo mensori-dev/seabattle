@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v43';
+  const SW_VERSION = 'sb-v44';
 
   const state = {
     profile: null,
@@ -62,7 +62,8 @@
     cup: null,             // «Испытание дня»: { round, wins }
     cupMatch: false,       // текущий бой идёт в зачёт испытания
     quickBattle: false,    // расстановка открыта кнопкой «Быстрый бой»
-    campaign: null         // активная миссия кампании: { id, mission, phase, ... }
+    campaign: null,        // активная миссия кампании: { id, mission, phase, ... }
+    captain: null          // выбранный капитан кампании
   };
 
   let netShotTimer = null;
@@ -136,7 +137,7 @@
       removeAds: false,     // куплено в RuStore: принудительная реклама выключена
       supportThanks: false, // куплена добровольная поддержка support_99
       campaign: {
-        completed: [], stars: {}, lastId: 1,
+        completed: [], stars: {}, lastId: 1, captain: '',
         daily: { date: '', streak: 0, tokens: 0, rewardDate: '', milestones: {} }
       } // прогресс кампании 1.7.0
     };
@@ -209,6 +210,7 @@
       completed: completed,
       stars: stars,
       lastId: toInt(src.lastId, 1, maxId, 1),
+      captain: src.captain && Engine.captainById(src.captain) ? src.captain : '',
       daily: normalizeCampaignDaily(src.daily)
     };
   }
@@ -1172,7 +1174,11 @@
       loadout: Engine.campaignLoadout(mission, state.loadout),
       botLoadout: Engine.campaignBotLoadout(mission, 1),
       botLevel: mission.bot,
-      fog: null
+      fog: null,
+      captain: state.captain || '',
+      captainFirstHit: false,
+      captainBonusShot: false,
+      reveal: null
     };
     if (!daily) state.profile.campaign.lastId = mission.id;
     saveProfile();
@@ -1954,7 +1960,10 @@
   function useSmoke(x, y) {
     if (!state.playerBoard || !state.abilities || state.abilities.smoke <= 0) return;
     if (!state.playerTurn || state.locked || state.gameOver) return;
-    const res = Engine.placeSmoke(state.playerBoard, x, y);
+    const captain = state.campaign && state.mode === 'bot'
+      ? Engine.captainById(state.campaign.captain || state.captain) : null;
+    const smokeTurns = Engine.captainSmokeTurns(captain, state.campaign && state.campaign.mission, 3);
+    const res = Engine.placeSmoke(state.playerBoard, x, y, smokeTurns);
     if (!res.ok) {
       toast('Здесь нельзя поставить дым', 'miss');
       return;
@@ -1963,7 +1972,7 @@
     state.pendingAbility = null;
     renderAbilityBar();
     paintSmoke(boards.own, state.playerBoard);
-    toast('💨 Дым на 3 хода соперника', 'turn');
+    toast('💨 Дым на ' + res.turnsLeft + ' хода соперника', 'turn');
     Sfx.play('click');
     endPlayerTurn();
     botTurn(state.matchSeq);
@@ -2024,6 +2033,15 @@
         ? Engine.campaignFogCells(state.enemyBoard, 5)
         : [];
       campaign.fog = fog.length ? new Set(fog.map((p) => p.x + ',' + p.y)) : null;
+      campaign.reveal = null;
+      const captain = activeCaptain();
+      if (Engine.captainPassive(captain, 'reveal-one')) {
+        const cell = Engine.captainRevealCell(captain, state.enemyBoard);
+        if (cell) {
+          campaign.reveal = cell;
+          if (campaign.fog) campaign.fog.delete(cell.x + ',' + cell.y);
+        }
+      }
     }
     state.matchStartedAt = Date.now();
     state.matchLog = [];
@@ -2033,6 +2051,7 @@
     paintBoard(boards.enemy, state.enemyBoard, false);
     paintBoard(boards.own, state.playerBoard, true);
     paintCampaignFog();
+    paintCaptainReveal();
     paintSmoke(boards.enemy, state.enemyBoard);
     paintSmoke(boards.own, state.playerBoard);
     clearAim();
@@ -2881,10 +2900,29 @@
 
     updateCampaignPhase();
 
+    // Боцман: первое попадание по кораблю даёт бонусный выстрел.
+    const captain = activeCaptain();
+    if (captain && shot.result !== 'miss' && state.campaign &&
+        Engine.captainFirstHitExtra(captain, true, state.campaign.captainFirstHit)) {
+      state.campaign.captainFirstHit = true;
+      state.campaign.captainBonusShot = true;
+      toast('🎖️ Боцман: +1 выстрел за первое попадание', 'hit');
+    }
+
     // Штормовой отлив: каждый пятый промах не отдаёт ход боту.
     if (shot.result === 'miss' && state.campaign &&
         Engine.campaignStormRefund(state.campaign.mission, state.matchStats.misses)) {
       toast('🌊 Шторм уносит волну — ход сохранён', 'turn');
+      state.locked = false;
+      state.playerTurn = true;
+      setTurn(true);
+      return;
+    }
+
+    // Боцман: бонусный выстрел сгорает на промахе, но ход остаётся.
+    if (shot.result === 'miss' && state.campaign && state.campaign.captainBonusShot) {
+      state.campaign.captainBonusShot = false;
+      toast('🎖️ Боцман: дополнительный выстрел', 'turn');
       state.locked = false;
       state.playerTurn = true;
       setTurn(true);
@@ -3113,6 +3151,7 @@
           shots: ms.shots
         });
         recorded.daily = state.profile.campaign.daily;
+        recorded.captain = state.profile.campaign.captain;
         state.profile.campaign = normalizeCampaign(recorded);
         nextId = Engine.campaignNextId(c.id);
         if (c.daily) daily = claimCampaignDaily();
@@ -3127,7 +3166,8 @@
           won: !!playerWon,
           stars: stars,
           nextId: nextId,
-          daily: daily
+          daily: daily,
+          captain: c.captain || state.captain || ''
         }
       });
       return;
@@ -3431,6 +3471,10 @@
             }
           } else {
             label.textContent = 'Звёзды не начислены — попробуй ещё раз';
+          }
+          if (campaign.captain) {
+            const cap = Engine.captainById(campaign.captain);
+            if (cap) label.textContent += ' · Капитан: ' + cap.name + ' · ' + cap.desc;
           }
         }
       }
@@ -3868,10 +3912,23 @@
   }
 
   function clearCampaignFog(x, y) {
-    if (!state.campaign || !state.campaign.fog) return;
-    state.campaign.fog.delete(x + ',' + y);
+    const c = state.campaign;
+    if (!c) return;
+    if (c.fog) c.fog.delete(x + ',' + y);
     const cell = boards.enemy && boards.enemy.children[y * state.size + x];
-    if (cell) cell.classList.remove('is-fog');
+    if (cell) {
+      cell.classList.remove('is-fog');
+      cell.classList.remove('is-captain-reveal');
+    }
+    if (c.reveal && c.reveal.x === x && c.reveal.y === y) c.reveal = null;
+  }
+
+  function paintCaptainReveal() {
+    const c = state.campaign;
+    if (!c || !c.reveal || !boards.enemy) return;
+    const n = state.enemyBoard ? state.enemyBoard.size : state.size;
+    const cell = boards.enemy.children[c.reveal.y * n + c.reveal.x];
+    if (cell) cell.classList.add('is-captain-reveal');
   }
 
   function updateCampaignPhase() {
@@ -3944,6 +4001,57 @@
       .map((id) => CAMPAIGN_MOD_LABELS[id])
       .filter(Boolean);
     return list.length ? list.join(' · ') : 'без модификаторов';
+  }
+
+  function activeCaptain() {
+    if (!state.campaign || state.mode !== 'bot') return null;
+    return Engine.captainById(state.campaign.captain || state.captain);
+  }
+
+  function renderCaptains() {
+    const box = $('#campaign-captains');
+    if (!box) return;
+    const progress = state.profile.campaign || {};
+    const saved = progress.captain || state.captain || 'bosun';
+    const cards = box.querySelectorAll('[data-captain]');
+    cards.forEach((card) => {
+      const captain = Engine.captainById(card.dataset.captain);
+      if (!captain) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      const unlocked = Engine.captainUnlocked(progress, captain.id);
+      const selected = unlocked && captain.id === saved;
+      const actLabel = ['I', 'II', 'III'][captain.act - 1] || String(captain.act);
+      card.disabled = !unlocked;
+      card.classList.toggle('is-locked', !unlocked);
+      card.classList.toggle('is-selected', selected);
+      card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      card.setAttribute('aria-label', captain.name + ': ' + captain.desc +
+        (unlocked ? (selected ? ' — выбран' : '') : ' — откроется в акте ' + actLabel));
+      const name = card.querySelector('.campaign-captain-name');
+      if (name) name.textContent = captain.name;
+      const passive = card.querySelector('.campaign-captain-passive');
+      if (passive) passive.textContent = captain.desc;
+      const lock = card.querySelector('.campaign-captain-lock');
+      if (lock) lock.textContent = 'Откроется в акте ' + actLabel;
+    });
+  }
+
+  function selectCaptain(id) {
+    const captain = Engine.captainById(id);
+    if (!captain) return false;
+    if (!Engine.captainUnlocked(state.profile.campaign || {}, captain.id)) {
+      toast(captain.name + ': откроется позже', 'turn');
+      return false;
+    }
+    state.captain = captain.id;
+    state.profile.campaign.captain = captain.id;
+    saveProfile();
+    renderCaptains();
+    toast('🎖️ Капитан: ' + captain.name, 'turn');
+    return true;
   }
 
   function currentCampaignDaily() {
@@ -4050,6 +4158,7 @@
       totalStars.setAttribute('aria-label',
         'Собрано звёзд: ' + campaignStarTotal() + ' из ' + maxStars);
     }
+    renderCaptains();
     renderCampaignDaily();
     if (!map) return;
 
@@ -4600,6 +4709,15 @@
     if (campaignDailyBtn) campaignDailyBtn.addEventListener('click', () => {
       Sfx.play('click');
       startCampaignDaily();
+    });
+    const campaignCaptains = $('#campaign-captains');
+    if (campaignCaptains) campaignCaptains.addEventListener('click', (e) => {
+      const card = e.target.closest('button[data-captain]');
+      if (!card || card.disabled) return;
+      const captain = Engine.captainById(card.dataset.captain);
+      if (!captain) return;
+      Sfx.play('click');
+      selectCaptain(captain.id);
     });
 
     $('#btn-cup').addEventListener('click', () => {
@@ -5247,6 +5365,7 @@
   }
 
   state.profile = loadProfile();
+  state.captain = state.profile.campaign.captain || 'bosun';
   state.loadout = normalizeLoadout(state.profile.loadout);
   state.cup = state.profile.cup || null;
   applyNativeInsets();

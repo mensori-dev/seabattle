@@ -207,7 +207,7 @@ test('полоса фаз босса и туман есть в разметке 
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[\s\S]*?\.campaign-result-star/);
 });
 
-test('PWA-кэш поднят до sb-v43', () => {
-  assert.match(read('sw.js'), /const VERSION = 'sb-v43'/);
-  assert.match(app, /const SW_VERSION = 'sb-v43'/);
+test('PWA-кэш поднят до sb-v44', () => {
+  assert.match(read('sw.js'), /const VERSION = 'sb-v44'/);
+  assert.match(app, /const SW_VERSION = 'sb-v44'/);
 });

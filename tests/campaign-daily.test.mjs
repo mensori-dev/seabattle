@@ -118,9 +118,9 @@ test('обычная кампания остаётся без рейтинга',
   assert.doesNotMatch(app, /state\.profile\.campaign[\s\S]{0,80}p\.rating \+=/);
 });
 
-test('PWA-кэш поднят до sb-v43, карточка адаптивна', () => {
-  assert.match(read('sw.js'), /const VERSION = 'sb-v43'/);
-  assert.match(app, /const SW_VERSION = 'sb-v43'/);
+test('PWA-кэш поднят до sb-v44, карточка адаптивна', () => {
+  assert.match(read('sw.js'), /const VERSION = 'sb-v44'/);
+  assert.match(app, /const SW_VERSION = 'sb-v44'/);
   assert.match(css, /\.campaign-daily\{/);
   assert.match(css, /\.campaign-daily-btn\{[^}]*min-height:40px/);
   assert.match(css, /@media \(max-width:560px\)\{[\s\S]*?\.campaign-daily-btn\{width:100%;margin-left:0\}/);

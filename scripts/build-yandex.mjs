@@ -93,8 +93,15 @@ function buildHtml() {
   s = s.replace(onlineScript,
     '  <!-- Yandex Games SDK -->\n  <script src="/sdk.js"></script>\n  <script src="js/yandex.js"></script>');
 
-  // RuStore-платежи в Яндекс Играх не нужны: не тащим мёртвый скрипт.
-  s = s.replace('  <script src="js/rustore.js"></script>\n', '');
+  // RuStore-платежи в Яндекс Играх не нужны: не тащим мёртвый скрипт и кнопки.
+  // Перевод строки в рабочем файле — CRLF, поэтому режем регуляркой, а не "\n",
+  // и обязательно проверяем результат: иначе вырезание провалится молча.
+  s = s.replace(/[ \t]*<script src="js\/rustore\.js"><\/script>\r?\n/, '');
+  must(!s.includes('js/rustore.js'), 'остался скрипт RuStore');
+  for (const id of ['btn-remove-ads', 'btn-support']) {
+    s = s.replace(new RegExp('[ \\t]*<button[^>]*id="' + id + '"[^>]*>[^\\n]*</button>\\r?\\n'), '');
+    must(!s.includes('id="' + id + '"'), 'осталась кнопка RuStore: ' + id);
+  }
 
   must(s.includes('/sdk.js'), 'не подключил SDK Яндекс Игр');
   must(s.includes('js/yandex.js'), 'не подключил js/yandex.js');

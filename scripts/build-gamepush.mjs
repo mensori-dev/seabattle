@@ -129,8 +129,15 @@ function buildHtml(creds) {
   s = s.replace(onlineScript,
     '  <script src="js/gamepush.js"></script>\n' + sdk);
 
-  // RuStore-платежи в VK/OK не нужны: не тащим мёртвый скрипт.
-  s = s.replace('  <script src="js/rustore.js"></script>\n', '');
+  // RuStore-платежи в VK/OK не нужны: не тащим мёртвый скрипт и кнопки.
+  // Перевод строки в рабочем файле — CRLF, поэтому режем регуляркой, а не "\n",
+  // и обязательно проверяем результат: иначе вырезание провалится молча.
+  s = s.replace(/[ \t]*<script src="js\/rustore\.js"><\/script>\r?\n/, '');
+  must(!s.includes('js/rustore.js'), 'остался скрипт RuStore');
+  for (const id of ['btn-remove-ads', 'btn-support']) {
+    s = s.replace(new RegExp('[ \\t]*<button[^>]*id="' + id + '"[^>]*>[^\\n]*</button>\\r?\\n'), '');
+    must(!s.includes('id="' + id + '"'), 'осталась кнопка RuStore: ' + id);
+  }
 
   must(s.includes('js/gamepush.js'), 'не подключил js/gamepush.js');
   must(!s.includes('js/online.js'), 'остался онлайн-клиент');

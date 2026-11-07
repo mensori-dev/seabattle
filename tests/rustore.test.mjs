@@ -218,3 +218,13 @@ test('RuStore: политика и документ описывают рекл�
   assert.match(doc, /pay-to-win/i);
   assert.match(doc, /window\.RuStoreBridge/);
 });
+
+test('RuStore: сборки для площадок вырезают скрипт и кнопки', () => {
+  for (const file of ['scripts/build-yandex.mjs', 'scripts/build-gamepush.mjs']) {
+    const src = fs.readFileSync(path.join(root, file), 'utf8');
+    // Замена должна быть терпима к CRLF и обязана падать, если не сработала.
+    assert.match(src, /s\.replace\(\/\[ \\t\]\*<script src="js\\\/rustore\\\.js"><\\\/script>\\r\?\\n\//);
+    assert.match(src, /must\(!s\.includes\('js\/rustore\.js'\)/);
+    assert.match(src, /must\(!s\.includes\('id="' \+ id \+ '"'\)/);
+  }
+});

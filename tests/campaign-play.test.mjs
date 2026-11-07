@@ -137,7 +137,7 @@ test('прогресс кампании только растёт и не тро
 });
 
 test('запуск миссии выставляет state.campaign и стартует бой без рейтинга', () => {
-  assert.match(app, /function startCampaignMission\(id\)/);
+  assert.match(app, /function startCampaignMission\(id, daily\)/);
   assert.match(app, /Engine\.campaignUnlocked\(state\.profile\.campaign, mission\.id\)/);
   assert.match(app, /state\.campaign = \{/);
   assert.match(app, /playerFleet: Engine\.campaignPlayerFleet\(mission\)/);
@@ -207,7 +207,7 @@ test('полоса фаз босса и туман есть в разметке 
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[\s\S]*?\.campaign-result-star/);
 });
 
-test('PWA-кэш поднят до sb-v42', () => {
-  assert.match(read('sw.js'), /const VERSION = 'sb-v42'/);
-  assert.match(app, /const SW_VERSION = 'sb-v42'/);
+test('PWA-кэш поднят до sb-v43', () => {
+  assert.match(read('sw.js'), /const VERSION = 'sb-v43'/);
+  assert.match(app, /const SW_VERSION = 'sb-v43'/);
 });

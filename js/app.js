@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v42';
+  const SW_VERSION = 'sb-v43';
 
   const state = {
     profile: null,
@@ -135,7 +135,10 @@
       adBonusDate: '',      // день, когда уже брали награду за rewarded-видео
       removeAds: false,     // куплено в RuStore: принудительная реклама выключена
       supportThanks: false, // куплена добровольная поддержка support_99
-      campaign: { completed: [], stars: {}, lastId: 1 } // прогресс кампании 1.7.0
+      campaign: {
+        completed: [], stars: {}, lastId: 1,
+        daily: { date: '', streak: 0, tokens: 0, rewardDate: '', milestones: {} }
+      } // прогресс кампании 1.7.0
     };
   }
 
@@ -155,6 +158,24 @@
       if (out.length < 2 && out.indexOf(id) < 0) out.push(id);
     }
     return out.slice(0, 2);
+  }
+
+  function normalizeCampaignDaily(raw) {
+    const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const milestones = {};
+    if (src.milestones && typeof src.milestones === 'object' && !Array.isArray(src.milestones)) {
+      [3, 7, 14].forEach((days) => {
+        const value = src.milestones[days];
+        if (value) milestones[days] = String(value).slice(0, 10);
+      });
+    }
+    return {
+      date: typeof src.date === 'string' ? src.date.slice(0, 10) : '',
+      streak: toInt(src.streak, 0, 100000, 0),
+      tokens: toInt(src.tokens, 0, 1000000, 0),
+      rewardDate: typeof src.rewardDate === 'string' ? src.rewardDate.slice(0, 10) : '',
+      milestones: milestones
+    };
   }
 
   function normalizeCampaign(raw) {
@@ -187,7 +208,8 @@
     return {
       completed: completed,
       stars: stars,
-      lastId: toInt(src.lastId, 1, maxId, 1)
+      lastId: toInt(src.lastId, 1, maxId, 1),
+      daily: normalizeCampaignDaily(src.daily)
     };
   }
 
@@ -1133,10 +1155,10 @@
     Sfx.play('start');
   }
 
-  function startCampaignMission(id) {
+  function startCampaignMission(id, daily) {
     const mission = Engine.campaignById(id);
     if (!mission) return false;
-    if (!Engine.campaignUnlocked(state.profile.campaign, mission.id)) {
+    if (!daily && !Engine.campaignUnlocked(state.profile.campaign, mission.id)) {
       toast('Миссия ' + mission.id + ': закрыта', 'turn');
       return false;
     }
@@ -1144,6 +1166,7 @@
       id: mission.id,
       mission: mission,
       phase: 1,
+      daily: !!daily,
       playerFleet: Engine.campaignPlayerFleet(mission),
       botFleet: Engine.campaignBotFleet(mission),
       loadout: Engine.campaignLoadout(mission, state.loadout),
@@ -1151,7 +1174,7 @@
       botLevel: mission.bot,
       fog: null
     };
-    state.profile.campaign.lastId = mission.id;
+    if (!daily) state.profile.campaign.lastId = mission.id;
     saveProfile();
     startMatch(true);
     return true;
@@ -3082,15 +3105,17 @@
         shots: ms.shots
       });
       let nextId = 0;
+      let daily = null;
       if (playerWon) {
-        state.profile.campaign = normalizeCampaign(
-          Engine.campaignRecord(state.profile.campaign, c.id, {
-            won: true,
-            lostShips: lostShips,
-            shots: ms.shots
-          })
-        );
+        const recorded = Engine.campaignRecord(state.profile.campaign, c.id, {
+          won: true,
+          lostShips: lostShips,
+          shots: ms.shots
+        });
+        recorded.daily = state.profile.campaign.daily;
+        state.profile.campaign = normalizeCampaign(recorded);
         nextId = Engine.campaignNextId(c.id);
+        if (c.daily) daily = claimCampaignDaily();
       }
       saveProfile();
       updateMenu();
@@ -3101,7 +3126,8 @@
           mission: c.mission,
           won: !!playerWon,
           stars: stars,
-          nextId: nextId
+          nextId: nextId,
+          daily: daily
         }
       });
       return;
@@ -3391,9 +3417,21 @@
         }
         const label = $('#campaign-result-label');
         if (label) {
-          label.textContent = campaign.won
-            ? campaign.stars + ' из 5 звёзд'
-            : 'Звёзды не начислены — попробуй ещё раз';
+          if (campaign.won) {
+            label.textContent = campaign.stars + ' из 5 звёзд';
+            if (campaign.daily && campaign.daily.claimed) {
+              const d = campaign.daily;
+              label.textContent += ' · ' + (d.reward > 0
+                ? 'миссия дня: +' + d.reward + ' ELO'
+                : 'миссия дня уже получена') +
+                ' · 🎫 жетон · серия ' + d.streak + ' дн.';
+              if (d.milestones && d.milestones.length) {
+                label.textContent += ' · веха ' + d.milestones.join('/');
+              }
+            }
+          } else {
+            label.textContent = 'Звёзды не начислены — попробуй ещё раз';
+          }
         }
       }
     }
@@ -3413,7 +3451,9 @@
     const ratedBadge = $('#result-rated');
     if (ratedBadge) {
       ratedBadge.hidden = rated;
-      ratedBadge.textContent = rated ? '' : (campaign ? 'Кампания · без рейтинга' : 'Без рейтинга');
+      ratedBadge.textContent = rated ? '' : (campaign
+        ? (campaign.daily ? 'Миссия дня · +30 ELO' : 'Кампания · без рейтинга')
+        : 'Без рейтинга');
     }
 
     const againBtn = $('#btn-again');
@@ -3885,6 +3925,117 @@
       : total + ' миссий · 3 акта';
   }
 
+  const CAMPAIGN_MOD_LABELS = {
+    'extra-ship': 'у врага +1 корабль',
+    'airstrike-only': 'только авиаудар',
+    'single-deck-fleet': 'только однопалубные',
+    'fog': 'туман: 5 клеток',
+    'smoke': 'дым у обеих сторон',
+    'storm-refund': 'каждый 5-й промах бесплатный',
+    'few-ships': 'у тебя 3 корабля',
+    'boss-double-turn': 'босс ходит дважды',
+    'boss-aa': 'ПВО босса',
+    'boss-smoke': 'дым босса',
+    'boss-airstrike': 'авиаудар босса'
+  };
+
+  function campaignModsText(mods) {
+    const list = (Array.isArray(mods) ? mods : [])
+      .map((id) => CAMPAIGN_MOD_LABELS[id])
+      .filter(Boolean);
+    return list.length ? list.join(' · ') : 'без модификаторов';
+  }
+
+  function currentCampaignDaily() {
+    return Engine.campaignDaily(dayKey(), state.profile.campaign);
+  }
+
+  function campaignDailyState() {
+    const campaign = state.profile.campaign || {};
+    return campaign.daily || { date: '', streak: 0, tokens: 0, rewardDate: '', milestones: {} };
+  }
+
+  function renderCampaignDaily() {
+    const card = $('#campaign-daily');
+    if (!card) return;
+    const daily = currentCampaignDaily();
+    const mission = Engine.campaignById(daily.id);
+    if (!mission) { card.hidden = true; return; }
+    card.hidden = false;
+    const today = dayKey();
+    const saved = campaignDailyState();
+    const claimed = saved.date === today;
+    const streak = Engine.campaignDailyStreak(state.profile, today);
+    const title = $('#campaign-daily-title');
+    const mods = $('#campaign-daily-mods');
+    const reward = $('#campaign-daily-reward');
+    const streakEl = $('#campaign-daily-streak');
+    const token = $('#campaign-daily-token');
+    const btn = $('#btn-campaign-daily');
+    if (title) title.textContent = 'Миссия ' + mission.id + ' · ' + mission.title;
+    if (mods) {
+      mods.textContent = campaignModsText(daily.mods) + ' · ' +
+        mission.size + '×' + mission.size + ' · ' + (mission.boss ? 'босс' : 'бот ' + mission.bot);
+    }
+    if (reward) {
+      reward.textContent = claimed ? '✅ Награда получена' : '+30 ELO · 🎫 1 жетон';
+    }
+    if (streakEl) {
+      const marks = [3, 7, 14].filter((n) => saved.milestones && saved.milestones[n]);
+      streakEl.textContent = 'Серия: ' + streak + ' дн. · вехи ' +
+        (marks.length ? 'получены: ' + marks.join(', ') : '3 / 7 / 14');
+    }
+    if (token) token.textContent = '🎫 ' + (saved.tokens || 0);
+    card.classList.toggle('is-done', claimed);
+    if (btn) {
+      btn.disabled = claimed;
+      btn.textContent = claimed ? 'Сегодня получено' : 'Играть';
+      btn.setAttribute('aria-label', claimed
+        ? 'Миссия дня уже пройдена'
+        : 'Начать миссию дня ' + mission.id);
+    }
+  }
+
+  function startCampaignDaily() {
+    const today = dayKey();
+    if (campaignDailyState().date === today) {
+      toast('Миссия дня уже пройдена', 'turn');
+      return false;
+    }
+    const daily = currentCampaignDaily();
+    return startCampaignMission(daily.id, true);
+  }
+
+  function claimCampaignDaily() {
+    const p = state.profile;
+    if (!p.campaign) p.campaign = normalizeCampaign(null);
+    const d = p.campaign.daily || normalizeCampaignDaily(null);
+    p.campaign.daily = d;
+    const today = dayKey();
+    if (d.date === today) {
+      return { claimed: false, reward: 0, streak: d.streak || 0, tokens: d.tokens || 0, milestones: [] };
+    }
+    const reward = Engine.campaignDailyReward(today, p);
+    const yesterday = dayKey(Date.now() - 86400000);
+    const streak = d.date === yesterday ? (d.streak || 0) + 1 : 1;
+    if (reward > 0) {
+      d.rewardDate = today;
+      p.rating = Math.round(Number(p.rating) || 0) + reward;
+      p.best = Math.max(Number(p.best) || 0, p.rating);
+    }
+    d.date = today;
+    d.streak = streak;
+    d.tokens = (d.tokens || 0) + 1;
+    const milestones = [];
+    [3, 7, 14].forEach((days) => {
+      if (streak >= days && !d.milestones[days]) {
+        d.milestones[days] = today;
+        milestones.push(days);
+      }
+    });
+    return { claimed: true, reward: reward, streak: streak, tokens: d.tokens, milestones: milestones };
+  }
+
   function renderCampaign() {
     const map = $('#campaign-map');
     const progress = state.profile.campaign || { completed: [], stars: {}, lastId: 1 };
@@ -3899,6 +4050,7 @@
       totalStars.setAttribute('aria-label',
         'Собрано звёзд: ' + campaignStarTotal() + ' из ' + maxStars);
     }
+    renderCampaignDaily();
     if (!map) return;
 
     const make = (tag, cls, text) => {
@@ -4443,6 +4595,11 @@
       if (!mission) return;
       Sfx.play('click');
       startCampaignMission(id);
+    });
+    const campaignDailyBtn = $('#btn-campaign-daily');
+    if (campaignDailyBtn) campaignDailyBtn.addEventListener('click', () => {
+      Sfx.play('click');
+      startCampaignDaily();
     });
 
     $('#btn-cup').addEventListener('click', () => {

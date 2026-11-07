@@ -2194,6 +2194,42 @@ html.theme-light .battle-emoji{background:rgba(255,255,255,.95);border-color:rgb
   background:rgba(255,209,102,.12);border:1px solid rgba(255,209,102,.3);
   color:var(--gold);font-size:13px;font-weight:800;white-space:nowrap;
 }
+.campaign-daily{
+  display:flex;flex-direction:column;gap:8px;
+  width:100%;max-width:900px;margin:0 0 14px;
+  padding:clamp(12px,2.4vw,16px);
+  border-radius:20px;
+  background:linear-gradient(135deg,rgba(255,209,102,.14),rgba(120,200,255,.08)),var(--panel-a);
+  border:1px solid rgba(255,209,102,.34);
+  box-shadow:var(--shadow);
+}
+.campaign-daily.is-done{
+  border-color:rgba(120,255,180,.4);
+  background:linear-gradient(135deg,rgba(120,255,180,.12),rgba(120,200,255,.06)),var(--panel-a);
+}
+.campaign-daily-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.campaign-daily-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:999px;
+  background:rgba(255,209,102,.16);border:1px solid rgba(255,209,102,.32);
+  color:var(--gold);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+}
+.campaign-daily-token{
+  font-size:12px;font-weight:800;color:var(--gold);white-space:nowrap;
+}
+.campaign-daily-title{
+  font-size:clamp(15px,3.2vw,18px);font-weight:800;line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.campaign-daily-mods{
+  margin:0;color:var(--muted);font-size:12px;font-weight:600;line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.campaign-daily-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.campaign-daily-reward{font-size:12px;font-weight:800;color:var(--gold)}
+.campaign-daily-streak{font-size:12px;font-weight:700;color:var(--muted)}
+.campaign-daily-btn{margin-left:auto;min-height:40px;padding:8px 18px}
+.campaign-daily-btn:disabled{opacity:.55;cursor:not-allowed}
 .campaign-map{
   display:flex;flex-direction:column;gap:14px;
   width:100%;max-width:900px;
@@ -2305,6 +2341,7 @@ html.theme-light .cell.is-fog{
   .campaign-head{gap:8px}
   .campaign-stars-total{font-size:11px;padding:7px 9px}
   .campaign-mission{min-height:92px}
+  .campaign-daily-btn{width:100%;margin-left:0}
 }
 @media (max-width:380px){
   .campaign-head{grid-template-columns:auto minmax(0,1fr)}

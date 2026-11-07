@@ -53,7 +53,7 @@ test('недоступные миссии блокируются через camp
 });
 
 test('звёзды читаются из профиля и показываются как звёзды/максимум', () => {
-  assert.match(app, /campaign: \{ completed: \[\], stars: \{\}, lastId: 1 \}/);
+  assert.match(app, /campaign: \{\s*completed: \[\], stars: \{\}, lastId: 1,/);
   assert.match(app, /campaign: normalizeCampaign\(p\.campaign\)/);
   assert.match(app, /function normalizeCampaign/);
   assert.match(app, /state\.profile\.campaign/);
@@ -80,10 +80,10 @@ test('кнопка кампании ведёт к последней откры�
   assert.match(app, /prefers-reduced-motion: reduce/);
 });
 
-test('PWA-кэш поднят до sb-v42 в sw.js и app.js', () => {
-  assert.match(sw, /const VERSION = 'sb-v42'/);
-  assert.match(app, /const SW_VERSION = 'sb-v42'/);
-  assert.match(read('tests/rustore.test.mjs'), /sb-v42/);
+test('PWA-кэш поднят до sb-v43 в sw.js и app.js', () => {
+  assert.match(sw, /const VERSION = 'sb-v43'/);
+  assert.match(app, /const SW_VERSION = 'sb-v43'/);
+  assert.match(read('tests/rustore.test.mjs'), /sb-v43/);
 });
 
 test('карта адаптивна, тач-цели крупные и уважают reduced-motion', () => {
@@ -96,7 +96,7 @@ test('карта адаптивна, тач-цели крупные и уваж�
 });
 
 test('кампания запускает бой через startCampaignMission, движок на месте', () => {
-  assert.match(app, /function startCampaignMission\(id\)/);
+  assert.match(app, /function startCampaignMission\(id, daily\)/);
   assert.match(app, /startMatch\(true\)/);
   const engineStart = fs.statSync(path.join(root, 'js', 'engine.js')).mtimeMs;
   assert.ok(engineStart > 0);

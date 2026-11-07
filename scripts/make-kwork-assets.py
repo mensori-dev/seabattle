@@ -110,23 +110,27 @@ def avatar(size=512):
     return img.convert("RGB")
 
 
-def header(w=1200, h=150):
-    """Шапка профиля Kwork: превью 608×72 — соотношение ~8:1, поэтому макет
-    рисуется в координатах 1200×150 и масштабируется."""
-    k = w / 1200.0
+def header(w=1920, h=226):
+    """Шапка профиля Kwork: Kwork требует минимум 1920×226, превью 608×72 —
+    соотношение ~8.5:1. Макет рисуется в координатах 1920×226 и масштабируется."""
+    k = w / 1920.0
     img = linear_background(w, h)
     draw = ImageDraw.Draw(img, "RGBA")
 
-    waves(draw, w, h, baseline=h - 14 * k, gap=9 * k, amp=5 * k, alpha=34)
+    waves(draw, w, h, baseline=h - 12 * k, gap=9 * k, amp=5 * k, alpha=34)
 
     pad = w * 0.035
-    name_font = ImageFont.truetype(FONT_BOLD, round(54 * k))
-    sub_font = ImageFont.truetype(FONT_REG, round(24 * k))
+    name_font = ImageFont.truetype(FONT_BOLD, round(52 * k))
+    sub_font = ImageFont.truetype(FONT_REG, round(23 * k))
 
-    draw.text((pad + 2 * k, 38 * k + 2 * k), "MENSORI DEV", font=name_font,
+    # Текстовый блок по вертикали центрируем.
+    block_top, block_bottom = 46 * k, 132 * k
+    shift = (h - (block_bottom - block_top)) / 2 - block_top
+
+    draw.text((pad + 2 * k, 46 * k + shift + 2 * k), "MENSORI DEV", font=name_font,
               fill=(0, 0, 0, 70))
-    draw.text((pad, 38 * k), "MENSORI DEV", font=name_font, fill=WHITE)
-    draw.text((pad + 1 * k, 100 * k), "HTML5-игры  ·  лендинги  ·  PWA",
+    draw.text((pad, 46 * k + shift), "MENSORI DEV", font=name_font, fill=WHITE)
+    draw.text((pad + 1 * k, 106 * k + shift), "HTML5-игры  ·  лендинги  ·  PWA",
               font=sub_font, fill=TEAL)
 
     # Монограмма справа, в кружке.
@@ -146,12 +150,12 @@ SS = 3  # суперсэмплинг: рисуем крупнее и умень�
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     a = OUT / "avatar-512.png"
-    hdr = OUT / "header-1200.png"
+    hdr = OUT / "header-1920.png"
 
     big = avatar(512 * SS).resize((512, 512), Image.LANCZOS)
     big.save(a, "PNG", optimize=True)
 
-    big_h = header(1200 * SS, 150 * SS).resize((1200, 150), Image.LANCZOS)
+    big_h = header(1920 * SS, 226 * SS).resize((1920, 226), Image.LANCZOS)
     big_h.save(hdr, "PNG", optimize=True)
 
     for p in (a, hdr):

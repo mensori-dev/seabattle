@@ -23,7 +23,7 @@ test('быстрый бой стартует сразу, а «Настроить
   assert.match(app, /#btn-play'\)\.addEventListener\('click',[\s\S]{0,220}startMatch\(\)/);
   assert.match(app, /#btn-setup'\)\.addEventListener\('click',[\s\S]{0,160}showScreen\('setup'\)/);
   assert.match(app, /#btn-setup-go'\)\.addEventListener\('click',[\s\S]{0,200}state\.cupMatch = false;[\s\S]{0,80}startMatch\(\)/);
-  assert.match(app, /menu: 1, online: 1, setup: 1, place: 1, prepare: 1, battle: 1/);
+  assert.match(app, /menu: 1, campaign: 1, online: 1, setup: 1, place: 1, prepare: 1, battle: 1/);
   assert.match(html, /id="quick-sub"/);
   assert.match(html, /class="battle-hub"/);
 });

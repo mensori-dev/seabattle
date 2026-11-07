@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v40';
+  const SW_VERSION = 'sb-v41';
 
   const state = {
     profile: null,
@@ -133,7 +133,8 @@
       lastAdAt: 0,          // когда последний раз показывали рекламу
       adBonusDate: '',      // день, когда уже брали награду за rewarded-видео
       removeAds: false,     // куплено в RuStore: принудительная реклама выключена
-      supportThanks: false  // куплена добровольная поддержка support_99
+      supportThanks: false, // куплена добровольная поддержка support_99
+      campaign: { completed: [], stars: {}, lastId: 1 } // прогресс кампании 1.7.0
     };
   }
 
@@ -153,6 +154,40 @@
       if (out.length < 2 && out.indexOf(id) < 0) out.push(id);
     }
     return out.slice(0, 2);
+  }
+
+  function normalizeCampaign(raw) {
+    const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const maxId = (Engine.CAMPAIGN && Engine.CAMPAIGN.length) || 12;
+    const completed = [];
+    const addDone = (value) => {
+      const id = Math.round(Number(value));
+      if (id >= 1 && id <= maxId && completed.indexOf(id) < 0) completed.push(id);
+    };
+    if (Array.isArray(src.completed)) {
+      src.completed.forEach((item) => addDone(item && typeof item === 'object' ? item.id : item));
+    } else if (src.completed && typeof src.completed === 'object') {
+      Object.keys(src.completed).forEach((id) => {
+        if (src.completed[id]) addDone(id);
+      });
+    }
+    const stars = {};
+    if (src.stars && typeof src.stars === 'object' && !Array.isArray(src.stars)) {
+      Object.keys(src.stars).forEach((key) => {
+        const id = Math.round(Number(key));
+        const value = toInt(src.stars[key], 0, 5, 0);
+        if (id >= 1 && id <= maxId && value > 0) {
+          stars[id] = value;
+          if (completed.indexOf(id) < 0) completed.push(id);
+        }
+      });
+    }
+    completed.sort((a, b) => a - b);
+    return {
+      completed: completed,
+      stars: stars,
+      lastId: toInt(src.lastId, 1, maxId, 1)
+    };
   }
 
   function toInt(value, min, max, fallback) {
@@ -298,6 +333,7 @@
           adBonusDate: typeof p.adBonusDate === 'string' ? p.adBonusDate : '',
           removeAds: !!p.removeAds,
           supportThanks: !!p.supportThanks,
+          campaign: normalizeCampaign(p.campaign),
           history: normalizeHistory(p.history)
         });
         prof.games = Math.min(10000000, Math.max(prof.games, prof.wins + prof.losses));
@@ -758,6 +794,7 @@
     }
     syncSettings();
     updateDailyCard();
+    updateCampaignCard();
     updateSideCards();
     updateAdBonusCard();
     renderHistory();
@@ -953,11 +990,12 @@
   }
 
   function showScreen(name) {
-    Object.keys({ menu: 1, online: 1, setup: 1, place: 1, prepare: 1, battle: 1 }).forEach((key) => {
+    Object.keys({ menu: 1, campaign: 1, online: 1, setup: 1, place: 1, prepare: 1, battle: 1 }).forEach((key) => {
       const screen = $('#screen-' + key);
       if (screen) screen.classList.toggle('is-active', key === name);
     });
     state.screen = name;
+    if (name === 'campaign') renderCampaign();
     if (name === 'setup') syncSettings();
     if (name === 'online') {
       // ссылка-приглашение имеет смысл только в браузере (не file://)
@@ -3579,6 +3617,129 @@
     updateMenu();
   }
 
+  /* ---------------- Кампания ---------------- */
+  function campaignActName(act) {
+    if (act === 1) return 'Акт I · Туман';
+    if (act === 2) return 'Акт II · Шторм';
+    return 'Акт III · Ледяной флот';
+  }
+
+  function campaignStarsOf(id) {
+    const p = state.profile.campaign || {};
+    return toInt((p.stars || {})[id], 0, 5, 0);
+  }
+
+  function campaignStarTotal() {
+    const p = state.profile.campaign || {};
+    return Object.keys(p.stars || {}).reduce((sum, id) => sum + campaignStarsOf(id), 0);
+  }
+
+  function updateCampaignCard() {
+    const sub = $('#campaign-sub');
+    if (!sub) return;
+    const p = state.profile.campaign || {};
+    const done = (p.completed || []).length;
+    const total = (Engine.CAMPAIGN && Engine.CAMPAIGN.length) || 12;
+    sub.textContent = done
+      ? 'Пройдено ' + done + ' из ' + total + ' · ' + campaignStarTotal() + ' ⭐'
+      : total + ' миссий · 3 акта';
+  }
+
+  function renderCampaign() {
+    const map = $('#campaign-map');
+    const progress = state.profile.campaign || { completed: [], stars: {}, lastId: 1 };
+    const missions = (Engine.CAMPAIGN || []).slice();
+    const last = Engine.campaignById ? Engine.campaignById(progress.lastId) : null;
+    const actTitle = $('#campaign-act-title');
+    if (actTitle) actTitle.textContent = campaignActName(last ? last.act : 1);
+    const totalStars = $('#campaign-stars');
+    if (totalStars) {
+      const maxStars = missions.reduce((sum, m) => sum + (m.stars || 5), 0);
+      totalStars.textContent = '⭐ ' + campaignStarTotal() + ' / ' + maxStars;
+      totalStars.setAttribute('aria-label',
+        'Собрано звёзд: ' + campaignStarTotal() + ' из ' + maxStars);
+    }
+    if (!map) return;
+
+    const make = (tag, cls, text) => {
+      const node = document.createElement(tag);
+      if (cls) node.className = cls;
+      if (text != null) node.textContent = text;
+      return node;
+    };
+
+    const fragment = document.createDocumentFragment();
+    [1, 2, 3].forEach((act) => {
+      const list = missions.filter((m) => m.act === act);
+      if (!list.length) return;
+      const section = make('section', 'campaign-act');
+      section.dataset.act = String(act);
+      const head = make('div', 'campaign-act-head');
+      head.appendChild(make('h3', 'campaign-act-title', campaignActName(act)));
+      const actStars = list.reduce((sum, m) => sum + campaignStarsOf(m.id), 0);
+      head.appendChild(make('span', 'campaign-act-stars',
+        actStars + ' / ' + list.length * 5 + ' ⭐'));
+      section.appendChild(head);
+
+      const grid = make('div', 'campaign-missions');
+      list.forEach((mission) => {
+        const unlocked = Engine.campaignUnlocked(progress, mission.id);
+        const stars = campaignStarsOf(mission.id);
+        const maxStars = mission.stars || 5;
+        const card = make('button', 'campaign-mission');
+        card.type = 'button';
+        card.dataset.mission = String(mission.id);
+        if (!unlocked) {
+          card.disabled = true;
+          card.classList.add('is-locked');
+          card.setAttribute('aria-label', 'Миссия ' + mission.id + ': закрыта');
+        } else {
+          card.setAttribute('aria-label',
+            'Миссия ' + mission.id + ': ' + mission.title + ', звёзды ' + stars + ' из ' + maxStars);
+        }
+        if (mission.id === progress.lastId) card.classList.add('is-last');
+
+        const top = make('span', 'campaign-mission-top');
+        top.appendChild(make('span', 'campaign-mission-num', '№ ' + mission.id));
+        if (mission.boss) top.appendChild(make('span', 'campaign-boss', 'БОСС'));
+        card.appendChild(top);
+        card.appendChild(make('b', 'campaign-mission-title', mission.title));
+        card.appendChild(make('small', 'campaign-mission-meta',
+          mission.size + '×' + mission.size + ' · ' +
+          (mission.fleet === 'admiral' ? 'Адмиральский флот' : 'Классика')));
+
+        if (unlocked) {
+          const starsRow = make('span', 'campaign-mission-stars');
+          for (let i = 1; i <= maxStars; i++) {
+            starsRow.appendChild(make('span', 'campaign-star' + (i <= stars ? ' is-on' : ''), '★'));
+          }
+          starsRow.appendChild(make('span', 'campaign-star-count', stars + ' / ' + maxStars));
+          card.appendChild(starsRow);
+        } else {
+          card.appendChild(make('span', 'campaign-lock', '🔒 Закрыто'));
+        }
+        grid.appendChild(card);
+      });
+      section.appendChild(grid);
+      fragment.appendChild(section);
+    });
+    map.innerHTML = '';
+    map.appendChild(fragment);
+  }
+
+  function openCampaign() {
+    showScreen('campaign');
+    const p = state.profile.campaign || { lastId: 1 };
+    const reduce = state.profile.motion === 'off' ||
+      (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    requestAnimationFrame(() => {
+      const last = $('#campaign-map [data-mission="' + (p.lastId || 1) + '"]');
+      if (last && last.scrollIntoView) {
+        last.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+      }
+    });
+  }
+
   /* ---------------- Зал славы ---------------- */
   let fameTab = 'heat';
   let fameHeatSize = 10;
@@ -4020,6 +4181,32 @@
     });
     $('#modal-replay').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeReplay();
+    });
+
+    const campaignBtn = $('#btn-campaign');
+    if (campaignBtn) campaignBtn.addEventListener('click', () => {
+      Sfx.play('click');
+      openCampaign();
+    });
+    const campaignBack = $('#btn-campaign-back');
+    if (campaignBack) campaignBack.addEventListener('click', () => {
+      Sfx.play('click');
+      updateMenu();
+      showScreen('menu');
+    });
+    const campaignMap = $('#campaign-map');
+    if (campaignMap) campaignMap.addEventListener('click', (e) => {
+      const card = e.target.closest('button[data-mission]');
+      if (!card || card.disabled) return;
+      const id = Math.round(Number(card.dataset.mission));
+      const mission = Engine.campaignById ? Engine.campaignById(id) : null;
+      if (!mission) return;
+      const p = state.profile.campaign;
+      p.lastId = id;
+      saveProfile();
+      Sfx.play('click');
+      renderCampaign();
+      toast('Миссия ' + id + ': скоро', 'turn');
     });
 
     $('#btn-cup').addEventListener('click', () => {

@@ -197,12 +197,12 @@ test('RuStore: кнопки скрыты, скрипт подключён до a
 
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.match(sw, /\.\/js\/rustore\.js/);
-  assert.match(sw, /const VERSION = 'sb-v40'/);
+  assert.match(sw, /const VERSION = 'sb-v41'/);
 
   const js = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
   assert.match(js, /window\.RuStorePlatform/);
   assert.match(js, /wireRuStore\(\)/);
-  assert.match(js, /const SW_VERSION = 'sb-v40'/);
+  assert.match(js, /const SW_VERSION = 'sb-v41'/);
 });
 
 test('RuStore: политика и документ описывают рекламу, покупки и запрет pay-to-win', () => {

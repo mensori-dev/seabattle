@@ -130,10 +130,14 @@
               </div>
             </section>
 
-            <div class="menu-cards has-three">
+            <div class="menu-cards has-four">
               <button class="mini-card" id="btn-cup" type="button">
                 <span class="mini-icon">🎯</span>
                 <span class="mini-text"><b id="cup-title">Испытание дня</b><small id="cup-status">3 боя без поражений</small></span>
+              </button>
+              <button class="mini-card" id="btn-campaign" type="button">
+                <span class="mini-icon">🗺️</span>
+                <span class="mini-text"><b>Кампания</b><small id="campaign-sub">12 миссий · 3 акта</small></span>
               </button>
               <button class="mini-card" id="btn-fame" type="button">
                 <span class="mini-icon">🏛️</span>
@@ -207,6 +211,18 @@
           <div class="history-title">Последние бои</div>
           <div id="history-list"></div>
         </div>
+      </section>
+      <!-- ================= КАМПАНИЯ ================= -->
+      <section id="screen-campaign" class="screen screen-campaign">
+        <div class="campaign-head">
+          <button class="icon-btn back-btn" id="btn-campaign-back" type="button" aria-label="В меню">←</button>
+          <div class="campaign-title">
+            <h2>Кампания</h2>
+            <p class="muted" id="campaign-act-title">Акт I · Туман</p>
+          </div>
+          <div class="campaign-stars-total" id="campaign-stars" aria-label="Собрано звёзд">⭐ 0 / 60</div>
+        </div>
+        <div class="campaign-map" id="campaign-map"></div>
       </section>
       <!-- ================= ОНЛАЙН ================= -->
       <section id="screen-online" class="screen">

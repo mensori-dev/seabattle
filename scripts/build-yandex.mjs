@@ -93,6 +93,9 @@ function buildHtml() {
   s = s.replace(onlineScript,
     '  <!-- Yandex Games SDK -->\n  <script src="/sdk.js"></script>\n  <script src="js/yandex.js"></script>');
 
+  // RuStore-платежи в Яндекс Играх не нужны: не тащим мёртвый скрипт.
+  s = s.replace('  <script src="js/rustore.js"></script>\n', '');
+
   must(s.includes('/sdk.js'), 'не подключил SDK Яндекс Игр');
   must(s.includes('js/yandex.js'), 'не подключил js/yandex.js');
   must(!s.includes('manifest'), 'остался manifest');

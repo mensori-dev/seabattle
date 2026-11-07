@@ -22,9 +22,13 @@
      поэтому YG остаётся null и все хуки платформы пропускаются. */
   const YG = window.GamePlatform || window.YandexGame || null;
 
+  /* RuStore: покупки и реклама. В обычной сборке js/rustore.js может
+     отсутствовать, поэтому RU остаётся null, а кнопки магазина скрыты. */
+  const RU = window.RuStorePlatform || null;
+
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v38';
+  const SW_VERSION = 'sb-v39';
 
   const state = {
     profile: null,
@@ -3358,6 +3362,62 @@
     }, done);
   }
 
+  /* ---------------- RuStore: покупки ---------------- */
+
+  /* Кнопки магазина показываем только при живом нативном мосте.
+     Без RuStore они остаются hidden и игру не трогают. */
+  function updateRuStoreButtons() {
+    const removeBtn = $('#btn-remove-ads');
+    const supportBtn = $('#btn-support');
+    if (!RU || !removeBtn || !supportBtn) return;
+    RU.whenReady().then(function (sdk) {
+      if (!sdk || !RU.available()) return;
+      removeBtn.hidden = false;
+      supportBtn.hidden = false;
+    });
+  }
+
+  function buyRuStore(productId, btn) {
+    if (!RU || !RU.available() || !btn || btn.disabled) {
+      toast('Покупки доступны только в RuStore', 'miss');
+      return;
+    }
+    Sfx.play('click');
+    btn.disabled = true;
+    RU.purchase(productId).then(function (ok) {
+      btn.disabled = false;
+      if (!ok) {
+        toast('Покупка не завершена — попробуй позже', 'miss');
+        return;
+      }
+      const removeBtn = $('#btn-remove-ads');
+      const supportBtn = $('#btn-support');
+      if (productId === 'remove_ads') {
+        // Флаг пригодится, когда реклама RuStore будет подключена.
+        state.profile.removeAds = true;
+        saveProfile();
+        if (removeBtn) removeBtn.hidden = true;
+        toast('Реклама отключена — спасибо!', 'turn');
+      } else {
+        if (supportBtn) supportBtn.hidden = true;
+        toast('Спасибо за поддержку!', 'turn');
+      }
+      Sfx.play('win');
+    }, function () {
+      btn.disabled = false;
+      toast('Покупка не завершена — попробуй позже', 'miss');
+    });
+  }
+
+  function wireRuStore() {
+    const removeBtn = $('#btn-remove-ads');
+    const supportBtn = $('#btn-support');
+    if (!RU || !removeBtn || !supportBtn) return;
+    removeBtn.addEventListener('click', function () { buyRuStore('remove_ads', removeBtn); });
+    supportBtn.addEventListener('click', function () { buyRuStore('support_99', supportBtn); });
+    updateRuStoreButtons();
+  }
+
   function confetti() {
     const layer = $('#confetti');
     layer.innerHTML = '';
@@ -4461,6 +4521,7 @@
   wireEvents();
   wireOnlineEvents();
   wireYandex();
+  wireRuStore();
   updateMenu();
   showScreen('menu');
   // Яндекс Игры: игра загрузилась и готова к взаимодействию

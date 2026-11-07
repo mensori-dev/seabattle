@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v41';
+  const SW_VERSION = 'sb-v42';
 
   const state = {
     profile: null,
@@ -49,7 +49,7 @@
     matchSeq: 0,
     ghost: [],
     hover: null,           // последняя клетка под курсором при расстановке
-    matchStats: { shots: 0, hits: 0, firstShot: true, firstShotSunk: false },
+    matchStats: { shots: 0, hits: 0, misses: 0, firstShot: true, firstShotSunk: false },
     matchStartedAt: 0,     // начало текущего боя для истории
     matchLog: [],          // выстрелы текущего боя для реплея
     size: 10,              // размер текущей доски
@@ -61,7 +61,8 @@
     prepGo: null,          // что запустить после экрана подготовки
     cup: null,             // «Испытание дня»: { round, wins }
     cupMatch: false,       // текущий бой идёт в зачёт испытания
-    quickBattle: false     // расстановка открыта кнопкой «Быстрый бой»
+    quickBattle: false,    // расстановка открыта кнопкой «Быстрый бой»
+    campaign: null         // активная миссия кампании: { id, mission, phase, ... }
   };
 
   let netShotTimer = null;
@@ -607,6 +608,8 @@
   }
 
   function isRatedBattle() {
+    // кампания не влияет на рейтинг и статистику рейтинговых боёв
+    if (state.campaign) return false;
     return Engine.isRatedBattle('bot', state.config);
   }
 
@@ -616,6 +619,7 @@
   }
 
   function fleetSizes() {
+    if (state.campaign && state.campaign.playerFleet) return state.campaign.playerFleet.slice();
     return Engine.fleetFor(state.size, fleetKey()) || Engine.FLEET;
   }
 
@@ -1075,13 +1079,23 @@
   }
 
   /* ---------------- Матч / расстановка ---------------- */
-  function startMatch() {
+  function startMatch(fromCampaign) {
     state.matchSeq += 1;
     state.mode = 'bot';
+    if (!fromCampaign) state.campaign = null;
+    const campaign = fromCampaign ? state.campaign : null;
     // Конфиг испытания дня живёт в state.cup: настройки игрока не перетираем.
-    state.config = (state.cupMatch && state.cup && state.cup.config)
-      ? normalizeConfig(state.cup.config, 'classic')
-      : configFor('bot');
+    if (campaign) {
+      state.config = normalizeConfig({
+        size: campaign.mission.size,
+        fleet: campaign.mission.fleet,
+        tactics: true
+      }, 'classic');
+    } else {
+      state.config = (state.cupMatch && state.cup && state.cup.config)
+        ? normalizeConfig(state.cup.config, 'classic')
+        : configFor('bot');
+    }
     state.size = state.config.size;
     // Завершённый/просроченный кубок не тянется в обычный бой:
     // чистим и состояние, и сохранение (loadProfile мог его отбросить).
@@ -1093,26 +1107,54 @@
       state.profile.cup = null;
       saveProfile();
     }
-    const level = difficultyOf();
+    const level = campaign ? campaign.botLevel : difficultyOf();
     const boost = DIFFICULTY[level].boost +
-      (FLEET_BOOST[fleetKey()] || 0) +
-      (state.cupMatch && state.cup ? Math.max(0, state.cup.round - 1) * 90 : 0);
+      (campaign ? 0 : (FLEET_BOOST[fleetKey()] || 0)) +
+      (!campaign && state.cupMatch && state.cup ? Math.max(0, state.cup.round - 1) * 90 : 0);
     state.botLevel = level;
-    state.botName = Engine.randomName();
+    state.botName = campaign && campaign.mission.boss
+      ? campaign.mission.boss.name
+      : Engine.randomName();
     state.botRating = clamp(Math.round(state.profile.rating + randInt(-130, 130) + boost), 250, 2600);
-    state.botAvatar = ['🤖', '👾', '🦈', '🐙', '🦑', '🐡', '🦀'][randInt(0, 6)];
+    state.botAvatar = campaign && campaign.mission.boss
+      ? '👑'
+      : ['🤖', '👾', '🦈', '🐙', '🦑', '🐡', '🦀'][randInt(0, 6)];
     state.bot = new Engine.Bot(level);
     state.enemyBoard = null;
     state.playerBoard = Engine.createBoard(state.size);
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = false;
-    state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
+    state.matchStats = { shots: 0, hits: 0, misses: 0, firstShot: true, firstShotSunk: false };
     state.matchStartedAt = Date.now();
     state.matchLog = [];
     setupPlacement();
     showScreen('place');
     Sfx.play('start');
+  }
+
+  function startCampaignMission(id) {
+    const mission = Engine.campaignById(id);
+    if (!mission) return false;
+    if (!Engine.campaignUnlocked(state.profile.campaign, mission.id)) {
+      toast('Миссия ' + mission.id + ': закрыта', 'turn');
+      return false;
+    }
+    state.campaign = {
+      id: mission.id,
+      mission: mission,
+      phase: 1,
+      playerFleet: Engine.campaignPlayerFleet(mission),
+      botFleet: Engine.campaignBotFleet(mission),
+      loadout: Engine.campaignLoadout(mission, state.loadout),
+      botLoadout: Engine.campaignBotLoadout(mission, 1),
+      botLevel: mission.bot,
+      fog: null
+    };
+    state.profile.campaign.lastId = mission.id;
+    saveProfile();
+    startMatch(true);
+    return true;
   }
 
   /* ---------------- Испытание дня (бывший «Кубок моря») ---------------- */
@@ -1818,6 +1860,21 @@
     const seq = state.matchSeq;
     state.locked = true;
     state.pendingAbility = null;
+    if (state.campaign && Engine.campaignHasBossMod(
+      state.campaign.mission, 'boss-aa', state.campaign.phase) &&
+      state.botAbilities && state.botAbilities.aa > 0) {
+      state.abilities.airstrike -= 1;
+      state.botAbilities.aa -= 1;
+      renderAbilityBar();
+      toast('🛡️ ПВО босса сбило авиаудар', 'miss');
+      state.playerTurn = false;
+      setTurn(false);
+      await sleep(520);
+      if (seq !== state.matchSeq || state.gameOver) return;
+      endPlayerTurn();
+      botTurn(seq);
+      return;
+    }
     const res = Engine.airstrike(state.enemyBoard, x, y);
     if (!res.ok) {
       state.locked = false;
@@ -1829,6 +1886,7 @@
     renderAbilityBar();
 
     for (const hit of res.cells) {
+      if (state.campaign) clearCampaignFog(hit.x, hit.y);
       recordHeat(hit.x, hit.y);
       recordReplay('enemy', hit.x, hit.y, hit.result);
       const cell = boards.enemy.children[hit.y * state.size + hit.x];
@@ -1859,6 +1917,8 @@
       endGame(true);
       return;
     }
+
+    updateCampaignPhase();
 
     state.playerTurn = false;
     setTurn(false);
@@ -1920,14 +1980,28 @@
   function beginBattle() {
     closeShipEditor(false);
     setPlacementLocked(false);
-    state.enemyBoard = Engine.randomBoard(fleetSizes(), state.size);
-    state.bot = new Engine.Bot(difficultyOf());
+    const campaign = state.campaign;
+    state.enemyBoard = Engine.randomBoard(
+      campaign ? campaign.botFleet : fleetSizes(),
+      state.size
+    );
+    state.bot = new Engine.Bot(campaign ? campaign.botLevel : difficultyOf());
     state.gameOver = false;
     state.locked = true;
     state.playerTurn = true;
     state.pendingAbility = null;
-    state.abilities = state.config.tactics ? Engine.newAbilityState(state.loadout) : null;
-    state.botAbilities = state.config.tactics ? Engine.newAbilityState(botLoadout()) : null;
+    state.abilities = state.config.tactics
+      ? Engine.newAbilityState(campaign ? campaign.loadout : state.loadout)
+      : null;
+    state.botAbilities = state.config.tactics
+      ? Engine.newAbilityState(campaign ? campaign.botLoadout : botLoadout())
+      : null;
+    if (campaign) {
+      const fog = Engine.campaignHasMod(campaign.mission, 'fog')
+        ? Engine.campaignFogCells(state.enemyBoard, 5)
+        : [];
+      campaign.fog = fog.length ? new Set(fog.map((p) => p.x + ',' + p.y)) : null;
+    }
     state.matchStartedAt = Date.now();
     state.matchLog = [];
 
@@ -1935,10 +2009,12 @@
     buildBoard(boards.own);
     paintBoard(boards.enemy, state.enemyBoard, false);
     paintBoard(boards.own, state.playerBoard, true);
+    paintCampaignFog();
     paintSmoke(boards.enemy, state.enemyBoard);
     paintSmoke(boards.own, state.playerBoard);
     clearAim();
     renderAbilityBar();
+    updateCampaignPhaseBar();
 
     const pRank = Engine.rankFor(state.profile.rating);
     $('#b-you-name').textContent = state.profile.name;
@@ -2081,7 +2157,7 @@
     state.gameOver = false;
     state.locked = !first;
     state.playerTurn = !!first;
-    state.matchStats = { shots: 0, hits: 0, firstShot: true, firstShotSunk: false };
+    state.matchStats = { shots: 0, hits: 0, misses: 0, firstShot: true, firstShotSunk: false };
     state.matchStartedAt = Date.now();
     state.matchLog = [];
 
@@ -2759,11 +2835,13 @@
       state.locked = false;
       return;
     }
+    if (state.campaign) clearCampaignFog(x, y);
     recordHeat(x, y);
     recordReplay('enemy', x, y, shot.result);
     if (state.matchStats) {
       state.matchStats.shots += 1;
       if (shot.result !== 'miss') state.matchStats.hits += 1;
+      else state.matchStats.misses += 1;
       if (state.matchStats.firstShot) {
         state.matchStats.firstShot = false;
         if (shot.result === 'sunk' && shot.ship && shot.ship.size >= 4) {
@@ -2775,6 +2853,18 @@
 
     if (Engine.allSunk(state.enemyBoard)) {
       endGame(true);
+      return;
+    }
+
+    updateCampaignPhase();
+
+    // Штормовой отлив: каждый пятый промах не отдаёт ход боту.
+    if (shot.result === 'miss' && state.campaign &&
+        Engine.campaignStormRefund(state.campaign.mission, state.matchStats.misses)) {
+      toast('🌊 Шторм уносит волну — ход сохранён', 'turn');
+      state.locked = false;
+      state.playerTurn = true;
+      setTurn(true);
       return;
     }
 
@@ -2809,6 +2899,10 @@
     state.playerTurn = false;
     state.locked = true;
     setTurn(false);
+
+    const bossDouble = !!(state.campaign &&
+      Engine.campaignHasBossMod(state.campaign.mission, 'boss-double-turn', state.campaign.phase));
+    let doubleArmed = false;
 
     while (!state.gameOver) {
       await sleep(randInt(480, 820));
@@ -2879,11 +2973,18 @@
       }
 
       if (shot.result === 'miss') {
+        if (bossDouble && doubleArmed) {
+          doubleArmed = false;
+          toast('👑 Босс ходит ещё раз', 'turn');
+          await sleep(320);
+          continue;
+        }
         toast('🌊 Бот промахнулся', 'miss');
         await sleep(360);
         break;
       }
 
+      if (bossDouble) doubleArmed = true;
       if (shot.result === 'sunk') toast('💀 Бот потопил ' + Engine.SHIP_LABEL[shot.ship.size].toLowerCase(), 'sunk');
       else toast('🔥 Бот попал', 'hit');
       await sleep(420);
@@ -2968,6 +3069,41 @@
       saveProfile();
       updateMenu();
       showResult(playerWon, same, same, 0, reason, { rated: false, seasonMedals: seasonMedals });
+      return;
+    }
+
+    if (state.campaign) {
+      const c = state.campaign;
+      const lostShips = Math.max(0,
+        Engine.totalShips(state.playerBoard) - Engine.shipsLeft(state.playerBoard));
+      const stars = Engine.campaignStars({
+        won: !!playerWon,
+        lostShips: lostShips,
+        shots: ms.shots
+      });
+      let nextId = 0;
+      if (playerWon) {
+        state.profile.campaign = normalizeCampaign(
+          Engine.campaignRecord(state.profile.campaign, c.id, {
+            won: true,
+            lostShips: lostShips,
+            shots: ms.shots
+          })
+        );
+        nextId = Engine.campaignNextId(c.id);
+      }
+      saveProfile();
+      updateMenu();
+      showResult(playerWon, Math.round(p.rating), Math.round(p.rating), 0, reason, {
+        rated: false,
+        campaign: {
+          id: c.id,
+          mission: c.mission,
+          won: !!playerWon,
+          stars: stars,
+          nextId: nextId
+        }
+      });
       return;
     }
 
@@ -3214,7 +3350,8 @@
       reason: reason || '',
       delta: delta,
       rating: newRating,
-      opp: state.botName
+      opp: state.botName,
+      campaign: (extras && extras.campaign) || null
     };
     const overlay = $('#overlay');
     overlay.classList.toggle('is-lose', !win);
@@ -3225,11 +3362,50 @@
     $('#result-emblem').textContent = win ? '🏆' : '💥';
     $('#result-title').textContent = win ? 'Победа!' : 'Поражение';
     const online = state.mode === 'online';
-    $('#result-sub').textContent = win
-      ? (reason === 'surrender' ? 'Соперник сдался — победа твоя' : 'Флот противника отправлен на дно')
-      : (reason === 'surrender' ? 'Ты покинул бой' : 'Твой флот уничтожен');
-    $('#result-opp').textContent = (online ? 'онлайн · ' : 'против ') + state.botName +
-      (state.botRating ? ' · ' + Math.round(state.botRating) : '');
+    const campaign = extras && extras.campaign;
+    $('#result-sub').textContent = campaign
+      ? (campaign.won ? 'Миссия пройдена: ' : 'Миссия не пройдена: ') + campaign.mission.title
+      : (win
+        ? (reason === 'surrender' ? 'Соперник сдался — победа твоя' : 'Флот противника отправлен на дно')
+        : (reason === 'surrender' ? 'Ты покинул бой' : 'Твой флот уничтожен'));
+    $('#result-opp').textContent = campaign
+      ? 'Кампания · ' + campaignActName(campaign.mission.act) +
+        ' · миссия ' + campaign.id
+      : (online ? 'онлайн · ' : 'против ') + state.botName +
+        (state.botRating ? ' · ' + Math.round(state.botRating) : '');
+
+    const campaignBox = $('#campaign-result');
+    const campaignActions = $('#campaign-result-actions');
+    if (campaignBox) {
+      campaignBox.hidden = !campaign;
+      if (campaign) {
+        const row = $('#campaign-result-stars');
+        if (row) {
+          row.innerHTML = '';
+          for (let i = 1; i <= 5; i++) {
+            const star = document.createElement('span');
+            star.className = 'campaign-result-star' + (i <= campaign.stars ? ' is-on' : '');
+            star.textContent = '★';
+            row.appendChild(star);
+          }
+        }
+        const label = $('#campaign-result-label');
+        if (label) {
+          label.textContent = campaign.won
+            ? campaign.stars + ' из 5 звёзд'
+            : 'Звёзды не начислены — попробуй ещё раз';
+        }
+      }
+    }
+    if (campaignActions) campaignActions.hidden = !campaign;
+    ['#btn-again', '#btn-menu', '#btn-share-result'].forEach((sel) => {
+      const btn = $(sel);
+      if (btn) btn.hidden = !!campaign;
+    });
+    if (campaign) {
+      const nextBtn = $('#btn-campaign-next');
+      if (nextBtn) nextBtn.hidden = !campaign.nextId;
+    }
 
     const eloRow = document.querySelector('.result-card .elo-row');
     const rated = !online && !(extras && extras.rated === false);
@@ -3237,7 +3413,7 @@
     const ratedBadge = $('#result-rated');
     if (ratedBadge) {
       ratedBadge.hidden = rated;
-      ratedBadge.textContent = rated ? '' : 'Без рейтинга';
+      ratedBadge.textContent = rated ? '' : (campaign ? 'Кампания · без рейтинга' : 'Без рейтинга');
     }
 
     const againBtn = $('#btn-again');
@@ -3314,6 +3490,10 @@
     setTimeout(() => animateNumber($('#elo-after'), oldRating, newRating, 900), 550);
     if (win) confetti();
     updateBonusButton();
+    if (campaign) {
+      const bonus = $('#btn-bonus');
+      if (bonus) bonus.hidden = true;
+    }
   }
 
   /* ---------------- Реклама (Яндекс Игры / GamePush) ---------------- */
@@ -3632,6 +3812,66 @@
   function campaignStarTotal() {
     const p = state.profile.campaign || {};
     return Object.keys(p.stars || {}).reduce((sum, id) => sum + campaignStarsOf(id), 0);
+  }
+
+  function paintCampaignFog() {
+    const c = state.campaign;
+    if (!c || !c.fog || !boards.enemy || !state.enemyBoard) return;
+    const n = state.enemyBoard.size;
+    c.fog.forEach((key) => {
+      const parts = key.split(',');
+      const x = Number(parts[0]);
+      const y = Number(parts[1]);
+      const cell = boards.enemy.children[y * n + x];
+      if (cell && !cell.dataset.result) cell.classList.add('is-fog');
+    });
+  }
+
+  function clearCampaignFog(x, y) {
+    if (!state.campaign || !state.campaign.fog) return;
+    state.campaign.fog.delete(x + ',' + y);
+    const cell = boards.enemy && boards.enemy.children[y * state.size + x];
+    if (cell) cell.classList.remove('is-fog');
+  }
+
+  function updateCampaignPhase() {
+    const c = state.campaign;
+    if (!c || !c.mission || !c.mission.boss || !state.enemyBoard) return;
+    const next = Engine.campaignBossPhase(
+      c.mission,
+      Engine.shipsLeft(state.enemyBoard),
+      Engine.totalShips(state.enemyBoard)
+    );
+    if (next > (c.phase || 1)) {
+      c.phase = next;
+      c.botLoadout = Engine.campaignBotLoadout(c.mission, next);
+      if (state.botAbilities) {
+        const grant = Engine.newAbilityState(c.botLoadout);
+        Object.keys(grant).forEach((key) => {
+          state.botAbilities[key] = Math.max(state.botAbilities[key] || 0, grant[key] || 0);
+        });
+      }
+      toast('👑 ' + c.mission.boss.name + ': фаза ' + next, 'turn');
+    }
+    updateCampaignPhaseBar();
+  }
+
+  function updateCampaignPhaseBar() {
+    const wrap = $('#campaign-phase');
+    if (!wrap) return;
+    const c = state.campaign;
+    if (!c || !c.mission || !c.mission.boss) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const name = $('#campaign-phase-name');
+    const label = $('#campaign-phase-label');
+    if (name) name.textContent = c.mission.boss.name;
+    if (label) label.textContent = 'Фаза ' + (c.phase || 1);
+    $$('#campaign-phase [data-phase]').forEach((el) => {
+      el.classList.toggle('is-on', Number(el.dataset.phase) <= (c.phase || 1));
+    });
   }
 
   function updateCampaignCard() {
@@ -4201,12 +4441,8 @@
       const id = Math.round(Number(card.dataset.mission));
       const mission = Engine.campaignById ? Engine.campaignById(id) : null;
       if (!mission) return;
-      const p = state.profile.campaign;
-      p.lastId = id;
-      saveProfile();
       Sfx.play('click');
-      renderCampaign();
-      toast('Миссия ' + id + ': скоро', 'turn');
+      startCampaignMission(id);
     });
 
     $('#btn-cup').addEventListener('click', () => {
@@ -4437,6 +4673,12 @@
         showScreen('online');
         return;
       }
+      if (state.campaign) {
+        state.campaign = null;
+        updateMenu();
+        showScreen('campaign');
+        return;
+      }
       // После «Быстрого боя» возвращаемся в меню, из настроек — к настройкам:
       // так можно поменять воду, поле или флот, не выходя из сценария.
       if (state.mode === 'bot' && !state.cupMatch) {
@@ -4538,6 +4780,7 @@
       if (totalLeft() > 0) return;
       Sfx.play('click');
       if (state.mode === 'online') { sendFleetOnline(); return; }
+      if (state.campaign) { beginBattle(); return; }
       if (state.config && state.config.tactics) {
         showPrepare(() => beginBattle());
         return;
@@ -4683,6 +4926,32 @@
       if (state.mode === 'online') leaveOnline();
       updateMenu();
       showScreen('menu');
+    });
+
+    /* --- результат кампании --- */
+    const campaignNext = $('#btn-campaign-next');
+    if (campaignNext) campaignNext.addEventListener('click', () => {
+      const c = state.lastResult && state.lastResult.campaign;
+      if (!c || !c.nextId) return;
+      Sfx.play('click');
+      closeOverlay($('#overlay'));
+      startCampaignMission(c.nextId);
+    });
+    const campaignRetry = $('#btn-campaign-retry');
+    if (campaignRetry) campaignRetry.addEventListener('click', () => {
+      const c = state.lastResult && state.lastResult.campaign;
+      if (!c) return;
+      Sfx.play('click');
+      closeOverlay($('#overlay'));
+      startCampaignMission(c.id);
+    });
+    const campaignMapBtn = $('#btn-campaign-map');
+    if (campaignMapBtn) campaignMapBtn.addEventListener('click', () => {
+      Sfx.play('click');
+      closeOverlay($('#overlay'));
+      state.campaign = null;
+      updateMenu();
+      showScreen('campaign');
     });
 
     document.addEventListener('keydown', (e) => {

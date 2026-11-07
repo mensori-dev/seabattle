@@ -64,10 +64,11 @@ test('звёзды читаются из профиля и показывают�
   assert.match(app, /seabattle\.profile\.v2/);
 });
 
-test('клик по открытой миссии запоминает её и показывает «скоро»', () => {
-  assert.match(app, /p\.lastId = id/);
+test('клик по открытой миссии запоминает её и запускает миссию', () => {
+  assert.match(app, /state\.profile\.campaign\.lastId = mission\.id/);
   assert.match(app, /saveProfile\(\)/);
-  assert.match(app, /toast\('Миссия ' \+ id \+ ': скоро'/);
+  assert.match(app, /startCampaignMission\(id\)/);
+  assert.doesNotMatch(app, /Миссия ' \+ id \+ ': скоро/);
   assert.match(app, /openCampaign\(\)/);
   assert.match(app, /btn-campaign-back/);
 });
@@ -79,10 +80,10 @@ test('кнопка кампании ведёт к последней откры�
   assert.match(app, /prefers-reduced-motion: reduce/);
 });
 
-test('PWA-кэш поднят до sb-v41 в sw.js и app.js', () => {
-  assert.match(sw, /const VERSION = 'sb-v41'/);
-  assert.match(app, /const SW_VERSION = 'sb-v41'/);
-  assert.match(read('tests/rustore.test.mjs'), /sb-v41/);
+test('PWA-кэш поднят до sb-v42 в sw.js и app.js', () => {
+  assert.match(sw, /const VERSION = 'sb-v42'/);
+  assert.match(app, /const SW_VERSION = 'sb-v42'/);
+  assert.match(read('tests/rustore.test.mjs'), /sb-v42/);
 });
 
 test('карта адаптивна, тач-цели крупные и уважают reduced-motion', () => {
@@ -94,8 +95,9 @@ test('карта адаптивна, тач-цели крупные и уваж�
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[\s\S]*?\.campaign-mission\{transition:none\}/);
 });
 
-test('шаг 2 не запускает бой и не трогает движок', () => {
-  assert.doesNotMatch(app, /startCampaignMission/);
+test('кампания запускает бой через startCampaignMission, движок на месте', () => {
+  assert.match(app, /function startCampaignMission\(id\)/);
+  assert.match(app, /startMatch\(true\)/);
   const engineStart = fs.statSync(path.join(root, 'js', 'engine.js')).mtimeMs;
   assert.ok(engineStart > 0);
 });

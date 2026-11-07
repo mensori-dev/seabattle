@@ -138,6 +138,11 @@ function buildHtml(creds) {
     s = s.replace(new RegExp('[ \\t]*<button[^>]*id="' + id + '"[^>]*>[^\\n]*</button>\\r?\\n'), '');
     must(!s.includes('id="' + id + '"'), 'осталась кнопка RuStore: ' + id);
   }
+  // Витрина RuStore тоже не нужна: вырезаем карточку входа и весь оверлей.
+  s = s.replace(/[ \t]*<!-- rustore-shop-button -->\r?\n[ \t]*<button[^>]*id="btn-shop"[^\n]*<\/button>\r?\n/, '');
+  must(!s.includes('id="btn-shop"'), 'осталась кнопка магазина RuStore');
+  s = s.replace(/[ \t]*<!-- rustore-shop-start -->[\s\S]*?<!-- rustore-shop-end -->\r?\n?/, '');
+  must(!s.includes('id="modal-shop"'), 'остался магазин RuStore');
 
   must(s.includes('js/gamepush.js'), 'не подключил js/gamepush.js');
   must(!s.includes('js/online.js'), 'остался онлайн-клиент');

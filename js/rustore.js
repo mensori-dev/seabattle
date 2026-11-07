@@ -11,6 +11,8 @@
      purchase(productId)  -> Promise<boolean>
      restore()            -> Promise<boolean>
      products()           -> Array<{ id, title, price, currency }>
+     setAdsEnabled(on)    -> void (необязательно)
+     adsEnabled()         -> boolean (необязательно)
    Мост может появиться позже: тогда нативная обёртка вызывает
    window.onRuStoreReady(bridge).
    ============================================================ */
@@ -27,6 +29,8 @@
   var readyPromise = new Promise(function (resolve) { readyResolve = resolve; });
   var readyTimer = null;
   var rewardedBusy = false;
+  var adsOn = true;
+  var adsSet = false;
 
   function safe(fn) {
     try { return fn(); } catch (e) { return null; }
@@ -42,7 +46,14 @@
 
   function settle(sdk) {
     // Поздний мост не затираем: он всё ещё может пригодиться.
-    if (sdk) bridge = sdk;
+    if (sdk) {
+      bridge = sdk;
+      // Пока игру не просили выключить рекламу, доверяем состоянию моста.
+      if (!adsSet && typeof bridge.adsEnabled === 'function') {
+        var current = safe(function () { return bridge.adsEnabled(); });
+        if (typeof current === 'boolean') adsOn = current;
+      }
+    }
     if (readyDone) return;
     readyDone = true;
     if (readyTimer) {
@@ -148,6 +159,28 @@
       }, false).then(function (ok) {
         return ok === true;
       });
+    },
+
+    /* Выключение рекламы: метод моста необязателен. Возвращаем true,
+       только если мост реально принял команду. */
+    setAdsEnabled: function (on) {
+      adsOn = !!on;
+      adsSet = true;
+      if (!bridge || typeof bridge.setAdsEnabled !== 'function') return false;
+      try {
+        bridge.setAdsEnabled(!!on);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+
+    adsEnabled: function () {
+      if (bridge && typeof bridge.adsEnabled === 'function') {
+        var current = safe(function () { return bridge.adsEnabled(); });
+        if (typeof current === 'boolean') return current;
+      }
+      return adsOn;
     },
 
     products: productList

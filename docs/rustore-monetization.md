@@ -12,9 +12,13 @@
 - `js/rustore.js` — классический IIFE, наружу отдаёт `window.RuStorePlatform`.
 - Без SDK: `available()` → `false`, `products()` → `[]`, остальные действия →
   `false` (через Promise), `whenReady()` → `null` через 8 секунд.
-- В меню добавлены скрытые кнопки `#btn-remove-ads` и `#btn-support`.
-  Они показываются только после `RuStorePlatform.available() === true`.
-- Реальной оплаты нет: нативного моста нет, кнопки не видны, `purchase()`
+- В меню добавлены карточка `#btn-shop` и оверлей `#modal-shop` с тремя
+  секциями: «Убрать рекламу», «Поддержать проект», «Скоро».
+- Внутри магазина кнопки `remove_ads` и `support_99`. Без живого моста они
+  `disabled`, а под ними честная подпись «Покупки доступны только в RuStore».
+- Скрытые кнопки `#btn-remove-ads` и `#btn-support` сохранены для совместимости
+  и показываются только после `RuStorePlatform.available() === true`.
+- Реальной оплаты нет: нативного моста нет, кнопки неактивны, `purchase()`
   возвращает `false`.
 - PWA-кэш поднят до `sb-v39`, `js/rustore.js` добавлен в `CORE` в `sw.js`.
 - В сборках Яндекс Игр и VK/OK скрипт RuStore вырезается: там платежи не нужны.
@@ -30,6 +34,8 @@
 | `purchase(id)` | `Promise<false>` | Покупка товара по строковому id |
 | `restore()` | `Promise<false>` | Восстановление покупок |
 | `products()` | `[]` | Синхронный каталог товаров |
+| `setAdsEnabled(on)` | `false` | Просит мост выключить рекламу; `true` только если мост принял команду |
+| `adsEnabled()` | `true` | Текущее состояние рекламы |
 
 `purchase()` и `restore()` считаются успешными только при строгом `true` от
 моста. `showRewarded()` — тоже строго `true`, иначе награда не начисляется.
@@ -50,7 +56,10 @@ window.RuStoreBridge = {
       { id: 'remove_ads', title: 'Убрать рекламу', price: 149, currency: 'RUB' },
       { id: 'support_99', title: 'Поддержать проект', price: 99, currency: 'RUB' }
     ];
-  }
+  },
+  // Необязательные методы: если их нет, setAdsEnabled() вернёт false.
+  setAdsEnabled: function (on) { /* включить/выключить рекламу */ },
+  adsEnabled: function () { return true; }
 };
 ```
 
@@ -69,9 +78,12 @@ window.RuStoreBridge = {
 | `support_99` | Непотребляемый | Поддержать проект | 99 ₽ | Только благодарность, без бонусов и преимуществ |
 | `cosmetic_sea` | Непотребляемый | Набор «Море» | 199 ₽ | Будущая косметика: скины/вода, не влияет на бой |
 
-Кнопка `#btn-remove-ads` покупает `remove_ads`, кнопка `#btn-support` —
-`support_99`. После успешной покупки флаг `removeAds` сохраняется в профиле.
-Косметика в интерфейс пока не выведена — это задел на следующую итерацию.
+Кнопки магазина `#shop-buy-remove-ads` и `#shop-buy-support` (а также старые
+`#btn-remove-ads` / `#btn-support`) вызывают только `RuStorePlatform.purchase(id)`.
+После успешной покупки `remove_ads` флаг `removeAds` сохраняется в профиле,
+вызывается `setAdsEnabled(false)`, rewarded-кнопки скрываются, а interstitial
+между боями пропускается. `restore()` при старте поднимает `removeAds`, если
+мост подтвердил покупку. Косметика в интерфейсе помечена замком и не продаётся.
 
 ## 5. Rewarded-точки
 

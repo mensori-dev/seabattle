@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v39';
+  const SW_VERSION = 'sb-v40';
 
   const state = {
     profile: null,
@@ -131,7 +131,9 @@
       cupReward: '',        // день, за который уже получена награда испытания
       adMatches: 0,         // боёв с последней межстраничной рекламы (Яндекс Игры)
       lastAdAt: 0,          // когда последний раз показывали рекламу
-      adBonusDate: ''       // день, когда уже брали награду за rewarded-видео
+      adBonusDate: '',      // день, когда уже брали награду за rewarded-видео
+      removeAds: false,     // куплено в RuStore: принудительная реклама выключена
+      supportThanks: false  // куплена добровольная поддержка support_99
     };
   }
 
@@ -294,6 +296,8 @@
           lastAdAt: toInt(p.lastAdAt, 0, Number.MAX_SAFE_INTEGER, 0),
           cupReward: typeof p.cupReward === 'string' ? p.cupReward : '',
           adBonusDate: typeof p.adBonusDate === 'string' ? p.adBonusDate : '',
+          removeAds: !!p.removeAds,
+          supportThanks: !!p.supportThanks,
           history: normalizeHistory(p.history)
         });
         prof.games = Math.min(10000000, Math.max(prof.games, prof.wins + prof.losses));
@@ -3285,6 +3289,7 @@
     const btn = $('#btn-bonus');
     if (!btn) return;
     btn.hidden = true;
+    if (RU && state.profile.removeAds) return;
     if (!YG) return;
     // SDK инициализируется асинхронно — показываем кнопку, когда он готов
     YG.whenReady().then(function (sdk) {
@@ -3299,6 +3304,7 @@
     const btn = $('#btn-ad-bonus');
     if (!btn) return;
     btn.hidden = true;
+    if (RU && state.profile.removeAds) return;
     if (!YG) return;
     YG.whenReady().then(function (sdk) {
       if (!sdk || !canShowAdBonus()) return;
@@ -3307,6 +3313,7 @@
   }
 
   function watchAdBonus() {
+    if (RU && state.profile.removeAds) return;
     if (!canShowAdBonus()) return;
     const buttons = [$('#btn-bonus'), $('#btn-ad-bonus')].filter(Boolean);
     if (buttons.some(function (b) { return b.disabled; })) return;
@@ -3350,6 +3357,8 @@
      и не раньше третьего боя, чтобы не мешать новичку. */
   function showInterstitialBetweenMatches(done) {
     const p = state.profile;
+    // Куплено «Убрать рекламу» в RuStore — принудительный показ пропускаем целиком.
+    if (RU && p.removeAds) { done(); return; }
     const ready = !!YG && YG.available() &&
       (p.adMatches || 0) >= 2 && Date.now() - (p.lastAdAt || 0) >= 90000;
     if (!ready) { done(); return; }
@@ -3362,46 +3371,90 @@
     }, done);
   }
 
-  /* ---------------- RuStore: покупки ---------------- */
+  /* ---------------- RuStore: покупки и магазин ---------------- */
 
-  /* Кнопки магазина показываем только при живом нативном мосте.
-     Без RuStore они остаются hidden и игру не трогают. */
-  function updateRuStoreButtons() {
-    const removeBtn = $('#btn-remove-ads');
-    const supportBtn = $('#btn-support');
-    if (!RU || !removeBtn || !supportBtn) return;
-    RU.whenReady().then(function (sdk) {
-      if (!sdk || !RU.available()) return;
-      removeBtn.hidden = false;
-      supportBtn.hidden = false;
-    });
+  /* Цену показывает RuStore; запасная — только для карточки до готовности SDK. */
+  function shopPrice(productId, fallback) {
+    if (!RU) return fallback;
+    const list = RU.products();
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i];
+      if (item && item.id === productId) {
+        const price = Number(item.price);
+        if (price > 0) return price + ' ₽';
+      }
+    }
+    return fallback;
   }
 
-  function buyRuStore(productId, btn) {
-    if (!RU || !RU.available() || !btn || btn.disabled) {
+  /* Единая отрисовка магазина и старых кнопок в меню. */
+  function renderShop() {
+    const p = state.profile || {};
+    const available = !!(RU && RU.available());
+    const note = $('#shop-note');
+    if (note) note.hidden = available;
+
+    const removeBtn = $('#shop-buy-remove-ads');
+    if (removeBtn) {
+      removeBtn.textContent = shopPrice('remove_ads', '149 ₽');
+      removeBtn.disabled = !available || !!p.removeAds;
+      removeBtn.hidden = !!p.removeAds;
+    }
+    const supportBtn = $('#shop-buy-support');
+    if (supportBtn) {
+      supportBtn.textContent = shopPrice('support_99', '99 ₽');
+      supportBtn.disabled = !available || !!p.supportThanks;
+      supportBtn.hidden = !!p.supportThanks;
+    }
+
+    const removeStatus = $('#shop-remove-status');
+    if (removeStatus) removeStatus.hidden = !p.removeAds;
+    const supportStatus = $('#shop-support-status');
+    if (supportStatus) supportStatus.hidden = !p.supportThanks;
+
+    // Кнопки-дубли в меню тоже показываем только при живом мосте.
+    const menuRemove = $('#btn-remove-ads');
+    if (menuRemove) menuRemove.hidden = !available || !!p.removeAds;
+    const menuSupport = $('#btn-support');
+    if (menuSupport) menuSupport.hidden = !available || !!p.supportThanks;
+  }
+
+  function openShop() {
+    renderShop();
+    const modal = $('#modal-shop');
+    if (!modal) return;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+  }
+
+  function buyShopProduct(productId, btn) {
+    if (!RU || !RU.available()) {
       toast('Покупки доступны только в RuStore', 'miss');
+      renderShop();
       return;
     }
+    if (!btn || btn.disabled) return;
     Sfx.play('click');
     btn.disabled = true;
+    // Единственный платёжный путь: RuStorePlatform.purchase(id).
     RU.purchase(productId).then(function (ok) {
-      btn.disabled = false;
       if (!ok) {
+        btn.disabled = false;
         toast('Покупка не завершена — попробуй позже', 'miss');
         return;
       }
-      const removeBtn = $('#btn-remove-ads');
-      const supportBtn = $('#btn-support');
       if (productId === 'remove_ads') {
-        // Флаг пригодится, когда реклама RuStore будет подключена.
         state.profile.removeAds = true;
         saveProfile();
-        if (removeBtn) removeBtn.hidden = true;
+        RU.setAdsEnabled(false);
+        applyRemoveAds();
         toast('Реклама отключена — спасибо!', 'turn');
-      } else {
-        if (supportBtn) supportBtn.hidden = true;
+      } else if (productId === 'support_99') {
+        state.profile.supportThanks = true;
+        saveProfile();
         toast('Спасибо за поддержку!', 'turn');
       }
+      renderShop();
       Sfx.play('win');
     }, function () {
       btn.disabled = false;
@@ -3409,13 +3462,61 @@
     });
   }
 
+  /* Реальный эффект покупки: убираем rewarded-кнопки и просим мост
+     выключить рекламу. Без RuStorePlatform всё остаётся как раньше. */
+  function applyRemoveAds() {
+    if (!RU) return;
+    const p = state.profile;
+    if (!p || !p.removeAds) return;
+    const resultBonus = $('#btn-bonus');
+    if (resultBonus) resultBonus.hidden = true;
+    const adBonus = $('#btn-ad-bonus');
+    if (adBonus) adBonus.hidden = true;
+    RU.setAdsEnabled(false);
+    renderShop();
+  }
+
+  /* Восстановление непотребляемой покупки после переустановки.
+     Мост возвращает true, только если remove_ads действительно есть. */
+  function restorePurchases() {
+    if (!RU || !RU.available()) return;
+    RU.restore().then(function (restored) {
+      if (!restored) return;
+      if (!state.profile.removeAds) {
+        state.profile.removeAds = true;
+        saveProfile();
+      }
+      applyRemoveAds();
+      renderShop();
+    });
+  }
+
+  function updateRuStoreButtons() {
+    renderShop();
+  }
+
   function wireRuStore() {
     const removeBtn = $('#btn-remove-ads');
     const supportBtn = $('#btn-support');
-    if (!RU || !removeBtn || !supportBtn) return;
-    removeBtn.addEventListener('click', function () { buyRuStore('remove_ads', removeBtn); });
-    supportBtn.addEventListener('click', function () { buyRuStore('support_99', supportBtn); });
-    updateRuStoreButtons();
+    if (removeBtn) removeBtn.addEventListener('click', function () { buyShopProduct('remove_ads', removeBtn); });
+    if (supportBtn) supportBtn.addEventListener('click', function () { buyShopProduct('support_99', supportBtn); });
+    $$('#modal-shop [data-product]').forEach(function (btn) {
+      btn.addEventListener('click', function () { buyShopProduct(btn.dataset.product, btn); });
+    });
+
+    renderShop();
+    applyRemoveAds();
+    if (!RU) return;
+    RU.whenReady().then(function (sdk) {
+      if (!sdk) {
+        renderShop();
+        return;
+      }
+      updateRuStoreButtons();
+      applyRemoveAds();
+      restorePurchases();
+      renderShop();
+    });
   }
 
   function confetti() {
@@ -3855,6 +3956,28 @@
     $('#modal-achievements').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
     });
+
+    const shopBtn = $('#btn-shop');
+    if (shopBtn) {
+      shopBtn.addEventListener('click', () => {
+        Sfx.play('click');
+        openShop();
+      });
+      const shopClose = $('#btn-shop-close');
+      if (shopClose) shopClose.addEventListener('click', () => {
+        Sfx.play('click');
+        closeOverlay($('#modal-shop'));
+      });
+      const shopDone = $('#btn-shop-done');
+      if (shopDone) shopDone.addEventListener('click', () => {
+        Sfx.play('click');
+        closeOverlay($('#modal-shop'));
+      });
+      const shopModal = $('#modal-shop');
+      if (shopModal) shopModal.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeOverlay(e.currentTarget);
+      });
+    }
 
     $('#btn-fame').addEventListener('click', () => {
       Sfx.play('click');
@@ -4397,6 +4520,8 @@
         if (!ach.hidden) closeOverlay(ach);
         const fame = $('#modal-fame');
         if (fame && !fame.hidden) closeOverlay(fame);
+        const shop = $('#modal-shop');
+        if (shop && !shop.hidden) closeOverlay(shop);
         const replay = $('#modal-replay');
         if (replay && !replay.hidden) closeReplay();
       }

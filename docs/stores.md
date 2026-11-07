@@ -1,22 +1,35 @@
 # Магазины приложений: статус и чек-лист
 
-Текущая версия — **1.5.0**, `versionCode 6`, `versionName "1.5.0"`,
-package `dev.mensori.seabattle`.
+Текущая версия — **1.6.0**, `versionCode 7`, `versionName "1.6.0"`,
+package `dev.mensori.seabattle`. В RuStore на модерации всё ещё сборка 1.5.0:
+её публикуем первой, 1.6.0 загружаем обновлением.
 
 ## Что уже есть
 
 | Площадка | Статус | Артефакт |
 | --- | --- | --- |
-| RuStore | на модерации | `dist/seabattle-1.5.0-release.apk` / `.aab` |
-| GitHub Releases | опубликовано | тег `v1.5.0`, APK/AAB/IPA |
+| RuStore | 1.5.0 на модерации; 1.6.0 (versionCode 7) готова к загрузке обновлением | `dist/seabattle-1.6.0-release.apk` / `.aab` |
+| GitHub Releases | опубликовано | тег `v1.6.0`, APK/AAB/IPA |
 | Сайт-витрина | опубликовано | https://mensori-dev.github.io/seabattle/site/ |
-| Яндекс Игры | не принимает новые игры | `dist/seabattle-yandex-1.5.0.zip` |
-| VK Games | заявка на модерацию отправлена 6 ноября 00:23 (ВКонтакте и Одноклассники, Mobile + Web); ждёт проверки | `dist/seabattle-gamepush-1.5.0.zip` |
+| Яндекс Игры | сборка готова, черновик в консоли не заполнен | `dist/seabattle-yandex-1.6.0.zip` |
+| VK Games | заявка на модерацию отправлена 6 ноября 00:23 (ВКонтакте и Одноклассники, Mobile + Web); ждёт проверки | архив v3 на GamePush-хостинге |
 | VK Play | материалы загружены в GamePush, ждут обработки/публикации | `dist/gamepush-assets.zip` |
-| GamePush Distribution | отказ 6 ноября: нужен более высокий визуальный стиль и удержание; повторная заявка после 1.6.0 | `dist/seabattle-gamepush-1.5.0.zip` |
-| OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.5.0.zip` |
-| Google Play | не начато | `dist/seabattle-1.5.0-release.aab` |
+| GamePush Distribution | **отказ** 6 ноября: «ожидаем игры с более высоким качеством и визуальным стилем, чтобы игроки оставались дольше и делились с другими»; повторная заявка — не раньше 2–4 недель и только с заметно другой игрой | — |
+| OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.6.0.zip` |
+| Google Play | не начато | `dist/seabattle-1.6.0-release.aab` |
 | App Store | не начато, нужен Apple Developer | unsigned IPA + подпись |
+
+### Что это значит для трафика
+
+GamePush Distribution больше не канал. Живые каналы сейчас:
+
+1. **RuStore** — 1.5.0 на модерации, следом 1.6.0. Главный приоритет.
+2. **Яндекс Игры** — архив `dist/seabattle-yandex-1.6.0.zip` собран, нужно
+   заполнить черновик в консоли и пройти модерацию.
+3. **Своя витрина + APK/IPA** — работает уже сейчас, ничего не ждём.
+4. **VK** — заявка ещё рассматривается, но хостинг архива живёт на GamePush;
+   если отказ GamePush окончательный, канал VK отпадает.
+
 
 GamePush, VK/OK и VK Play описаны отдельно в `docs/gamepush.md`.
 

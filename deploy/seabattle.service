@@ -1,0 +1,25 @@
+[Unit]
+Description=Seabattle online rooms (Deno)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=seabattle
+Group=seabattle
+WorkingDirectory=/opt/seabattle
+Environment=PORT=8000
+Environment=DENO_DIR=/opt/seabattle/.deno
+ExecStart=/usr/local/bin/deno run --allow-net --allow-env --no-prompt server/main.ts
+Restart=always
+RestartSec=3
+# Комнаты живут в памяти: при падении теряется только текущий бой.
+LimitNOFILE=4096
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/seabattle
+
+[Install]
+WantedBy=multi-user.target

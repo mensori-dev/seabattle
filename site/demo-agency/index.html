@@ -368,10 +368,10 @@
         <a class="btn btn--ghost magnetic" href="#cases">Смотреть кейсы</a>
       </div>
       <div class="hero__stats">
-        <div class="stat reveal"><b data-count="34">0</b><span>проекта с 2020 года</span></div>
-        <div class="stat reveal"><b data-count="12" data-suffix=" дн.">0</b><span>средний срок лендинга</span></div>
-        <div class="stat reveal"><b data-count="98" data-suffix="%">0</b><span>клиентов возвращаются</span></div>
-        <div class="stat reveal"><b data-count="6" data-suffix=" лет">0</b><span>команде</span></div>
+        <div class="stat reveal"><b data-count="34">34</b><span>проекта с 2020 года</span></div>
+        <div class="stat reveal"><b data-count="12" data-suffix=" дн.">12 дн.</b><span>средний срок лендинга</span></div>
+        <div class="stat reveal"><b data-count="98" data-suffix="%">98%</b><span>клиентов возвращаются</span></div>
+        <div class="stat reveal"><b data-count="6" data-suffix=" лет">6 лет</b><span>команде</span></div>
       </div>
     </div>
   </section>
@@ -664,10 +664,13 @@
   /* ---------- counters ---------- */
   var counters = [].slice.call(document.querySelectorAll('[data-count]'));
   function runCounter(el) {
+    if (el.dataset.done) return;
+    el.dataset.done = '1';
     var to = parseInt(el.dataset.count, 10) || 0;
     var suf = el.dataset.suffix || '';
     if (reduce) { el.textContent = to + suf; return; }
-    var start = performance.now(), dur = 1100;
+    el.textContent = '0' + suf;
+    var start = performance.now(), dur = 700;
     function tick(now) {
       var p = Math.min((now - start) / dur, 1);
       var eased = 1 - Math.pow(1 - p, 3);

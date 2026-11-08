@@ -1,11 +1,11 @@
 /* Дешёвый браузерный драйвер: Chrome DevTools Protocol без зависимостей.
    Заменяет BrowserMCP: один запуск = целая серия действий, на выходе только короткий JSON.
 
-   Подготовка (один раз): перезапустить Chrome с портом отладки
+   Подготовка (один раз): профиль C:\ChromeCDP и ярлык «Chrome (автоматизация)».
      & "C:\Program Files\Google\Chrome\Application\chrome.exe" `
-       --remote-debugging-port=9222 `
-       --user-data-dir="$env:LOCALAPPDATA\Google\Chrome\User Data"
-   (Chrome должен быть полностью закрыт, иначе флаг игнорируется)
+       --remote-debugging-port=9222 --user-data-dir="C:\ChromeCDP"
+   Chrome 136+ игнорирует порт отладки на основном профиле (защита куки),
+   поэтому нужен отдельный user-data-dir. Сессия Kwork в этом профиле уже есть.
 
    Запуск:  node scripts/cdp.mjs <plan.json>
             node scripts/cdp.mjs --tabs

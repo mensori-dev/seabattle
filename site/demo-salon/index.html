@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Студия красоты «Аврора» — Йошкар-Ола</title>
+<meta name="description" content="Стрижки, окрашивание, маникюр и уход в центре Йошкар-Олы. Запись онлайн и по телефону.">
+<meta property="og:title" content="Студия красоты «Аврора» — Йошкар-Ола">
+<meta property="og:description" content="Стрижки, окрашивание, маникюр и уход. Запись онлайн.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+<style>
+  :root{
+    --cream:#f7f1ea;
+    --cream-2:#efe5da;
+    --ink:#221b17;
+    --ink-soft:#5d5148;
+    --line:#e0d2c4;
+    --terra:#b4553f;
+    --terra-dark:#95422f;
+    --sage:#7f8f76;
+    --white:#fffdfb;
+    --radius:18px;
+    --shadow:0 20px 45px -28px rgba(60,38,25,.45);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:17px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%;display:block}
+  a{color:inherit}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:400;line-height:1.15;margin:0}
+  .wrap{width:min(1120px,100% - 40px);margin-inline:auto}
+  .eyebrow{
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--terra);font-weight:600;margin:0 0 14px
+  }
+  .lead{color:var(--ink-soft);font-size:17px;margin:14px 0 0;max-width:52ch}
+
+  /* header */
+  .top{
+    position:sticky;top:0;z-index:40;
+    background:rgba(247,241,234,.9);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .top__in{display:flex;align-items:center;gap:18px;height:66px}
+  .logo{display:flex;align-items:center;gap:10px;font-family:Georgia,serif;font-size:20px;letter-spacing:.04em}
+  .logo b{color:var(--terra);font-weight:400}
+  .logo small{display:block;font-family:-apple-system,"Segoe UI",sans-serif;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft)}
+  .top__nav{display:flex;gap:22px;margin-left:auto;font-size:15px}
+  .top__nav a{text-decoration:none;color:var(--ink-soft);padding:6px 0;border-bottom:1px solid transparent}
+  .top__nav a:hover{color:var(--ink);border-bottom-color:var(--terra)}
+  .top__phone{
+    margin-left:8px;font-weight:600;text-decoration:none;white-space:nowrap;
+    font-size:15px
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    min-height:46px;padding:0 22px;border-radius:999px;border:1px solid transparent;
+    font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;
+    transition:transform .18s ease, background .2s ease, color .2s ease, border-color .2s ease;
+    font-family:inherit;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn--primary{background:var(--terra);color:#fff}
+  .btn--primary:hover{background:var(--terra-dark)}
+  .btn--ghost{background:transparent;color:var(--ink);border-color:#cdbba9}
+  .btn--ghost:hover{border-color:var(--terra);color:var(--terra)}
+  .btn--sm{min-height:38px;padding:0 16px;font-size:14px}
+
+  /* hero */
+  .hero{position:relative;overflow:hidden}
+  .hero__grid{display:grid;grid-template-columns:1.05fr 1fr;gap:0;align-items:stretch}
+  .hero__copy{padding:clamp(40px,6vw,86px) clamp(20px,4vw,64px) clamp(40px,6vw,70px) 0}
+  .hero h1{font-size:clamp(38px,5.2vw,64px)}
+  .hero h1 em{font-style:italic;color:var(--terra)}
+  .hero__actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .hero__pic{position:relative;min-height:420px;overflow:hidden;isolation:isolate}
+  .hero__art{
+    position:absolute;inset:0;
+    background:
+      radial-gradient(130% 100% at 82% 4%, #f7e6d6 0%, #eedcc9 45%, #e2cbb4 100%);
+  }
+  .hero__art::before{
+    content:"";position:absolute;width:66%;aspect-ratio:1;border-radius:50%;
+    left:16%;top:11%;
+    background:radial-gradient(circle at 34% 28%, #fffdfb 0%, #f5e8db 52%, #ddc3aa 100%);
+    box-shadow:0 40px 70px -40px rgba(90,60,40,.55), inset 0 0 0 1px rgba(180,85,63,.14);
+  }
+  .hero__art::after{
+    content:"";position:absolute;right:-16%;bottom:-22%;width:64%;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, rgba(180,85,63,.5), rgba(180,85,63,.12) 70%);
+    filter:blur(2px);
+  }
+  .hero__art svg{position:absolute;inset:0;width:100%;height:100%}
+  .hero__badge{
+    position:absolute;left:16px;bottom:18px;
+    background:var(--white);border-radius:16px;padding:14px 18px;
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;font-size:14px
+  }
+  .hero__badge b{font-size:20px;font-family:Georgia,serif;display:block;line-height:1.1}
+  .stars{color:#e0a33c;letter-spacing:2px;font-size:13px}
+
+  .strip{
+    border-block:1px solid var(--line);
+    background:var(--cream-2);
+  }
+  .strip__in{display:flex;gap:34px;flex-wrap:wrap;justify-content:space-between;padding:16px 0;font-size:14px;color:var(--ink-soft)}
+  .strip__in span{display:flex;align-items:center;gap:8px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--sage);flex:none}
+
+  /* sections */
+  section{padding:clamp(52px,7vw,92px) 0}
+  .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:34px}
+  h2{font-size:clamp(30px,3.6vw,44px)}
+  h2 em{font-style:italic;color:var(--terra)}
+
+  /* services */
+  .svc-groups{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .svc{
+    background:var(--white);border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px 24px;box-shadow:var(--shadow)
+  }
+  .svc h3{font-size:22px;margin-bottom:4px}
+  .svc p.note{color:var(--ink-soft);font-size:14px;margin:0 0 16px}
+  .svc ul{list-style:none;margin:0;padding:0}
+  .svc li{
+    display:flex;align-items:baseline;gap:10px;padding:9px 0;border-top:1px dashed var(--line);font-size:15px
+  }
+  .svc li:first-child{border-top:0}
+  .svc li span{flex:1}
+  .svc li b{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .svc__cta{margin-top:18px;width:100%}
+
+  /* gallery */
+  .gal{display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:repeat(2,1fr);gap:16px;height:520px}
+  .gal figure{margin:0;overflow:hidden;border-radius:var(--radius);position:relative}
+  .gal figure:first-child{grid-row:span 2}
+  .gal__art{position:absolute;inset:0;display:block;transition:transform .7s ease;
+    background:radial-gradient(120% 120% at 22% 18%,var(--c1,#f6e7d8),var(--c2,#d9b79c))}
+  .gal__art::after{content:"";position:absolute;inset:0;background:
+    radial-gradient(closest-side circle at 66% 34%,rgba(255,253,251,.8),transparent 72%),
+    radial-gradient(closest-side circle at 20% 82%,rgba(255,253,251,.35),transparent 70%),
+    linear-gradient(180deg,transparent 55%,rgba(60,38,25,.18))}
+  .gal figure:hover .gal__art{transform:scale(1.04)}
+  .gal figcaption{
+    position:absolute;left:14px;bottom:14px;background:rgba(255,253,251,.92);
+    border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600
+  }
+  .gal__tile{
+    border-radius:var(--radius);background:linear-gradient(150deg,#e8d6c6,#cdbba9);
+    display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;
+    font-family:Georgia,serif;font-size:20px;color:#5b4636
+  }
+
+  /* features */
+  .feat{background:var(--cream-2);border-block:1px solid var(--line)}
+  .feat__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+  .feat__item i{display:inline-flex;width:44px;height:44px;border-radius:12px;background:var(--white);align-items:center;justify-content:center;margin-bottom:14px}
+  .feat__item b{display:block;font-size:16px;margin-bottom:4px}
+  .feat__item p{margin:0;color:var(--ink-soft);font-size:14px}
+
+  /* team */
+  .team{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .person{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:24px;text-align:center}
+  .person__ava{
+    width:74px;height:74px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(140deg,#f0ddcd,#d9bda6);font-family:Georgia,serif;font-size:24px;color:#6b5341
+  }
+  .person b{display:block;font-size:17px}
+  .person small{color:var(--ink-soft);font-size:14px;display:block;margin-top:2px}
+
+  /* reviews */
+  .rev{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .rev__card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .rev__card p{margin:10px 0 16px;font-size:15px;color:#39302a}
+  .rev__who{font-size:14px;color:var(--ink-soft)}
+
+  /* booking */
+  .book{background:var(--ink);color:#f3e9df}
+  .book h2{color:#fff}
+  .book h2 em{color:#e5a58f}
+  .book .lead{color:#cbbdb1}
+  .book__grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+  form{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:var(--radius);padding:26px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;color:#cbbdb1;margin-bottom:6px}
+  .field input,.field select{
+    width:100%;min-height:48px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.07);color:#fff;font-size:16px;font-family:inherit
+  }
+  .field input::placeholder{color:#9c8f84}
+  .field select option{color:#221b17}
+  .field input:focus,.field select:focus{outline:2px solid #e5a58f;outline-offset:1px}
+  form .btn{width:100%;margin-top:6px}
+  .form-note{font-size:12px;color:#9c8f84;margin:12px 0 0}
+  .book__list{list-style:none;padding:0;margin:26px 0 0}
+  .book__list li{padding:12px 0;border-top:1px solid rgba(255,255,255,.12);display:flex;gap:12px;font-size:15px}
+  .book__list li:first-child{border-top:0}
+  .book__list span:first-child{color:#9c8f84;min-width:96px}
+
+  /* contacts */
+  .contacts__grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
+  .card-soft{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+  .card-soft h3{font-size:22px;margin-bottom:12px}
+  .contacts__map{
+    border-radius:var(--radius);overflow:hidden;position:relative;min-height:280px;
+    background:
+      linear-gradient(90deg,rgba(180,85,63,.08) 1px,transparent 1px) 0 0/46px 46px,
+      linear-gradient(rgba(180,85,63,.08) 1px,transparent 1px) 0 0/46px 46px,
+      #e9ded2;
+    display:flex;align-items:center;justify-content:center;text-align:center;padding:26px
+  }
+  .pin{background:var(--white);border-radius:16px;padding:16px 20px;box-shadow:var(--shadow)}
+  .pin b{display:block;font-size:15px}
+  .pin small{color:var(--ink-soft)}
+
+  footer{background:var(--cream-2);border-top:1px solid var(--line);padding:34px 0 96px;font-size:14px;color:var(--ink-soft)}
+  .foot{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+  .demo-note{
+    margin-top:18px;padding-top:18px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft)
+  }
+  .demo-note b{color:var(--terra)}
+
+  /* sticky mobile cta */
+  .mob-cta{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(247,241,234,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+    gap:10px
+  }
+  .mob-cta .btn{flex:1}
+
+  @media (max-width:900px){
+    .hero__grid{grid-template-columns:1fr}
+    .hero__copy{padding:34px 0 30px}
+    .hero__pic{min-height:300px;border-radius:var(--radius);overflow:hidden}
+    .hero__badge{left:14px;bottom:14px}
+    .svc-groups,.team,.rev{grid-template-columns:1fr}
+    .feat__grid{grid-template-columns:1fr 1fr;gap:20px}
+    .gal{grid-template-columns:1fr;grid-template-rows:none;height:auto}
+    .gal figure:first-child{grid-row:auto;height:300px}
+    .gal figure{height:200px}
+    .gal__tile{height:120px}
+    .book__grid,.contacts__grid{grid-template-columns:1fr;gap:28px}
+    .top__nav{display:none}
+    .top__phone{display:none}
+    .top__in{height:60px}
+    .mob-cta{display:flex}
+    footer{padding-bottom:92px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important;animation:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__in">
+    <div class="logo">✦ <span>Аврора<small>студия красоты</small></span></div>
+    <nav class="top__nav">
+      <a href="#services">Услуги</a>
+      <a href="#works">Работы</a>
+      <a href="#team">Мастера</a>
+      <a href="#reviews">Отзывы</a>
+      <a href="#contacts">Контакты</a>
+    </nav>
+    <a class="top__phone" href="tel:+79000000000">+7 900 000-00-00</a>
+    <a class="btn btn--primary btn--sm" href="#book">Записаться</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div class="hero__copy">
+      <p class="eyebrow">Йошкар-Ола · с 2016 года</p>
+      <h1>Красота, которая<br>не кричит, а <em>заметна</em></h1>
+      <p class="lead">Стрижки, окрашивание, маникюр и уход за кожей. Работаем на профессиональной
+      косметике, без спешки и без «как в прошлый раз, только короче».</p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="#book">Записаться онлайн</a>
+        <a class="btn btn--ghost" href="tel:+79000000000">Позвонить</a>
+      </div>
+      <p class="lead" style="font-size:14px;margin-top:18px">Отвечаем в течение 10 минут в рабочее время</p>
+    </div>
+    <div class="hero__pic">
+      <div class="hero__art" aria-hidden="true">
+        <svg viewBox="0 0 600 520" preserveAspectRatio="xMidYMid slice" fill="none">
+          <path d="M60 470C60 300 150 190 300 150" stroke="#b4553f" stroke-opacity=".35" stroke-width="1.2"/>
+          <path d="M95 500C95 330 185 225 330 190" stroke="#b4553f" stroke-opacity=".2" stroke-width="1.2"/>
+          <path d="M470 60C540 120 560 210 545 300" stroke="#7f8f76" stroke-opacity=".5" stroke-width="1.4"/>
+          <ellipse cx="497" cy="120" rx="26" ry="11" fill="#7f8f76" fill-opacity=".35" transform="rotate(-32 497 120)"/>
+          <ellipse cx="524" cy="186" rx="24" ry="10" fill="#7f8f76" fill-opacity=".28" transform="rotate(-14 524 186)"/>
+          <circle cx="120" cy="90" r="4" fill="#b4553f" fill-opacity=".5"/>
+          <circle cx="152" cy="60" r="2.5" fill="#b4553f" fill-opacity=".35"/>
+        </svg>
+      </div>
+      <div class="hero__badge">
+        <div>
+          <b>4.9</b>
+          <span class="stars">★★★★★</span>
+        </div>
+        <div style="color:#5d5148">68 отзывов<br>на 2ГИС</div>
+      </div>
+    </div>
+  </div>
+  <div class="strip">
+    <div class="wrap strip__in">
+      <span><i class="dot"></i> Центр города, 3 минуты от площади</span>
+      <span><i class="dot"></i> Бесплатная консультация перед процедурой</span>
+      <span><i class="dot"></i> Работаем ежедневно 09:00–21:00</span>
+    </div>
+  </div>
+</section>
+
+<section id="services">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Услуги и цены</p>
+        <h2>Понятный прайс,<br>без <em>«уточним на месте»</em></h2>
+      </div>
+      <p class="lead" style="margin:0">Итоговую стоимость мастер называет до начала работы.
+      Стрижка входит в сушку и укладку.</p>
+    </div>
+
+    <div class="svc-groups">
+      <div class="svc">
+        <h3>Волосы</h3>
+        <p class="note">Стрижка, окрашивание, уход</p>
+        <ul>
+          <li><span>Женская стрижка</span><b>1 800 ₽</b></li>
+          <li><span>Укладка / брашинг</span><b>1 200 ₽</b></li>
+          <li><span>Окрашивание в один тон</span><b>от 3 500 ₽</b></li>
+          <li><span>Балаяж / мелирование</span><b>от 5 500 ₽</b></li>
+          <li><span>Ботокс для волос</span><b>2 900 ₽</b></li>
+        </ul>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+      </div>
+
+      <div class="svc">
+        <h3>Ногти</h3>
+        <p class="note">Маникюр, педикюр, покрытие</p>
+        <ul>
+          <li><span>Маникюр без покрытия</span><b>900 ₽</b></li>
+          <li><span>Маникюр + гель-лак</span><b>1 700 ₽</b></li>
+          <li><span>Педикюр + покрытие</span><b>2 200 ₽</b></li>
+          <li><span>Наращивание ногтей</span><b>от 2 800 ₽</b></li>
+          <li><span>Снятие покрытия</span><b>400 ₽</b></li>
+        </ul>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+      </div>
+
+      <div class="svc">
+        <h3>Брови и ресницы</h3>
+        <p class="note">Коррекция, окрашивание, ламинирование</p>
+        <ul>
+          <li><span>Коррекция бровей</span><b>700 ₽</b></li>
+          <li><span>Окрашивание бровей + краска</span><b>900 ₽</b></li>
+          <li><span>Ламинирование бровей</span><b>1 800 ₽</b></li>
+          <li><span>Ламинирование ресниц</span><b>2 000 ₽</b></li>
+          <li><span>Комплекс «брови + ресницы»</span><b>3 400 ₽</b></li>
+        </ul>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="works" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Работы</p>
+        <h2>Как это <em>выглядит</em></h2>
+      </div>
+      <p class="lead" style="margin:0">Здесь будут фотографии ваших работ — их можно менять в любой момент.</p>
+    </div>
+    <div class="gal">
+      <figure>
+        <div class="gal__art" style="--c1:#f7e6d5;--c2:#cfae92"></div>
+        <figcaption>Наша студия</figcaption>
+      </figure>
+      <figure>
+        <div class="gal__art" style="--c1:#f3e2da;--c2:#c79c94"></div>
+        <figcaption>Маникюр + гель-лак</figcaption>
+      </figure>
+      <figure>
+        <div class="gal__art" style="--c1:#efe6d2;--c2:#bdb093"></div>
+        <figcaption>Укладка и уход</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="feat">
+  <div class="wrap feat__grid">
+    <div class="feat__item">
+      <i aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b4553f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M5 6l2 2M19 6l-2 2M4 14a8 8 0 0 1 16 0"/><path d="M2 18h20"/></svg>
+      </i>
+      <b>Без спешки</b>
+      <p>Одна запись — один час. Мастер не бегает между креслами.</p>
+    </div>
+    <div class="feat__item">
+      <i aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b4553f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </i>
+      <b>Стерильность</b>
+      <p>Инструменты проходят три этапа обработки, крафт-пакеты вскрываем при вас.</p>
+    </div>
+    <div class="feat__item">
+      <i aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b4553f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 15 9l7 .6-5.3 4.6 1.6 6.8L12 17.5 5.7 21l1.6-6.8L2 9.6 9 9z"/></svg>
+      </i>
+      <b>Мастера с опытом</b>
+      <p>От 4 лет практики, ежегодное обучение у российских и зарубежных технологов.</p>
+    </div>
+    <div class="feat__item">
+      <i aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b4553f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </i>
+      <b>Честно скажем «нет»</b>
+      <p>Если процедура вам не подойдёт — объясним почему, а не продадим.</p>
+    </div>
+  </div>
+</section>
+
+<section id="team">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Команда</p>
+        <h2>Кто вас <em>ждёт</em></h2>
+      </div>
+      <p class="lead" style="margin:0">Можно записаться к конкретному мастеру — просто укажите в форме.</p>
+    </div>
+    <div class="team">
+      <div class="person">
+        <div class="person__ava" aria-hidden="true">АК</div>
+        <b>Анна К.</b>
+        <small>Колорист · 8 лет опыта</small>
+        <p style="color:#5d5148;font-size:14px;margin:10px 0 0">Сложные окрашивания, блонд без «жёлтизны».</p>
+      </div>
+      <div class="person">
+        <div class="person__ava" aria-hidden="true">МС</div>
+        <b>Мария С.</b>
+        <small>Мастер маникюра · 5 лет</small>
+        <p style="color:#5d5148;font-size:14px;margin:10px 0 0">Френч, нюд, укрепление и выравнивание.</p>
+      </div>
+      <div class="person">
+        <div class="person__ava" aria-hidden="true">ЕП</div>
+        <b>Елена П.</b>
+        <small>Бровист · 4 года</small>
+        <p style="color:#5d5148;font-size:14px;margin:10px 0 0">Архитектура бровей, ламинирование.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="reviews" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Отзывы</p>
+        <h2>Что говорят <em>клиенты</em></h2>
+      </div>
+      <p class="lead" style="margin:0">68 отзывов на 2ГИС, средняя оценка 4.9.</p>
+    </div>
+    <div class="rev">
+      <div class="rev__card">
+        <span class="stars">★★★★★</span>
+        <p>«Пришла с рыжим после домашней краски — вышла с ровным холодным блондом.
+        Анна объяснила, что и зачем делает. Теперь только сюда».</p>
+        <div class="rev__who">Ольга, 12 октября</div>
+      </div>
+      <div class="rev__card">
+        <span class="stars">★★★★★</span>
+        <p>«Маникюр держится четвёртую неделю, ни одного скола. И впервые не больно
+        на кутикуле. Записалась уже на педикюр».</p>
+        <div class="rev__who">Ксения, 3 октября</div>
+      </div>
+      <div class="rev__card">
+        <span class="stars">★★★★★</span>
+        <p>«Записалась через сайт вечером — утром уже перезвонили и подобрали время.
+        Мелочь, а приятно. Атмосфера спокойная, без суеты».</p>
+        <div class="rev__who">Дарья, 28 сентября</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="book" id="book">
+  <div class="wrap book__grid">
+    <div>
+      <p class="eyebrow" style="color:#e5a58f">Запись</p>
+      <h2>Оставьте заявку —<br>перезвоним <em>за 10 минут</em></h2>
+      <p class="lead">Или напишите нам в WhatsApp: пришлите фото или идею, мастер подскажет,
+      сколько это займёт и сколько будет стоить.</p>
+      <ul class="book__list">
+        <li><span>Адрес</span><span>Йошкар-Ола, ул. Примерная, 12</span></li>
+        <li><span>Телефон</span><span>+7 900 000-00-00</span></li>
+        <li><span>Часы</span><span>ежедневно 09:00–21:00</span></li>
+        <li><span>Оплата</span><span>карта, наличные, СБП</span></li>
+      </ul>
+    </div>
+
+    <form id="bookForm" novalidate>
+      <div class="field">
+        <label for="f-name">Как к вам обращаться</label>
+        <input id="f-name" name="name" type="text" placeholder="Имя" required>
+      </div>
+      <div class="field">
+        <label for="f-phone">Телефон</label>
+        <input id="f-phone" name="phone" type="tel" placeholder="+7 ___ ___-__-__" required>
+      </div>
+      <div class="field">
+        <label for="f-svc">Услуга</label>
+        <select id="f-svc" name="service">
+          <option>Стрижка</option>
+          <option>Окрашивание</option>
+          <option>Маникюр</option>
+          <option>Педикюр</option>
+          <option>Брови / ресницы</option>
+          <option>Не знаю, нужна консультация</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-time">Когда удобно</label>
+        <input id="f-time" name="time" type="text" placeholder="Например: в субботу после 15:00">
+      </div>
+      <button class="btn btn--primary" type="submit">Отправить заявку</button>
+      <p class="form-note" id="formNote">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.
+      Это демо-форма: заявка никуда не отправляется.</p>
+    </form>
+  </div>
+</section>
+
+<section id="contacts">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Контакты</p>
+        <h2>Как нас <em>найти</em></h2>
+      </div>
+    </div>
+    <div class="contacts__grid">
+      <div class="card-soft">
+        <h3>Студия красоты «Аврора»</h3>
+        <p style="margin:0 0 14px;color:#5d5148">Йошкар-Ола, ул. Примерная, 12<br>
+        Вход со двора, 2 этаж, звонок «Аврора»</p>
+        <p style="margin:0 0 6px"><b>+7 900 000-00-00</b> — звонки и WhatsApp</p>
+        <p style="margin:0 0 18px">Ежедневно с 09:00 до 21:00</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a class="btn btn--primary btn--sm" href="tel:+79000000000">Позвонить</a>
+          <a class="btn btn--ghost btn--sm" href="https://wa.me/79000000000" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      </div>
+      <div class="contacts__map" role="img" aria-label="Схема расположения студии">
+        <div class="pin">
+          <b>ул. Примерная, 12</b>
+          <small>3 минуты от площади Революции</small>
+          <div style="margin-top:8px"><a href="https://2gis.ru/yoshkar-ola" target="_blank" rel="noopener" style="font-size:13px;color:#b4553f">Открыть в 2ГИС</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>© 2026 Студия красоты «Аврора» · Йошкар-Ола</div>
+      <div><a href="#book" style="text-decoration:none;border-bottom:1px solid #b4553f">Записаться</a></div>
+    </div>
+    <p class="demo-note">
+      <b>Это демонстрационная страница.</b> Салон «Аврора» и цены вымышлены — страница показывает,
+      как может выглядеть сайт вашей студии: услуги с ценами, работы, отзывы, запись и карта.
+      Такой сайт делается за 3 дня.
+    </p>
+  </div>
+</footer>
+
+<div class="mob-cta">
+  <a class="btn btn--ghost" href="tel:+79000000000">Позвонить</a>
+  <a class="btn btn--primary" href="#book">Записаться</a>
+</div>
+
+<script>
+  document.getElementById('bookForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('f-name').value.trim();
+    var phone = document.getElementById('f-phone').value.trim();
+    var note = document.getElementById('formNote');
+    if (name.length < 2 || phone.replace(/\D/g, '').length < 10) {
+      note.textContent = 'Проверьте имя и телефон — и нажмите ещё раз.';
+      note.style.color = '#e5a58f';
+      return;
+    }
+    note.textContent = 'Спасибо, ' + name + '! В демо заявка не уходит, но на реальном сайте мы бы уже звонили.';
+    note.style.color = '#9fd39b';
+    this.reset();
+  });
+</script>
+</body>
+</html>

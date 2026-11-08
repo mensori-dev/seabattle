@@ -174,6 +174,7 @@ async function main() {
   const s = await Session.connect(tab.webSocketDebuggerUrl);
   await s.send('Page.enable');
   await s.send('Runtime.enable');
+  await s.send('DOM.enable').catch(() => {});
 
   for (const step of plan.steps || []) {
     try {
@@ -197,6 +198,20 @@ async function main() {
         console.log(`· focus ${step.focus}`);
       } else if (step.type !== undefined) {
         console.log(`· type ${await s.type(step.type)} симв.`);
+      } else if (step.file) {
+        const obj = await s.send('Runtime.evaluate', {
+          expression: step.index
+            ? `document.querySelectorAll(${JSON.stringify(step.file)})[${step.index}]`
+            : `document.querySelector(${JSON.stringify(step.file)})`,
+        });
+        const objectId = obj.result && obj.result.objectId;
+        if (!objectId) throw new Error('нет input[type=file]');
+        await s.send('DOM.setFileInputFiles', {
+          files: [].concat(step.paths || []).map((p) => resolve(p)),
+          objectId,
+        });
+        await s.eval(`(() => { const e = document.querySelector(${JSON.stringify(step.file)}); ['input','change'].forEach(t => e.dispatchEvent(new Event(t, { bubbles: true }))); })()`);
+        console.log(`· file ${[].concat(step.paths || []).length} шт.`);
       } else if (step.key) {
         console.log(`· key ${await s.key(step.key)}`);
       } else if (step.hotkey) {

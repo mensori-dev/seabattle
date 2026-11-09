@@ -101,6 +101,7 @@
     filter:blur(2px);
   }
   .hero__art svg{position:absolute;inset:0;width:100%;height:100%}
+  .hero__photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%}
   .hero__badge{
     position:absolute;left:16px;bottom:18px;
     background:var(--white);border-radius:16px;padding:14px 18px;
@@ -151,6 +152,12 @@
     radial-gradient(closest-side circle at 20% 82%,rgba(255,253,251,.35),transparent 70%),
     linear-gradient(180deg,transparent 55%,rgba(60,38,25,.18))}
   .gal figure:hover .gal__art{transform:scale(1.04)}
+  .gal figure img{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    transition:transform .7s ease
+  }
+  .gal figure:hover img{transform:scale(1.04)}
+  .gal figure:nth-child(3) img{object-position:center 46%}
   .gal figcaption{
     position:absolute;left:14px;bottom:14px;background:rgba(255,253,251,.92);
     border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600
@@ -184,6 +191,18 @@
   .rev__card p{margin:10px 0 16px;font-size:15px;color:#39302a}
   .rev__who{font-size:14px;color:var(--ink-soft)}
 
+  /* faq */
+  .faq{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .faq details{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:0 18px}
+  .faq summary{
+    cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;
+    display:flex;justify-content:space-between;align-items:start;gap:12px
+  }
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";color:var(--accent);font-size:20px;line-height:1}
+  .faq details[open] summary::after{content:"–"}
+  .faq details p{margin:0 0 16px;font-size:14px;line-height:1.6;color:#4a3f39}
+
   /* booking */
   .book{background:var(--ink);color:#f3e9df}
   .book h2{color:#fff}
@@ -201,6 +220,12 @@
   .field select option{color:#221b17}
   .field input:focus,.field select:focus{outline:2px solid #e5a58f;outline-offset:1px}
   form .btn{width:100%;margin-top:6px}
+  .field-error{display:none;font-size:12px;color:#ffb4a3;margin-top:5px}
+  .field.is-bad input,.field.is-bad select{border-color:#e5826c;background:rgba(229,130,108,.12)}
+  .field.is-bad .field-error{display:block}
+  .form-proof{margin:14px 0 0;font-size:13px;color:#cbbdb1}
+  .form-proof b{color:#f3e9df}
+  .form-proof .stars{color:#e0a33c}
   .form-note{font-size:12px;color:#9c8f84;margin:12px 0 0}
   .book__list{list-style:none;padding:0;margin:26px 0 0}
   .book__list li{padding:12px 0;border-top:1px solid rgba(255,255,255,.12);display:flex;gap:12px;font-size:15px}
@@ -251,6 +276,7 @@
     .gal figure{height:200px}
     .gal__tile{height:120px}
     .book__grid,.contacts__grid{grid-template-columns:1fr;gap:28px}
+    .faq{grid-template-columns:1fr}
     .top__nav{display:none}
     .top__phone{display:none}
     .top__in{height:60px}
@@ -262,6 +288,33 @@
     *{transition:none!important;animation:none!important}
   }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BeautySalon",
+  "name": "Студия красоты «Аврора»",
+  "description": "Стрижки, окрашивание, маникюр, брови и ресницы в центре Йошкар-Олы.",
+  "telephone": "+7 900 000-00-00",
+  "priceRange": "700–5500 ₽",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "ул. Примерная, 12",
+    "addressLocality": "Йошкар-Ола",
+    "addressCountry": "RU"
+  },
+  "openingHoursSpecification": [{
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens": "09:00",
+    "closes": "21:00"
+  }],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "reviewCount": "68"
+  }
+}
+</script>
 </head>
 <body>
 
@@ -284,27 +337,18 @@
   <div class="wrap hero__grid">
     <div class="hero__copy">
       <p class="eyebrow">Йошкар-Ола · с 2016 года</p>
-      <h1>Красота, которая<br>не кричит, а <em>заметна</em></h1>
-      <p class="lead">Стрижки, окрашивание, маникюр и уход за кожей. Работаем на профессиональной
-      косметике, без спешки и без «как в прошлый раз, только короче».</p>
+      <h1>Красота, которую<br>видно <em>сразу</em></h1>
+      <p class="lead">Стрижка, окрашивание, маникюр и брови в центре Йошкар-Олы. Работаем на профессиональной
+      косметике — без спешки и без «как в прошлый раз, только короче».</p>
       <div class="hero__actions">
         <a class="btn btn--primary" href="#book">Записаться онлайн</a>
+        <a class="btn btn--ghost" href="https://wa.me/79000000000" target="_blank" rel="noopener">WhatsApp</a>
         <a class="btn btn--ghost" href="tel:+79000000000">Позвонить</a>
       </div>
       <p class="lead" style="font-size:14px;margin-top:18px">Отвечаем в течение 10 минут в рабочее время</p>
     </div>
     <div class="hero__pic">
-      <div class="hero__art" aria-hidden="true">
-        <svg viewBox="0 0 600 520" preserveAspectRatio="xMidYMid slice" fill="none">
-          <path d="M60 470C60 300 150 190 300 150" stroke="#b4553f" stroke-opacity=".35" stroke-width="1.2"/>
-          <path d="M95 500C95 330 185 225 330 190" stroke="#b4553f" stroke-opacity=".2" stroke-width="1.2"/>
-          <path d="M470 60C540 120 560 210 545 300" stroke="#7f8f76" stroke-opacity=".5" stroke-width="1.4"/>
-          <ellipse cx="497" cy="120" rx="26" ry="11" fill="#7f8f76" fill-opacity=".35" transform="rotate(-32 497 120)"/>
-          <ellipse cx="524" cy="186" rx="24" ry="10" fill="#7f8f76" fill-opacity=".28" transform="rotate(-14 524 186)"/>
-          <circle cx="120" cy="90" r="4" fill="#b4553f" fill-opacity=".5"/>
-          <circle cx="152" cy="60" r="2.5" fill="#b4553f" fill-opacity=".35"/>
-        </svg>
-      </div>
+      <img class="hero__photo" src="img/hero.jpg" width="1600" height="1068" alt="Укладка после окрашивания в студии «Аврора»">
       <div class="hero__badge">
         <div>
           <b>4.9</b>
@@ -345,7 +389,7 @@
           <li><span>Балаяж / мелирование</span><b>от 5 500 ₽</b></li>
           <li><span>Ботокс для волос</span><b>2 900 ₽</b></li>
         </ul>
-        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book" data-svc="Стрижка">Записаться</a>
       </div>
 
       <div class="svc">
@@ -358,7 +402,7 @@
           <li><span>Наращивание ногтей</span><b>от 2 800 ₽</b></li>
           <li><span>Снятие покрытия</span><b>400 ₽</b></li>
         </ul>
-        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book" data-svc="Маникюр">Записаться</a>
       </div>
 
       <div class="svc">
@@ -371,7 +415,7 @@
           <li><span>Ламинирование ресниц</span><b>2 000 ₽</b></li>
           <li><span>Комплекс «брови + ресницы»</span><b>3 400 ₽</b></li>
         </ul>
-        <a class="btn btn--ghost btn--sm svc__cta" href="#book">Записаться</a>
+        <a class="btn btn--ghost btn--sm svc__cta" href="#book" data-svc="Брови / ресницы">Записаться</a>
       </div>
     </div>
   </div>
@@ -388,16 +432,16 @@
     </div>
     <div class="gal">
       <figure>
-        <div class="gal__art" style="--c1:#f7e6d5;--c2:#cfae92"></div>
+        <img src="img/salon.jpg" width="1400" height="934" loading="lazy" alt="Зал студии: кресла, зеркала и лампы для работы">
         <figcaption>Наша студия</figcaption>
       </figure>
       <figure>
-        <div class="gal__art" style="--c1:#f3e2da;--c2:#c79c94"></div>
+        <img src="img/nails.jpg" width="900" height="600" loading="lazy" alt="Маникюр с покрытием гель-лаком">
         <figcaption>Маникюр + гель-лак</figcaption>
       </figure>
       <figure>
-        <div class="gal__art" style="--c1:#efe6d2;--c2:#bdb093"></div>
-        <figcaption>Укладка и уход</figcaption>
+        <img src="img/hair.jpg" width="900" height="1348" loading="lazy" alt="Уход за волосами: мытьё головы в кресле">
+        <figcaption>Уход за волосами</figcaption>
       </figure>
     </div>
   </div>
@@ -500,6 +544,39 @@
   </div>
 </section>
 
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Вопросы</p>
+        <h2>Что обычно <em>спрашивают</em></h2>
+      </div>
+      <p class="lead" style="margin:0">Не нашли свой вопрос — напишите в WhatsApp, ответим в течение дня.</p>
+    </div>
+    <div class="faq">
+      <details>
+        <summary>Сколько времени занимает стрижка и окрашивание?</summary>
+        <p>Стрижка — 40–60 минут. Окрашивание — от 1,5 до 3 часов, зависит от длины волос
+        и техники. Точное время мастер называет на консультации, чтобы вы могли спланировать день.</p>
+      </details>
+      <details>
+        <summary>Можно прийти без записи?</summary>
+        <p>Лучше записаться: мастера работают по времени, и в субботу свободных окон почти
+        не бывает. Если планы изменились — позвоните, подберём ближайшее окно.</p>
+      </details>
+      <details>
+        <summary>А если результат не понравится?</summary>
+        <p>Скажите об этом в первые дни — переделаем. Если цвет или форма не те, что обсуждали
+        на консультации, исправляем бесплатно и без споров.</p>
+      </details>
+      <details>
+        <summary>Как оплатить и нужна ли предоплата?</summary>
+        <p>Предоплату не берём. Оплата после процедуры: карта, наличные или СБП — как удобнее.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
 <section class="book" id="book">
   <div class="wrap book__grid">
     <div>
@@ -516,13 +593,15 @@
     </div>
 
     <form id="bookForm" novalidate>
-      <div class="field">
+      <div class="field" data-field="name">
         <label for="f-name">Как к вам обращаться</label>
-        <input id="f-name" name="name" type="text" placeholder="Имя" required>
+        <input id="f-name" name="name" type="text" placeholder="Имя" required autocomplete="name">
+        <p class="field-error">Напишите имя — чтобы знать, как к вам обращаться</p>
       </div>
-      <div class="field">
+      <div class="field" data-field="phone">
         <label for="f-phone">Телефон</label>
-        <input id="f-phone" name="phone" type="tel" placeholder="+7 ___ ___-__-__" required>
+        <input id="f-phone" name="phone" type="tel" placeholder="+7 ___ ___-__-__" required autocomplete="tel" inputmode="tel">
+        <p class="field-error">Проверьте номер: нужно 10 цифр</p>
       </div>
       <div class="field">
         <label for="f-svc">Услуга</label>
@@ -537,9 +616,15 @@
       </div>
       <div class="field">
         <label for="f-time">Когда удобно</label>
-        <input id="f-time" name="time" type="text" placeholder="Например: в субботу после 15:00">
+        <select id="f-time" name="time">
+          <option>Утро (09:00–12:00)</option>
+          <option>День (12:00–17:00)</option>
+          <option>Вечер (17:00–21:00)</option>
+          <option>Любое время</option>
+        </select>
       </div>
-      <button class="btn btn--primary" type="submit">Отправить заявку</button>
+      <button class="btn btn--primary" type="submit">Записаться</button>
+      <p class="form-proof"><span class="stars">★★★★★</span> <b>4.9</b> — 68 отзывов на 2ГИС, перезваниваем за 10 минут</p>
       <p class="form-note" id="formNote">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.
       Это демо-форма: заявка никуда не отправляется.</p>
     </form>
@@ -597,20 +682,88 @@
 </div>
 
 <script>
-  document.getElementById('bookForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var name = document.getElementById('f-name').value.trim();
-    var phone = document.getElementById('f-phone').value.trim();
+  (function () {
+    var form = document.getElementById('bookForm');
     var note = document.getElementById('formNote');
-    if (name.length < 2 || phone.replace(/\D/g, '').length < 10) {
-      note.textContent = 'Проверьте имя и телефон — и нажмите ещё раз.';
-      note.style.color = '#e5a58f';
-      return;
+
+    function mark(field, bad) {
+      var box = form.querySelector('[data-field="' + field + '"]');
+      if (box) box.classList.toggle('is-bad', bad);
+      var input = form.querySelector('[name="' + field + '"]');
+      if (input) input.setAttribute('aria-invalid', bad ? 'true' : 'false');
     }
-    note.textContent = 'Спасибо, ' + name + '! В демо заявка не уходит, но на реальном сайте мы бы уже звонили.';
-    note.style.color = '#9fd39b';
-    this.reset();
-  });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = form.querySelector('[name="name"]').value.trim();
+      var phone = form.querySelector('[name="phone"]').value.trim();
+      var badName = name.length < 2;
+      var badPhone = phone.replace(/\D/g, '').length < 10;
+      mark('name', badName);
+      mark('phone', badPhone);
+      if (badName || badPhone) {
+        note.textContent = badName && badPhone
+          ? 'Проверьте имя и телефон.'
+          : (badName ? 'Не хватает имени.' : 'Проверьте номер телефона — нужно 10 цифр.');
+        note.style.color = '#ffb4a3';
+        form.querySelector(badName ? '[name="name"]' : '[name="phone"]').focus();
+        return;
+      }
+      note.textContent = 'Спасибо, ' + name + '! В демо заявка не уходит, но на реальном сайте мы бы уже звонили.';
+      note.style.color = '#9fd39b';
+      form.reset();
+    });
+
+    form.querySelectorAll('input').forEach(function (el) {
+      el.addEventListener('input', function () { mark(el.name, false); });
+    });
+
+    /* «Записаться» в блоке услуг сразу подставляет услугу в форму */
+    document.querySelectorAll('[data-svc]').forEach(function (a) {
+      a.addEventListener('click', function () {
+        var sel = document.getElementById('f-svc');
+        if (sel) sel.value = a.getAttribute('data-svc');
+      });
+    });
+  })();
+
+  /* Персонализация макета под конкретного клиента:
+     ?n=Название&p=+7...&a=адрес&clean=1 */
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var name = q.get('n'), phone = q.get('p'), addr = q.get('a');
+    if (q.get('clean') === '1') {
+      var dn = document.querySelector('.demo-note');
+      if (dn) dn.remove();
+    }
+    if (!name && !phone && !addr) return;
+
+    var map = [];
+    if (name) map.push(['Аврора', name]);
+    if (phone) map.push(['+7 900 000-00-00', phone]);
+    if (addr) map.push(['ул. Примерная, 12', addr]);
+
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var nodes = [], node;
+    while ((node = walker.nextNode())) nodes.push(node);
+    nodes.forEach(function (t) {
+      var v = t.nodeValue, changed = false;
+      map.forEach(function (p) {
+        if (v.indexOf(p[0]) >= 0) { v = v.split(p[0]).join(p[1]); changed = true; }
+      });
+      if (changed) t.nodeValue = v;
+    });
+
+    if (name) document.title = document.title.replace('Аврора', name);
+
+    var digits = phone ? phone.replace(/\D/g, '') : '';
+    document.querySelectorAll('a[href^="tel:"]').forEach(function (a) {
+      a.setAttribute('href', 'tel:+' + digits);
+    });
+    document.querySelectorAll('a[href*="wa.me"]').forEach(function (a) {
+      a.setAttribute('href', 'https://wa.me/' + digits);
+    });
+  })();
 </script>
 </body>
 </html>

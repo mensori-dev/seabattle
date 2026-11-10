@@ -227,6 +227,11 @@
   .form-proof b{color:#f3e9df}
   .form-proof .stars{color:#e0a33c}
   .form-note{font-size:12px;color:#9c8f84;margin:12px 0 0}
+  .form-consent{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:#cbbdb1;margin:16px 0 4px;cursor:pointer}
+  .form-consent input{width:18px;height:18px;margin-top:2px;accent-color:var(--terra);flex:0 0 auto}
+  .form-consent a{color:var(--terra)}
+  .form-consent.is-bad{color:#c0392b}
+  .form-consent.is-bad input{outline:2px solid #c0392b;outline-offset:2px;border-radius:3px}
   .book__list{list-style:none;padding:0;margin:26px 0 0}
   .book__list li{padding:12px 0;border-top:1px solid rgba(255,255,255,.12);display:flex;gap:12px;font-size:15px}
   .book__list li:first-child{border-top:0}
@@ -623,10 +628,14 @@
           <option>Любое время</option>
         </select>
       </div>
+      <label class="form-consent" id="consentBox" for="f-consent">
+        <input id="f-consent" type="checkbox" name="consent" required>
+        <span>Согласен с <a href="./privacy.html" target="_blank" rel="noopener">политикой обработки
+        персональных данных</a></span>
+      </label>
       <button class="btn btn--primary" type="submit">Записаться</button>
       <p class="form-proof"><span class="stars">★★★★★</span> <b>4.9</b> — 68 отзывов на 2ГИС, перезваниваем за 10 минут</p>
-      <p class="form-note" id="formNote">Нажимая кнопку, вы соглашаетесь на обработку персональных данных.
-      Это демо-форма: заявка никуда не отправляется.</p>
+      <p class="form-note" id="formNote">Это демо-форма: заявка никуда не отправляется.</p>
     </form>
   </div>
 </section>
@@ -668,6 +677,7 @@
       <div>© 2026 Студия красоты «Аврора» · Йошкар-Ола</div>
       <div><a href="#book" style="text-decoration:none;border-bottom:1px solid #b4553f">Записаться</a></div>
     </div>
+    <p style="margin:14px 0 0;font-size:14px;color:#5d5148"><a href="./privacy.html" style="color:#5d5148">Политика обработки персональных данных</a></p>
     <p class="demo-note">
       <b>Это демонстрационная страница.</b> Салон «Аврора» и цены вымышлены — страница показывает,
       как может выглядеть сайт вашей студии: услуги с ценами, работы, отзывы, запись и карта.
@@ -697,16 +707,23 @@
       e.preventDefault();
       var name = form.querySelector('[name="name"]').value.trim();
       var phone = form.querySelector('[name="phone"]').value.trim();
+      var consent = form.querySelector('[name="consent"]');
+      var box = document.getElementById('consentBox');
       var badName = name.length < 2;
       var badPhone = phone.replace(/\D/g, '').length < 10;
+      var badConsent = !consent || !consent.checked;
       mark('name', badName);
       mark('phone', badPhone);
-      if (badName || badPhone) {
-        note.textContent = badName && badPhone
-          ? 'Проверьте имя и телефон.'
-          : (badName ? 'Не хватает имени.' : 'Проверьте номер телефона — нужно 10 цифр.');
+      if (box) box.classList.toggle('is-bad', badConsent);
+      if (badName || badPhone || badConsent) {
+        var msgs = [];
+        if (badName) msgs.push('не хватает имени');
+        if (badPhone) msgs.push('проверьте номер телефона — нужно 10 цифр');
+        if (badConsent) msgs.push('нужна галочка согласия на обработку данных');
+        note.textContent = 'Заявка не ушла: ' + msgs.join(', ') + '.';
         note.style.color = '#ffb4a3';
-        form.querySelector(badName ? '[name="name"]' : '[name="phone"]').focus();
+        var first = badName ? '[name="name"]' : (badPhone ? '[name="phone"]' : '[name="consent"]');
+        form.querySelector(first).focus();
         return;
       }
       note.textContent = 'Спасибо, ' + name + '! В демо заявка не уходит, но на реальном сайте мы бы уже звонили.';
@@ -717,6 +734,14 @@
     form.querySelectorAll('input').forEach(function (el) {
       el.addEventListener('input', function () { mark(el.name, false); });
     });
+
+    var consentEl = form.querySelector('[name="consent"]');
+    if (consentEl) {
+      consentEl.addEventListener('change', function () {
+        var b = document.getElementById('consentBox');
+        if (b) b.classList.remove('is-bad');
+      });
+    }
 
     /* «Записаться» в блоке услуг сразу подставляет услугу в форму */
     document.querySelectorAll('[data-svc]').forEach(function (a) {

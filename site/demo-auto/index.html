@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Гараж 12 — автосервис и шиномонтаж в Йошкар-Оле</title>
+<meta name="description" content="Ремонт, ТО и шиномонтаж в Йошкар-Оле. Цена известна до начала работ, гарантия 12 месяцев, запись на сегодня. Переобувка за 40 минут.">
+<meta property="og:title" content="Гараж 12 — автосервис в Йошкар-Оле">
+<meta property="og:description" content="Цена до начала работ, гарантия 12 месяцев, запись на сегодня.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#101314">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+<style>
+  :root{
+    --bg:#0f1315;
+    --bg-2:#141a1d;
+    --panel:#161d20;
+    --panel-2:#1b2428;
+    --line:#283236;
+    --ink:#f1f4f5;
+    --muted:#9dabb1;
+    --amber:#ffb020;
+    --amber-dark:#e09400;
+    --green:#7fd67f;
+    --red:#ff8b74;
+    --radius:16px;
+    --shadow:0 26px 60px -34px rgba(0,0,0,.9);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  }
+  img,svg{max-width:100%;display:block}
+  a{color:inherit}
+  h1,h2,h3{margin:0;font-weight:750;letter-spacing:-.02em;line-height:1.1}
+  h1{font-size:clamp(30px,5.4vw,56px)}
+  h2{font-size:clamp(24px,3.6vw,38px)}
+  h3{font-size:19px;line-height:1.3}
+  p{margin:0}
+  .wrap{width:min(1140px,100% - 36px);margin-inline:auto}
+  .eyebrow{
+    display:inline-block;font-size:12px;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--amber);margin:0 0 14px;
+  }
+  .lead{color:var(--muted);font-size:18px;max-width:56ch}
+  em{font-style:normal;color:var(--amber)}
+  section{padding:76px 0}
+  .sec-head{display:flex;gap:24px;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;margin-bottom:34px}
+
+  /* ---------- кнопки ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;
+    font:inherit;font-weight:700;text-decoration:none;cursor:pointer;
+    padding:15px 26px;border-radius:12px;border:1px solid transparent;
+    transition:transform .15s ease,background .2s ease,box-shadow .2s ease;
+    white-space:nowrap;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn--primary{background:var(--amber);color:#1a1206;box-shadow:0 12px 30px -14px rgba(255,176,32,.75)}
+  .btn--primary:hover{background:#ffc043}
+  .btn--ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  .btn--ghost:hover{border-color:#3a474c;background:#1a2225}
+  .btn--sm{padding:11px 18px;font-size:15px}
+  .btn--wide{width:100%}
+
+  /* ---------- шапка ---------- */
+  .top{
+    position:sticky;top:0;z-index:40;
+    background:rgba(15,19,21,.86);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .top__in{display:flex;align-items:center;gap:22px;min-height:72px}
+  .logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none}
+  .logo__mark{
+    width:36px;height:36px;border-radius:10px;flex:0 0 auto;
+    background:linear-gradient(145deg,var(--amber),var(--amber-dark));
+    display:grid;place-items:center;color:#1a1206;font-size:18px;font-weight:900;
+  }
+  .logo small{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+  .nav{display:flex;gap:24px;margin-left:auto;font-size:15px;font-weight:600;color:var(--muted)}
+  .nav a{text-decoration:none}
+  .nav a:hover{color:var(--ink)}
+  .top__phone{font-weight:800;text-decoration:none;font-size:17px}
+  .top__phone span{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.06em}
+  @media (max-width:900px){.nav{display:none}.top__phone span{display:none}}
+  @media (max-width:520px){.top__phone{font-size:15px}.logo small{display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{
+    position:relative;overflow:hidden;padding:64px 0 72px;
+    background:
+      radial-gradient(900px 420px at 78% -10%,rgba(255,176,32,.16),transparent 62%),
+      radial-gradient(700px 380px at 8% 110%,rgba(60,120,140,.16),transparent 60%),
+      var(--bg);
+  }
+  .hero::after{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(70% 60% at 50% 40%,#000 20%,transparent 78%);
+  }
+  .hero__grid{position:relative;z-index:1;display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+  .hero h1{margin-bottom:20px}
+  .hero .lead{font-size:19px;margin-bottom:28px}
+  .hero__cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  .hero__note{font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(127,214,127,.16);flex:0 0 auto}
+
+  .strip{display:flex;gap:26px;flex-wrap:wrap;margin-top:30px;padding-top:24px;border-top:1px solid var(--line)}
+  .strip div{font-size:14px;color:var(--muted)}
+  .strip b{display:block;font-size:21px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
+
+  .pricecard{
+    background:linear-gradient(170deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);border-radius:22px;padding:26px;box-shadow:var(--shadow);
+  }
+  .pricecard__top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+  .tag{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a1206;background:var(--amber);padding:5px 10px;border-radius:99px}
+  .tag--ghost{background:transparent;color:var(--muted);border:1px solid var(--line);letter-spacing:.06em}
+  .pricecard h3{margin-bottom:6px;font-size:22px}
+  .pricecard .muted{color:var(--muted);font-size:14px;margin-bottom:18px}
+  .pline{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px dashed var(--line);font-size:15px}
+  .pline:last-of-type{border-bottom:0}
+  .pline b{color:var(--ink);white-space:nowrap}
+  .pline span{color:var(--muted)}
+  .pricecard .btn{margin-top:18px}
+
+  @media (max-width:900px){
+    .hero__grid{grid-template-columns:1fr;gap:34px}
+    .hero{padding:44px 0 54px}
+  }
+  @media (max-width:560px){
+    .hero__cta{flex-direction:column;align-items:stretch}
+    .hero__cta .btn{width:100%}
+    .strip{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px}
+  }
+
+  /* ---------- доверие ---------- */
+  .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}
+  .trust div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px}
+  .trust b{display:block;font-size:16px;margin-bottom:4px}
+  .trust span{color:var(--muted);font-size:14px}
+  @media (max-width:800px){.trust{grid-template-columns:1fr}}
+
+  /* ---------- услуги ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:24px;display:flex;flex-direction:column;gap:10px;
+    transition:border-color .2s ease,transform .2s ease;
+  }
+  .card:hover{border-color:#3b4a50;transform:translateY(-2px)}
+  .card h3{margin-bottom:2px}
+  .card p{color:var(--muted);font-size:15px;flex:1}
+  .card__price{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+  .card__price b{font-size:20px;color:var(--amber);letter-spacing:-.02em}
+  .card__link{font-size:14px;font-weight:700;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--amber);align-self:flex-start}
+  @media (max-width:900px){.cards{grid-template-columns:1fr 1fr}}
+  @media (max-width:620px){.cards{grid-template-columns:1fr}}
+
+  /* ---------- калькулятор ---------- */
+  .calc{
+    background:linear-gradient(160deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:var(--shadow);
+  }
+  .calc__grid{display:grid;grid-template-columns:1.1fr .9fr;gap:34px}
+  .calc__row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+  .calc label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:7px;letter-spacing:.02em}
+  .calc select,.calc input{
+    width:100%;font:inherit;font-size:16px;color:var(--ink);
+    background:#0d1214;border:1px solid var(--line);border-radius:11px;padding:13px 14px;
+  }
+  .calc select:focus,.calc input:focus{outline:2px solid var(--amber);outline-offset:1px}
+  .check{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink);cursor:pointer;padding:11px 13px;border:1px solid var(--line);border-radius:11px;background:#0d1214}
+  .check input{width:20px;height:20px;flex:0 0 auto}
+  /* Кастомный чекбокс: на тёмном фоне системный выглядит белым квадратом */
+  .check input,.form-consent input{
+    appearance:none;-webkit-appearance:none;margin:0;cursor:pointer;
+    border:1.5px solid #3d4b51;border-radius:5px;background:#0d1214;
+    background-repeat:no-repeat;background-position:center;background-size:14px;
+    transition:background-color .15s ease,border-color .15s ease;
+  }
+  .check input:checked,.form-consent input:checked{
+    background-color:var(--amber);border-color:var(--amber);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1206' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12l6 6L20 6'/%3E%3C/svg%3E");
+  }
+  .check input:focus-visible,.form-consent input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .calc__out{
+    background:#0d1214;border:1px solid var(--line);border-radius:16px;padding:24px;
+    display:flex;flex-direction:column;justify-content:center;gap:6px;
+  }
+  .calc__out small{color:var(--muted);font-size:13px;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+  .calc__total{font-size:clamp(34px,5vw,46px);font-weight:800;letter-spacing:-.03em;color:var(--amber);line-height:1}
+  .calc__break{color:var(--muted);font-size:14px;margin-top:6px}
+  .calc__out .btn{margin-top:16px}
+  @media (max-width:860px){.calc__grid{grid-template-columns:1fr;gap:22px}.calc{padding:22px}}
+
+  /* ---------- шаги ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+  .step{
+    counter-increment:s;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px;
+  }
+  .step::before{
+    content:"0" counter(s);display:block;font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--amber);margin-bottom:10px;
+  }
+  .step h3{margin-bottom:8px}
+  .step p{color:var(--muted);font-size:15px}
+  @media (max-width:800px){.steps{grid-template-columns:1fr}}
+
+  /* ---------- отзывы ---------- */
+  .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .rev{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:12px}
+  .stars{color:var(--amber);letter-spacing:2px;font-size:15px}
+  .rev p{font-size:15px;color:#dfe6e8}
+  .rev__who{display:flex;align-items:center;gap:10px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+  .ava{width:34px;height:34px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:14px;color:var(--amber);flex:0 0 auto}
+  .rev__who b{display:block;font-size:14px}
+  .rev__who span{font-size:12px;color:var(--muted)}
+  @media (max-width:900px){.revs{grid-template-columns:1fr}}
+
+  /* ---------- FAQ ---------- */
+  .faq{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .faq details{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;
+  }
+  .faq summary{cursor:pointer;font-weight:700;font-size:16px;list-style:none;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+";color:var(--amber);font-size:20px;line-height:1;font-weight:700;flex:0 0 auto}
+  .faq details[open] summary::after{content:"–"}
+  .faq details p{margin-top:12px;color:var(--muted);font-size:15px}
+  @media (max-width:800px){.faq{grid-template-columns:1fr}}
+
+  /* ---------- форма ---------- */
+  .book{background:linear-gradient(180deg,var(--bg),#12181a)}
+  .book__grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+  .book__list{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:1px;background:var(--line);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .book__list li{display:flex;justify-content:space-between;gap:14px;padding:14px 18px;background:var(--panel);font-size:15px}
+  .book__list li span:first-child{color:var(--muted)}
+  .book__list li span:last-child{font-weight:600;text-align:right}
+  form{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:var(--shadow)}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:7px;letter-spacing:.02em}
+  .field input,.field select,.field textarea{
+    width:100%;font:inherit;font-size:16px;color:var(--ink);
+    background:#0d1214;border:1px solid var(--line);border-radius:11px;padding:14px 15px;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--amber);outline-offset:1px}
+  .field-error{display:none;color:var(--red);font-size:13px;margin-top:6px}
+  .field.is-bad input,.field.is-bad select{border-color:var(--red)}
+  .field.is-bad .field-error{display:block}
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  form .btn{margin-top:6px}
+  .form-proof{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-top:14px;flex-wrap:wrap}
+  .form-note{font-size:12px;color:#7b888e;margin-top:10px;line-height:1.5}
+  .form-consent{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:var(--muted);margin:4px 0 16px;cursor:pointer}
+  .form-consent input{width:20px;height:20px;margin-top:1px;flex:0 0 auto}
+  .form-consent a{color:var(--amber)}
+  .form-consent.is-bad{color:var(--red)}
+  .form-consent.is-bad input{outline:2px solid var(--red);outline-offset:2px;border-radius:3px}
+  @media (max-width:860px){.book__grid{grid-template-columns:1fr;gap:30px}form{padding:22px}}
+
+  /* ---------- контакты ---------- */
+  .contacts__grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card-soft{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px}
+  .contacts__map{
+    position:relative;border:1px solid var(--line);border-radius:var(--radius);min-height:260px;overflow:hidden;
+    background:
+      linear-gradient(90deg,transparent 48%,#1e282c 48.5%,#1e282c 51.5%,transparent 52%),
+      linear-gradient(0deg,transparent 46%,#1e282c 46.5%,#1e282c 49.5%,transparent 50%),
+      radial-gradient(circle at 30% 70%,#243136,transparent 55%),
+      var(--bg-2);
+  }
+  .pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;background:rgba(13,18,20,.9);border:1px solid var(--line);padding:14px 18px;border-radius:12px;backdrop-filter:blur(4px)}
+  .pin b{display:block;font-size:15px}
+  .pin small{color:var(--muted);font-size:13px}
+  @media (max-width:860px){.contacts__grid{grid-template-columns:1fr}}
+
+  /* ---------- футер ---------- */
+  footer{border-top:1px solid var(--line);padding:34px 0 110px;background:#0c1012}
+  .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+  .demo-note{margin-top:18px;font-size:13px;color:#7b888e;max-width:76ch}
+  .demo-note b{color:var(--amber)}
+
+  /* ---------- мобильная кнопка ---------- */
+  .mob-cta{display:none}
+  @media (max-width:640px){
+    .mob-cta{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;
+      position:fixed;left:0;right:0;bottom:0;z-index:50;
+      padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(12,16,18,.94);border-top:1px solid var(--line);backdrop-filter:blur(10px);
+    }
+    section{padding:56px 0}
+    footer{padding-bottom:96px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top__in">
+    <a class="logo" href="#top">
+      <span class="logo__mark">12</span>
+      <span>Гараж 12<small>автосервис · Йошкар-Ола</small></span>
+    </a>
+    <nav class="nav">
+      <a href="#services">Услуги и цены</a>
+      <a href="#calc">Шиномонтаж</a>
+      <a href="#reviews">Отзывы</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+    <a class="top__phone" href="tel:+79000000000">+7 900 000-00-00<span>звонок или WhatsApp</span></a>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="eyebrow">Йошкар-Ола · 8 лет на одном месте</p>
+      <h1>Ремонт авто <em>с ценой до</em> начала работ</h1>
+      <p class="lead">Посмотрели, назвали сумму, согласовали — и только потом берём ключи.
+        Никаких «вскрыли, а там ещё на десять тысяч». Гарантия 12 месяцев, старые детали отдаём вам.</p>
+      <div class="hero__cta">
+        <a class="btn btn--primary" href="#book">Записаться на сегодня</a>
+        <a class="btn btn--ghost" href="#services">Смотреть цены</a>
+      </div>
+      <p class="hero__note"><span class="dot"></span> Свободные окна на сегодня: 14:00 и 17:30</p>
+
+      <div class="strip">
+        <div><b>4.9</b>рейтинг на 2ГИС</div>
+        <div><b>1 800+</b>машин за год</div>
+        <div><b>40 мин</b>переобувка</div>
+        <div><b>12 мес</b>гарантия</div>
+      </div>
+    </div>
+
+    <aside class="pricecard">
+      <div class="pricecard__top">
+        <span class="tag">Ноябрь</span>
+        <span class="tag tag--ghost">цена на сайте</span>
+      </div>
+      <h3>Переобувка на зиму</h3>
+      <p class="muted">Комплект 4 колеса: снять, смонтировать, отбалансировать, поставить.</p>
+      <div class="pline"><span>R13–R15</span><b>1 600 ₽</b></div>
+      <div class="pline"><span>R16–R17</span><b>1 900 ₽</b></div>
+      <div class="pline"><span>R18–R20</span><b>2 300 ₽</b></div>
+      <div class="pline"><span>Датчики давления</span><b>+400 ₽</b></div>
+      <a class="btn btn--primary btn--wide" href="#book">Записаться на переобувку</a>
+      <p class="muted" style="margin:12px 0 0;font-size:13px">В очереди — 6 машин. Ближайшее окно: сегодня 17:30.</p>
+    </aside>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="trust">
+      <div><b>Смета до работ</b><span>Считаем при вас, письменно. Передумали — платите ноль.</span></div>
+      <div><b>Свои запчасти можно</b><span>Берём ваши, но честно скажем, если деталь не та.</span></div>
+      <div><b>Фото каждого этапа</b><span>Присылаем в WhatsApp, чтобы вы видели, что делается.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="services">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Услуги и цены</p>
+        <h2>Сколько стоит <em>заранее</em></h2>
+        <p class="lead" style="margin-top:10px">Цены за работу без запчастей. Точную сумму назовём после осмотра — и она не изменится без вашего согласия.</p>
+      </div>
+      <a class="btn btn--ghost btn--sm" href="#book">Не нашёл услугу — спрошу</a>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Замена масла и ТО</h3>
+        <p>Масло, фильтры, проверка 20 узлов. Записываем на конкретное время, не «приезжайте, подождёте».</p>
+        <div class="card__price"><span>от</span><b>900 ₽</b></div>
+        <a class="card__link" href="#book" data-svc="Замена масла и ТО">Записаться →</a>
+      </article>
+
+      <article class="card">
+        <h3>Диагностика</h3>
+        <p>Компьютерная и на подъёмнике. Скажем, что можно не делать — и почему. За диагностику не берём, если ремонтируетесь у нас.</p>
+        <div class="card__price"><span>от</span><b>0 ₽</b></div>
+        <a class="card__link" href="#book" data-svc="Диагностика">Записаться →</a>
+      </article>
+
+      <article class="card">
+        <h3>Тормозная система</h3>
+        <p>Колодки, диски, суппорты, прокачка. После — проверяем на стенде и показываем распечатку.</p>
+        <div class="card__price"><span>от</span><b>1 200 ₽</b></div>
+        <a class="card__link" href="#book" data-svc="Тормоза">Записаться →</a>
+      </article>
+
+      <article class="card">
+        <h3>Подвеска</h3>
+        <p>Стойки, пружины, сайлентблоки, шаровые. На стенде покажем люфт до и после ремонта.</p>
+        <div class="card__price"><span>от</span><b>1 500 ₽</b></div>
+        <a class="card__link" href="#book" data-svc="Подвеска">Записаться →</a>
+      </article>
+
+      <article class="card">
+        <h3>Кондиционер</h3>
+        <p>Заправка, поиск утечки с краской, антибактериальная чистка. Работаем и зимой — так дешевле.</p>
+        <div class="card__price"><span>от</span><b>1 800 ₽</b></div>
+        <a class="card__link" href="#book" data-svc="Кондиционер">Записаться →</a>
+      </article>
+
+      <article class="card">
+        <h3>Шиномонтаж</h3>
+        <p>Переобувка, правка дисков, ремонт проколов, хранение комплекта. Очередь — по записи.</p>
+        <div class="card__price"><span>от</span><b>1 600 ₽</b></div>
+        <a class="card__link" href="#calc">Посчитать →</a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="calc" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Калькулятор</p>
+        <h2>Посчитайте переобувку <em>за 10 секунд</em></h2>
+      </div>
+    </div>
+
+    <div class="calc">
+      <div class="calc__grid">
+        <div>
+          <div class="calc__row">
+            <div>
+              <label for="c-radius">Радиус колёс</label>
+              <select id="c-radius">
+                <option value="1600">R13–R15</option>
+                <option value="1900" selected>R16–R17</option>
+                <option value="2300">R18–R20</option>
+                <option value="2800">R21–R22</option>
+              </select>
+            </div>
+            <div>
+              <label for="c-state">Колёса</label>
+              <select id="c-state">
+                <option value="0" selected>Уже сняты, привезу в багажнике</option>
+                <option value="300">Стоят на машине</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="calc__row">
+            <div>
+              <label for="c-count">Сколько колёс</label>
+              <select id="c-count">
+                <option value="1" selected>4 (комплект)</option>
+                <option value="0.25">1 колесо</option>
+                <option value="0.5">2 колеса</option>
+              </select>
+            </div>
+            <div>
+              <label for="c-repair">Ремонт прокола</label>
+              <select id="c-repair">
+                <option value="0" selected>Не нужно</option>
+                <option value="400">Грибок, одно колесо — 400 ₽</option>
+                <option value="800">Грибок, два колеса — 800 ₽</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="check" for="c-sensor">
+            <input type="checkbox" id="c-sensor">
+            Датчики давления — +400 ₽
+          </label>
+
+          <p class="lead" style="font-size:14px;margin-top:16px">
+            Расчёт по нашему прайсу на ноябрь. Итог на месте не изменится: если шина окажется
+            неремонтируемой — скажем до начала работ.
+          </p>
+        </div>
+
+        <div class="calc__out">
+          <small>Итого за работу</small>
+          <div class="calc__total" id="c-total">1 900 ₽</div>
+          <div class="calc__break" id="c-break">4 колеса · R16–R17 · колёса сняты</div>
+          <a class="btn btn--primary btn--wide" href="#book">Записаться на это время</a>
+          <small style="margin-top:10px;text-transform:none;font-weight:400;letter-spacing:0;color:#7b888e">
+            Демо-расчёт: цены вымышлены.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Как проходит</p>
+        <h2>Три шага, <em>без сюрпризов</em></h2>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <h3>Записываетесь</h3>
+        <p>Звонок или заявка с сайта. Сразу говорим: когда есть окно и сколько примерно будет стоить.</p>
+      </div>
+      <div class="step">
+        <h3>Смотрим и считаем</h3>
+        <p>Осмотр 15–20 минут. Пишем смету: что обязательно, что можно отложить. Без сметы не начинаем.</p>
+      </div>
+      <div class="step">
+        <h3>Ремонтируем и отдаём</h3>
+        <p>Присылаем фото по ходу. Отдаём старые детали, чек и гарантийный талон на 12 месяцев.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="reviews" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Отзывы</p>
+        <h2>Что говорят <em>клиенты</em></h2>
+      </div>
+      <div style="font-size:15px;color:var(--muted)"><span class="stars">★★★★★</span> <b style="color:var(--ink)">4.9</b> · 126 отзывов</div>
+    </div>
+
+    <div class="revs">
+      <article class="rev">
+        <div class="stars">★★★★★</div>
+        <p>«Приехал с гулом в колесе, думал ступица — развели бы на пять тысяч. Послушали: оказалось, шины. Переобули, гула нет. Записали на сезон вперёд.»</p>
+        <div class="rev__who"><span class="ava">А</span><div><b>Алексей</b><span>переобувка, ноябрь</span></div></div>
+      </article>
+      <article class="rev">
+        <div class="stars">★★★★★</div>
+        <p>«Смету дали до работ, как обещали. Отказалась от одной позиции — спокойно приняли, ничего не навязывали. Теперь только сюда.»</p>
+        <div class="rev__who"><span class="ava">М</span><div><b>Марина</b><span>ТО, Toyota</span></div></div>
+      </article>
+      <article class="rev">
+        <div class="stars">★★★★★</div>
+        <p>«Нужно было к утру, машина рабочая. Взяли в 18:00, в 21:30 отдали с тормозами. Писали в WhatsApp, присылали фото.»</p>
+        <div class="rev__who"><span class="ava">С</span><div><b>Сергей</b><span>тормоза, Lada Largus</span></div></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Частые вопросы</p>
+        <h2>Что обычно <em>спрашивают</em></h2>
+      </div>
+    </div>
+
+    <div class="faq">
+      <details open>
+        <summary>Цена на сайте — это окончательная?</summary>
+        <p>Это стоимость работы. Запчасти считаются отдельно, по смете. После осмотра вы видите полную сумму и решаете: делать сейчас, позже или не делать вообще.</p>
+      </details>
+      <details>
+        <summary>Можно привезти свои запчасти?</summary>
+        <p>Да. Но если деталь не подходит или уже была в употреблении — скажем заранее. Гарантию на работу даём, на вашу деталь — нет.</p>
+      </details>
+      <details>
+        <summary>Сколько ждать в очереди?</summary>
+        <p>На переобувку и ТО обычно есть окно на сегодня-завтра: мы держим два подъёмника под запись. Сложный ремонт — от 1 до 3 дней, точнее скажем после осмотра.</p>
+      </details>
+      <details>
+        <summary>Навяжете лишнего?</summary>
+        <p>Смета делится на «обязательно» и «можно отложить». Второе — с ценой и с тем, чем грозит промедление. Решение всегда ваше.</p>
+      </details>
+      <details>
+        <summary>Работаете с юрлицами и по безналу?</summary>
+        <p>Да, для парка машин — договор, закрывающие документы и счёт. Звонок — тот же, скажите, что нужен договор.</p>
+      </details>
+      <details>
+        <summary>Гарантия правда 12 месяцев?</summary>
+        <p>На работу — 12 месяцев или 20 000 км, что наступит раньше. Гарантийный талон с печатью отдаём вместе с чеком и старыми деталями.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="book" id="book">
+  <div class="wrap book__grid">
+    <div>
+      <p class="eyebrow">Запись</p>
+      <h2>Оставьте заявку —<br>перезвоним <em>за 10 минут</em></h2>
+      <p class="lead" style="margin-top:12px">Или напишите в WhatsApp: пришлите фото гула, ошибки на панели или марку шин — мастер скажет, сколько это стоит и когда можно приехать.</p>
+      <ul class="book__list">
+        <li><span>Адрес</span><span>Йошкар-Ола, ул. Примерная, 12</span></li>
+        <li><span>Телефон</span><span>+7 900 000-00-00</span></li>
+        <li><span>Часы</span><span>пн–сб 09:00–20:00, вс 10:00–17:00</span></li>
+        <li><span>Оплата</span><span>карта, наличные, СБП, безнал</span></li>
+      </ul>
+    </div>
+
+    <form id="bookForm" novalidate>
+      <div class="field" data-field="name">
+        <label for="f-name">Как к вам обращаться</label>
+        <input id="f-name" name="name" type="text" placeholder="Имя" required autocomplete="name">
+        <p class="field-error">Напишите имя — чтобы знать, как к вам обращаться</p>
+      </div>
+      <div class="field" data-field="phone">
+        <label for="f-phone">Телефон</label>
+        <input id="f-phone" name="phone" type="tel" placeholder="+7 ___ ___-__-__" required autocomplete="tel" inputmode="tel">
+        <p class="field-error">Проверьте номер: нужно 10 цифр</p>
+      </div>
+      <div class="field">
+        <label for="f-svc">Что нужно</label>
+        <select id="f-svc" name="service">
+          <option>Переобувка на зиму</option>
+          <option>Замена масла и ТО</option>
+          <option>Диагностика</option>
+          <option>Тормоза</option>
+          <option>Подвеска</option>
+          <option>Кондиционер</option>
+          <option>Не знаю, нужна консультация</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-time">Когда удобно</label>
+        <select id="f-time" name="time">
+          <option>Сегодня (09:00–14:00)</option>
+          <option>Сегодня (14:00–20:00)</option>
+          <option>Завтра</option>
+          <option>Любой день, скажите когда</option>
+        </select>
+      </div>
+      <div class="field" style="position:absolute;left:-9999px" aria-hidden="true">
+        <label for="f-lastname">Фамилия</label>
+        <input id="f-lastname" name="lastname" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <label class="form-consent" id="consentBox" for="f-consent">
+        <input id="f-consent" type="checkbox" name="consent" required>
+        <span>Согласен с <a href="./privacy.html" target="_blank" rel="noopener">политикой обработки
+        персональных данных</a> — как это работает, там написано по-русски</span>
+      </label>
+      <button class="btn btn--primary btn--wide" type="submit">Записаться</button>
+      <p class="form-proof"><span class="stars">★★★★★</span> <b>4.9</b> — 126 отзывов, перезваниваем за 10 минут</p>
+      <p class="form-note" id="formNote">Это демо-форма: заявка никуда не отправляется.</p>
+    </form>
+  </div>
+</section>
+
+<section id="contacts">
+  <div class="wrap">
+    <div class="sec-head">
+      <div>
+        <p class="eyebrow">Контакты</p>
+        <h2>Как нас <em>найти</em></h2>
+      </div>
+    </div>
+    <div class="contacts__grid">
+      <div class="card-soft">
+        <h3>Автосервис «Гараж 12»</h3>
+        <p style="margin:10px 0 14px;color:var(--muted)">Йошкар-Ола, ул. Примерная, 12<br>
+        Заезд с торца, ворота №2, ориентир — шинная вывеска</p>
+        <p style="margin:0 0 6px"><b>+7 900 000-00-00</b> — звонки и WhatsApp</p>
+        <p style="margin:0 0 18px;color:var(--muted)">пн–сб 09:00–20:00, вс 10:00–17:00</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a class="btn btn--primary btn--sm" href="tel:+79000000000">Позвонить</a>
+          <a class="btn btn--ghost btn--sm" href="https://wa.me/79000000000" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      </div>
+      <div class="contacts__map" role="img" aria-label="Схема расположения автосервиса">
+        <div class="pin">
+          <b>ул. Примерная, 12</b>
+          <small>5 минут от объездной</small>
+          <div style="margin-top:8px"><a href="https://2gis.ru/yoshkar-ola" target="_blank" rel="noopener" style="font-size:13px;color:var(--amber)">Открыть в 2ГИС</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>© 2026 Автосервис «Гараж 12» · Йошкар-Ола</div>
+      <div><a href="#book" style="text-decoration:none;border-bottom:1px solid var(--amber)">Записаться</a></div>
+    </div>
+    <p style="margin:14px 0 0;font-size:14px"><a href="./privacy.html" style="color:var(--muted)">Политика обработки персональных данных</a></p>
+    <p class="demo-note">
+      <b>Это демонстрационная страница.</b> Сервис «Гараж 12», цены и отзывы вымышлены — страница
+      показывает, как может выглядеть сайт вашего автосервиса: услуги с ценами, калькулятор
+      шиномонтажа, отзывы, ответы на возражения и запись. Такой сайт делается за 3 дня.
+    </p>
+  </div>
+</footer>
+
+<div class="mob-cta">
+  <a class="btn btn--ghost" href="tel:+79000000000">Позвонить</a>
+  <a class="btn btn--primary" href="#book">Записаться</a>
+</div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AutoRepair",
+  "name": "Автосервис «Гараж 12»",
+  "description": "Ремонт, техническое обслуживание и шиномонтаж в Йошкар-Оле.",
+  "telephone": "+7-900-000-00-00",
+  "priceRange": "от 900 ₽",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "ул. Примерная, 12",
+    "addressLocality": "Йошкар-Ола",
+    "addressCountry": "RU"
+  },
+  "openingHoursSpecification": [
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"], "opens": "09:00", "closes": "20:00" },
+    { "@type": "OpeningHoursSpecification", "dayOfWeek": "Sunday", "opens": "10:00", "closes": "17:00" }
+  ]
+}
+</script>
+
+<script>
+  (function () {
+    var form = document.getElementById('bookForm');
+    var note = document.getElementById('formNote');
+
+    function mark(field, bad) {
+      var box = form.querySelector('[data-field="' + field + '"]');
+      if (box) box.classList.toggle('is-bad', bad);
+      var input = form.querySelector('[name="' + field + '"]');
+      if (input) input.setAttribute('aria-invalid', bad ? 'true' : 'false');
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var hp = form.querySelector('[name="lastname"]');
+      if (hp && hp.value) return; /* ловушка для спам-ботов */
+
+      var name = form.querySelector('[name="name"]').value.trim();
+      var phone = form.querySelector('[name="phone"]').value.trim();
+      var consent = form.querySelector('[name="consent"]');
+      var box = document.getElementById('consentBox');
+      var badName = name.length < 2;
+      var badPhone = phone.replace(/\D/g, '').length < 10;
+      var badConsent = !consent || !consent.checked;
+      mark('name', badName);
+      mark('phone', badPhone);
+      if (box) box.classList.toggle('is-bad', badConsent);
+      if (badName || badPhone || badConsent) {
+        var msgs = [];
+        if (badName) msgs.push('не хватает имени');
+        if (badPhone) msgs.push('проверьте номер телефона — нужно 10 цифр');
+        if (badConsent) msgs.push('нужна галочка согласия на обработку данных');
+        note.textContent = 'Заявка не ушла: ' + msgs.join(', ') + '.';
+        note.style.color = '#ff8b74';
+        var first = badName ? '[name="name"]' : (badPhone ? '[name="phone"]' : '[name="consent"]');
+        form.querySelector(first).focus();
+        return;
+      }
+      note.textContent = 'Спасибо, ' + name + '! В демо заявка не уходит, но на реальном сайте мы бы уже звонили.';
+      note.style.color = '#7fd67f';
+      form.reset();
+    });
+
+    form.querySelectorAll('input').forEach(function (el) {
+      el.addEventListener('input', function () { mark(el.name, false); });
+    });
+
+    var consentEl = form.querySelector('[name="consent"]');
+    if (consentEl) {
+      consentEl.addEventListener('change', function () {
+        var b = document.getElementById('consentBox');
+        if (b) b.classList.remove('is-bad');
+      });
+    }
+
+    /* «Записаться» в карточке услуги подставляет её в форму */
+    document.querySelectorAll('[data-svc]').forEach(function (a) {
+      a.addEventListener('click', function () {
+        var sel = document.getElementById('f-svc');
+        if (sel) sel.value = a.getAttribute('data-svc');
+      });
+    });
+  })();
+
+  /* Калькулятор шиномонтажа */
+  (function () {
+    var radius = document.getElementById('c-radius');
+    var state = document.getElementById('c-state');
+    var count = document.getElementById('c-count');
+    var repair = document.getElementById('c-repair');
+    var sensor = document.getElementById('c-sensor');
+    var total = document.getElementById('c-total');
+    var brk = document.getElementById('c-break');
+    if (!radius || !total) return;
+
+    function money(n) { return n.toLocaleString('ru-RU') + ' ₽'; }
+
+    function calc() {
+      var base = Number(radius.value) * Number(count.value);
+      var sum = base + Number(state.value) * Number(count.value) / 4 * 4 + Number(repair.value) + (sensor.checked ? 400 : 0);
+      sum = Math.round(sum / 10) * 10;
+      total.textContent = money(sum);
+
+      var parts = [];
+      parts.push(count.value === '1' ? '4 колеса' : (count.value === '0.5' ? '2 колеса' : '1 колесо'));
+      parts.push(radius.options[radius.selectedIndex].text);
+      parts.push(state.value === '0' ? 'колёса сняты' : 'колёса на машине');
+      if (repair.value !== '0') parts.push('ремонт прокола');
+      if (sensor.checked) parts.push('датчики');
+      brk.textContent = parts.join(' · ');
+    }
+
+    [radius, state, count, repair, sensor].forEach(function (el) {
+      el.addEventListener('change', calc);
+    });
+    calc();
+  })();
+
+  /* Персонализация макета под конкретного клиента:
+     ?n=Название&p=+7...&a=адрес&clean=1 */
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var name = q.get('n'), phone = q.get('p'), addr = q.get('a');
+    if (q.get('clean') === '1') {
+      var dn = document.querySelector('.demo-note');
+      if (dn) dn.remove();
+    }
+    if (name) {
+      document.title = name + ' — автосервис в Йошкар-Оле';
+      document.querySelectorAll('.logo span:last-child').forEach(function (el) {
+        el.innerHTML = name + '<small>автосервис · Йошкар-Ола</small>';
+      });
+      var h3 = document.querySelector('#contacts h3');
+      if (h3) h3.textContent = 'Автосервис «' + name + '»';
+    }
+    if (phone) {
+      var digits = phone.replace(/[^\d+]/g, '');
+      document.querySelectorAll('a[href^="tel:"]').forEach(function (a) { a.href = 'tel:' + digits; });
+      document.querySelectorAll('a[href*="wa.me"]').forEach(function (a) {
+        a.href = 'https://wa.me/' + digits.replace(/\D/g, '');
+      });
+      document.querySelectorAll('.top__phone').forEach(function (a) {
+        a.innerHTML = phone + '<span>звонок или WhatsApp</span>';
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.book__list li'), function (li) {
+        var k = li.querySelector('span');
+        if (k && /Телефон/.test(k.textContent)) li.lastElementChild.textContent = phone;
+      });
+    }
+    if (addr) {
+      Array.prototype.forEach.call(document.querySelectorAll('.book__list li'), function (li) {
+        var k = li.querySelector('span');
+        if (k && /Адрес/.test(k.textContent)) li.lastElementChild.textContent = addr;
+      });
+      var pinB = document.querySelector('.pin b');
+      if (pinB) pinB.textContent = addr;
+    }
+  })();
+</script>
+</body>
+</html>

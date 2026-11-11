@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Топор — барбершоп в Йошкар-Оле, стрижка и борода</title>
+<meta name="description" content="Барбершоп «Топор»: мужская стрижка, борода, королевское бритьё. Фиксированные цены, запись онлайн, свободные окна на сегодня. Йошкар-Ола.">
+<meta property="og:title" content="Топор — барбершоп в Йошкар-Оле">
+<meta property="og:description" content="Стрижка, которая держится месяц. Фиксированные цены, 4 мастера, запись на сегодня.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#131110">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='14' fill='%23131110'/><text x='50' y='70' font-size='58' font-family='Georgia,serif' text-anchor='middle' fill='%23c9a227'>Т</text></svg>">
+<style>
+  /* ---------- палитра: тёплый уголь + латунь + бумага ---------- */
+  :root{
+    --coal:#131110;
+    --coal-2:#1a1715;
+    --coal-3:#221e1a;
+    --line:#3a332c;
+    --paper:#efe7da;
+    --paper-dim:#b9ad9c;
+    --brass:#c9a227;
+    --brass-soft:#e0c063;
+    --blood:#a33b2a;
+    --r:2px;
+    --ease:cubic-bezier(.16,.84,.34,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--coal);color:var(--paper);
+    font:400 17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;overflow-x:clip;
+  }
+  /* зерно поверх всего — убирает «пластиковость» тёмного фона */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  img,svg{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{margin:0;font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.015em;line-height:1.04}
+  h1{font-size:clamp(42px,7.2vw,88px)}
+  h2{font-size:clamp(28px,3.9vw,46px)}
+  h3{font-size:clamp(19px,2vw,24px)}
+  p{margin:0}
+  .wrap{width:min(1180px,100% - 48px);margin:0 auto}
+  .eyebrow{
+    display:flex;align-items:center;gap:12px;margin:0 0 18px;
+    font:700 11px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.26em;text-transform:uppercase;color:var(--brass);
+  }
+  .eyebrow::before{content:"";width:34px;height:1px;background:var(--brass);opacity:.8}
+
+  /* ---------- шапка ---------- */
+  .top{
+    position:sticky;top:0;z-index:20;background:var(--coal);
+    border-bottom:1px solid transparent;transition:border-color .3s,background-color .3s;
+  }
+  .top.is-stuck{border-bottom-color:var(--line);background:var(--coal)}
+  .top__in{display:flex;align-items:center;gap:28px;min-height:76px}
+  .brand{display:flex;align-items:baseline;gap:10px;font-family:Georgia,serif;font-size:24px;letter-spacing:.02em}
+  .brand b{font-weight:400}
+  .brand span{
+    font:700 9px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.24em;text-transform:uppercase;
+    color:var(--paper-dim);transform:translateY(-4px);white-space:nowrap;
+  }
+  .nav{display:flex;gap:22px;margin-left:auto;font-size:14px;color:var(--paper-dim)}
+  .nav a{position:relative;padding:6px 0}
+  .nav a::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--brass);
+    transform:scaleX(0);transform-origin:left;transition:transform .28s var(--ease);
+  }
+  .nav a:hover{color:var(--paper)}
+  .nav a:hover::after{transform:scaleX(1)}
+  .top__phone{
+    display:flex;flex-direction:column;line-height:1.15;margin-left:22px;
+    font-weight:700;font-size:16px;white-space:nowrap;letter-spacing:.01em;
+  }
+  .top__phone small{font:600 10px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-dim);margin-top:4px}
+
+  /* ---------- кнопки ---------- */
+  .btn{
+    --bg-btn:var(--brass);--fg-btn:#171310;
+    position:relative;overflow:hidden;isolation:isolate;
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    padding:15px 26px;border:1px solid transparent;border-radius:var(--r);
+    background:var(--bg-btn);color:var(--fg-btn);
+    font:700 13px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;
+    cursor:pointer;transition:transform .22s var(--ease),background-color .22s,color .22s,border-color .22s;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(0)}
+  .btn--ghost{background:transparent;color:var(--paper);border-color:var(--line)}
+  .btn--ghost:hover{border-color:var(--brass);color:var(--brass-soft)}
+  .btn--block{width:100%}
+  .ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.22;transform:scale(0);animation:ripple .55s var(--ease) forwards;pointer-events:none}
+  @keyframes ripple{to{transform:scale(2.8);opacity:0}}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;padding:clamp(48px,7vw,92px) 0 clamp(40px,5vw,64px);overflow:hidden}
+  .hero::before{
+    content:"";position:absolute;right:-14%;top:-22%;width:64vw;height:64vw;max-width:820px;max-height:820px;
+    background:radial-gradient(circle,rgba(201,162,39,.16),transparent 62%);pointer-events:none;
+  }
+  .hero__grid{display:grid;grid-template-columns:1.35fr .9fr;gap:clamp(28px,4vw,64px);align-items:start;position:relative}
+  .hero h1{margin:0 0 22px}
+  .hero h1 em{font-style:italic;color:var(--brass-soft)}
+  .hero__lead{max-width:46ch;font-size:clamp(16px,1.35vw,19px);color:#ded4c6}
+  .hero__cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+  .hero__note{display:flex;align-items:center;gap:10px;margin-top:20px;font-size:14px;color:var(--paper-dim)}
+  .dot{width:7px;height:7px;border-radius:50%;background:#7fd67f;box-shadow:0 0 0 4px rgba(127,214,127,.15)}
+
+  /* билет с прайсом — перфорация по краю */
+  .ticket{
+    position:relative;background:var(--coal-2);border:1px solid var(--line);
+    padding:26px 24px 24px;transform:rotate(-1.2deg);
+    box-shadow:0 40px 80px -50px #000;
+  }
+  .ticket::before,.ticket::after{
+    content:"";position:absolute;left:-7px;width:14px;height:14px;border-radius:50%;
+    background:var(--coal);border:1px solid var(--line);
+  }
+  .ticket::before{top:72px}
+  .ticket::after{bottom:64px}
+  .ticket__tag{
+    display:inline-block;padding:5px 10px;border:1px solid var(--brass);color:var(--brass);
+    font:700 10px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;
+  }
+  .ticket h3{margin:14px 0 6px}
+  .ticket__sub{font-size:13px;color:var(--paper-dim);margin-bottom:18px}
+  .pline{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px dashed #2f2923;font-size:15px}
+  .pline:last-of-type{border-bottom:0}
+  .pline i{flex:1;border-bottom:1px dotted #4a4136;transform:translateY(-4px)}
+  .pline b{font-weight:700;font-variant-numeric:tabular-nums}
+  .ticket .btn{margin-top:18px}
+
+  /* бегущая строка */
+  .ticker{
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    background:var(--coal-2);overflow:hidden;padding:13px 0;
+  }
+  .ticker__row{display:flex;gap:38px;width:max-content;animation:tick 34s linear infinite}
+  .ticker span{
+    font:700 12px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--paper-dim);
+    display:flex;align-items:center;gap:38px;
+  }
+  .ticker span::after{content:"✦";color:var(--brass);font-size:11px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:reduce){.ticker__row{animation:none}}
+
+  /* ---------- секции ---------- */
+  .sec{padding:clamp(56px,7vw,96px) 0}
+  .sec--line{border-top:1px solid var(--line)}
+  .sec__head{display:flex;align-items:flex-end;gap:28px;justify-content:space-between;margin-bottom:clamp(26px,3vw,44px)}
+  .sec__num{
+    font:700 11px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.22em;color:var(--brass);
+    display:block;margin-bottom:14px;
+  }
+  .sec__sub{max-width:38ch;font-size:15px;color:var(--paper-dim)}
+
+  /* мастера */
+  .masters{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .master{
+    position:relative;background:var(--coal-2);border:1px solid var(--line);
+    padding:0 0 20px;overflow:hidden;transition:transform .3s var(--ease),border-color .3s;
+  }
+  .master:hover{transform:translateY(-4px);border-color:#4d4335}
+  .master__ph{height:210px;position:relative;overflow:hidden;display:grid;place-items:center;
+    background:radial-gradient(120% 110% at 50% 0%,#26201a,#141110)}
+  .master__ph::before{content:"";position:absolute;inset:14px;border:1px solid rgba(201,162,39,.2);pointer-events:none}
+  .master__ph::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--coal-2),transparent 44%)}
+  .mono{font-family:Georgia,"Times New Roman",serif;font-size:104px;line-height:1;letter-spacing:-.03em;
+    color:transparent;-webkit-text-stroke:1.2px rgba(201,162,39,.8);transform:translateY(-10px);position:relative;z-index:1}
+  .mono__since{position:absolute;bottom:16px;font:700 10px/1 "Arial Narrow",Arial,sans-serif;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--brass);opacity:.95;z-index:1}
+  .master__body{padding:16px 20px 0}
+  .master__name{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .master__name h3{font-size:21px}
+  .master__name em{font:700 10px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.14em;color:var(--brass);font-style:normal}
+  .master__role{font-size:14px;color:var(--paper-dim);margin-top:4px}
+  .master__free{margin-top:14px;font-size:13px;color:#93cf93;display:flex;align-items:center;gap:7px}
+  .master__free i{width:6px;height:6px;border-radius:50%;background:#7fd67f}
+
+  /* прайс: строки с лидерами */
+  .board{border-top:1px solid var(--line)}
+  .board__row{
+    display:grid;grid-template-columns:56px 1fr auto;gap:18px;align-items:baseline;
+    padding:22px 4px;border-bottom:1px solid var(--line);
+    transition:background-color .25s,padding-left .25s var(--ease);
+  }
+  .board__row:hover{background:#1b1714;padding-left:14px}
+  .board__n{font:700 11px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.16em;color:#6d6152}
+  .board__t h3{font-size:clamp(19px,2vw,23px)}
+  .board__t p{font-size:14px;color:var(--paper-dim);margin-top:5px;max-width:52ch}
+  .board__p{font:400 21px/1 Georgia,serif;color:var(--brass-soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+  /* калькулятор */
+  .build{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(20px,3vw,44px);align-items:start}
+  .build__form{display:grid;gap:16px;background:var(--coal-2);border:1px solid var(--line);padding:clamp(20px,2.6vw,30px)}
+  .field label{display:block;font:700 10px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--paper-dim);margin-bottom:9px}
+  .field select{
+    width:100%;appearance:none;padding:14px 40px 14px 14px;border-radius:var(--r);
+    background:#171412 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23c9a227' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center;
+    border:1px solid var(--line);color:var(--paper);font:400 16px/1.2 inherit;
+  }
+  .field select:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .build__out{border:1px solid var(--line);background:linear-gradient(160deg,#1b1714,#151211);padding:clamp(22px,3vw,32px);position:relative;overflow:hidden}
+  .build__out::before{content:"";position:absolute;right:-30%;top:-40%;width:70%;height:140%;background:radial-gradient(circle,rgba(201,162,39,.14),transparent 65%)}
+  .build__label{font:700 10px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--paper-dim)}
+  .build__total{font:400 clamp(38px,5vw,56px)/1 Georgia,serif;margin:12px 0 6px;color:var(--brass-soft);font-variant-numeric:tabular-nums}
+  .build__time{font-size:14px;color:var(--paper-dim);min-height:22px}
+
+  /* отзывы */
+  .quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .quote{position:relative;padding:26px 24px;background:var(--coal-2);border:1px solid var(--line)}
+  .quote::before{content:"“";position:absolute;top:-6px;left:16px;font:400 64px/1 Georgia,serif;color:var(--brass);opacity:.28}
+  .quote p{position:relative;font-size:15.5px;color:#e6ddcf}
+  .quote footer{margin-top:18px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--paper-dim)}
+  .quote .av{
+    width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+    background:#2a241e;border:1px solid var(--line);color:var(--brass);font:400 14px/1 Georgia,serif;
+  }
+
+  /* FAQ */
+  .faq{border-top:1px solid var(--line)}
+  .faq details{border-bottom:1px solid var(--line)}
+  .faq summary{
+    list-style:none;cursor:pointer;padding:20px 40px 20px 0;position:relative;
+    font:400 clamp(17px,1.7vw,20px)/1.3 Georgia,serif;
+  }
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{
+    content:"";position:absolute;right:6px;top:50%;width:10px;height:10px;
+    border-right:1.5px solid var(--brass);border-bottom:1.5px solid var(--brass);
+    transform:translateY(-70%) rotate(45deg);transition:transform .25s var(--ease);
+  }
+  .faq details[open] summary::after{transform:translateY(-30%) rotate(-135deg)}
+  .faq details p{padding:0 0 20px;font-size:15px;color:var(--paper-dim);max-width:70ch}
+
+  /* запись */
+  .book{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(24px,4vw,60px);align-items:start}
+  .book form{background:var(--coal-2);border:1px solid var(--line);padding:clamp(22px,3vw,32px);display:grid;gap:16px}
+  .book input[type=text],.book input[type=tel]{
+    width:100%;padding:14px;border-radius:var(--r);border:1px solid var(--line);
+    background:#171412;color:var(--paper);font:400 16px/1.2 inherit;
+  }
+  .book input::placeholder{color:#7d7365}
+  .book input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .book .is-bad input{outline:2px solid var(--blood);outline-offset:2px}
+  .consent{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--paper-dim)}
+  .consent input{width:20px;height:20px;margin-top:1px;flex:0 0 auto;accent-color:var(--brass)}
+  .consent a{color:var(--brass);text-decoration:underline;text-underline-offset:2px}
+  .consent.is-bad{color:#e08b76}
+  .hp{position:absolute;left:-9999px}
+  .note{font-size:14px;min-height:22px}
+  .book__info dl{display:grid;grid-template-columns:auto 1fr;gap:14px 18px;margin:26px 0 0;font-size:15px}
+  .book__info dt{font:700 10px/1.6 "Arial Narrow",Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--brass)}
+  .book__info dd{margin:0;color:#ded4c6}
+
+  /* подвал */
+  .foot{border-top:1px solid var(--line);padding:34px 0 96px;font-size:13px;color:#8d8274}
+  .foot__in{display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+  .foot a:hover{color:var(--brass)}
+
+  /* мобильная панель */
+  .cta-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;gap:10px;padding:10px 14px 12px;
+    background:rgba(19,17,16,.96);border-top:1px solid var(--line);backdrop-filter:blur(8px);
+  }
+  .cta-bar .btn{flex:1;padding:14px 10px;font-size:12px}
+
+  /* появление */
+  .rv{opacity:0;transform:translateY(16px)}
+  .rv.in{opacity:1;transform:none;transition:opacity .6s var(--ease),transform .6s var(--ease)}
+  .rv.in.d1{transition-delay:.06s}
+  .rv.in.d2{transition-delay:.12s}
+  .rv.in.d3{transition-delay:.18s}
+  @media (prefers-reduced-motion:reduce){
+    .rv{opacity:1;transform:none}
+    *{animation-duration:.001s!important;transition-duration:.001s!important}
+  }
+
+  /* ---------- адаптив ---------- */
+  @media (max-width:960px){
+    .hero__grid,.build,.book{grid-template-columns:1fr}
+    .hero__grid .ticket{transform:none;margin-top:8px}
+    .masters,.quotes{grid-template-columns:1fr 1fr}
+    .nav{display:none}
+  }
+  @media (max-width:700px){
+    .wrap{width:min(1180px,100% - 32px)}
+    .masters,.quotes{grid-template-columns:1fr}
+    .board__row{grid-template-columns:38px 1fr;row-gap:8px}
+    .board__p{grid-column:2;font-size:19px}
+    .top__in{gap:12px}
+    .top__phone{margin-left:auto;font-size:14px}
+    .brand span{letter-spacing:.14em}
+    .cta-bar{display:flex}
+    .sec__head{display:block}
+    .sec__sub{margin-top:12px}
+    .ticket{padding:22px 18px}
+    .ticket::before,.ticket::after{display:none}
+  }
+  @media (max-width:400px){
+    .eyebrow{font-size:9.5px;letter-spacing:.18em;gap:9px}
+    .eyebrow::before{width:24px}
+  }
+  @media (max-width:365px){
+    .brand span{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top" id="topbar">
+  <div class="wrap top__in">
+    <a class="brand" href="#top"><b data-name>Топор</b><span data-tag>barber shop · с 2019</span></a>
+    <nav class="nav">
+      <a href="#masters">Мастера</a>
+      <a href="#price">Прайс</a>
+      <a href="#build">Собрать визит</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+    <a class="top__phone" href="tel:+79000000000" data-phone>+7 900 000-00-00<small>запись и вопросы</small></a>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="eyebrow">Йошкар-Ола · 4 мастера · с 2019</p>
+      <h1>Стрижка,<br>которая держится<br><em>месяц</em></h1>
+      <p class="hero__lead">Подбираем форму под тип волос и лицо, показываем, как уложить за две минуты. Цену называем при записи и не меняем в кресле.</p>
+      <div class="hero__cta">
+        <a class="btn" href="#book">Записаться на сегодня</a>
+        <a class="btn btn--ghost" href="#price">Смотреть прайс</a>
+      </div>
+      <p class="hero__note"><span class="dot"></span> Свободные окна: 15:30 и 19:00</p>
+    </div>
+
+    <aside class="ticket">
+      <span class="ticket__tag">Хит недели</span>
+      <h3>Стрижка + борода</h3>
+      <p class="ticket__sub">75 минут, горячее полотенце, укладка и совет по уходу.</p>
+      <div class="pline"><span>Стрижка</span><i></i><b>1 700 ₽</b></div>
+      <div class="pline"><span>Борода</span><i></i><b>1 200 ₽</b></div>
+      <div class="pline"><span>Комплекс</span><i></i><b>2 500 ₽</b></div>
+      <a class="btn btn--block" href="#book">Записаться</a>
+      <p style="font-size:12.5px;color:#8d8274;margin-top:12px">Ближайшее окно — сегодня 19:00. Топ-мастер — +500 ₽.</p>
+    </aside>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__row" id="ticker">
+    <span>Стрижка</span><span>Борода</span><span>Королевское бритьё</span><span>Камуфляж седины</span><span>Детская стрижка</span>
+    <span>Стрижка</span><span>Борода</span><span>Королевское бритьё</span><span>Камуфляж седины</span><span>Детская стрижка</span>
+  </div>
+</div>
+
+<section class="sec" id="masters">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="sec__num">01 — мастера</span>
+        <h2>Кто будет стричь</h2>
+      </div>
+      <p class="sec__sub">Три мастера в смене, у каждого свой профиль. Выбирайте по имени — или приходите к свободному.</p>
+    </div>
+    <div class="masters">
+      <article class="master rv">
+        <div class="master__ph"><span class="mono">Д</span><span class="mono__since">с 2016</span></div>
+        <div class="master__body">
+          <div class="master__name"><h3>Дмитрий</h3><em>топ</em></div>
+          <p class="master__role">Классика, фейд, работа с машинкой</p>
+          <p class="master__free"><i></i> сегодня 15:30</p>
+        </div>
+      </article>
+
+      <article class="master rv d1">
+        <div class="master__ph"><span class="mono">А</span><span class="mono__since">с 2018</span></div>
+        <div class="master__body">
+          <div class="master__name"><h3>Артём</h3><em>борода</em></div>
+          <p class="master__role">Форма бороды, бритьё опасной бритвой</p>
+          <p class="master__free"><i></i> сегодня 19:00</p>
+        </div>
+      </article>
+
+      <article class="master rv d2">
+        <div class="master__ph"><span class="mono">К</span><span class="mono__since">с 2021</span></div>
+        <div class="master__body">
+          <div class="master__name"><h3>Кирилл</h3><em>детям</em></div>
+          <p class="master__role">Стрижки до 10 лет, без слёз и уговоров</p>
+          <p class="master__free"><i></i> завтра 11:00</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec--line" id="price">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="sec__num">02 — прайс</span>
+        <h2>Цены без сюрпризов</h2>
+      </div>
+      <p class="sec__sub">Что сказали при записи — то и платите. Если в кресле выяснится, что нужно больше времени, спросим до начала.</p>
+    </div>
+    <div class="board">
+      <div class="board__row rv"><span class="board__n">01</span><div class="board__t"><h3>Мужская стрижка</h3><p>Ножницы или машинка, мытьё, укладка. Форма держится месяц.</p></div><span class="board__p">1 700 ₽</span></div>
+      <div class="board__row rv"><span class="board__n">02</span><div class="board__t"><h3>Стрижка бороды</h3><p>Контуры, форма, горячее полотенце. 25 минут.</p></div><span class="board__p">1 200 ₽</span></div>
+      <div class="board__row rv"><span class="board__n">03</span><div class="board__t"><h3>Комплекс: стрижка + борода</h3><p>75 минут, экономия 400 ₽ к раздельной оплате.</p></div><span class="board__p">2 500 ₽</span></div>
+      <div class="board__row rv"><span class="board__n">04</span><div class="board__t"><h3>Королевское бритьё</h3><p>Опасная бритва, два прохода, холодное полотенце.</p></div><span class="board__p">1 600 ₽</span></div>
+      <div class="board__row rv"><span class="board__n">05</span><div class="board__t"><h3>Камуфляж седины</h3><p>Тонирование без эффекта «покрасился». Держится 3–4 недели.</p></div><span class="board__p">1 400 ₽</span></div>
+      <div class="board__row rv"><span class="board__n">06</span><div class="board__t"><h3>Стрижка ребёнка</h3><p>До 10 лет, с мультиком. Без «под машинку», если не просили.</p></div><span class="board__p">1 200 ₽</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec--line" id="build">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="sec__num">03 — калькулятор</span>
+        <h2>Соберите визит</h2>
+      </div>
+      <p class="sec__sub">Три выбора — сумма и время. Расчёт по прайсу, ничего не дописываем на месте.</p>
+    </div>
+    <div class="build">
+      <div class="build__form rv">
+        <div class="field">
+          <label for="b1">Что делаем</label>
+          <select id="b1">
+            <option value="1700" data-min="40">Стрижка</option>
+            <option value="2500" data-min="75">Комплекс: стрижка + борода</option>
+            <option value="1600" data-min="40">Королевское бритьё</option>
+            <option value="1200" data-min="25">Только борода</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b2">Мастер</label>
+          <select id="b2">
+            <option value="0" data-min="0">Любой свободный</option>
+            <option value="500" data-min="0">Топ-мастер (+500 ₽)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="b3">Дополнительно</label>
+          <select id="b3">
+            <option value="0" data-min="0">Не нужно</option>
+            <option value="1400" data-min="20">Камуфляж седины</option>
+            <option value="600" data-min="15">Контуровка бороды</option>
+          </select>
+        </div>
+      </div>
+      <div class="build__out rv d1">
+        <span class="build__label">Итого</span>
+        <div class="build__total" id="bTotal">1 700 ₽</div>
+        <p class="build__time" id="bTime">около 40 минут</p>
+        <a class="btn btn--block" href="#book" style="margin-top:18px">Записаться на это время</a>
+        <p style="font-size:12.5px;color:#8d8274;margin-top:12px">Предоплату не берём. Отменить можно за 2 часа.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec--line">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="sec__num">04 — отзывы</span>
+        <h2>Что говорят</h2>
+      </div>
+      <p class="sec__sub">Конкретика важнее звёзд: что было, что сделали, сколько держится.</p>
+    </div>
+    <div class="quotes">
+      <article class="quote rv"><p>«Сказал “не как обычно” — сделали короче и с чётким пробором. Через месяц всё ещё форма, а не шапка».</p><footer><span class="av">Д</span><div><b>Дмитрий</b><br>стрижка, 40 мин</div></footer></article>
+      <article class="quote rv d1"><p>«Борода растёт криво, лет пять мучился. Показали, как подрезать дома между визитами — реально работает».</p><footer><span class="av">А</span><div><b>Артём</b><br>борода + уход</div></footer></article>
+      <article class="quote rv d2"><p>«Записался онлайн в 22:00 на утро. Никто не перезванивал, всё подтвердилось».</p><footer><span class="av">К</span><div><b>Кирилл</b><br>комплекс</div></footer></article>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec--line" id="faq">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="sec__num">05 — вопросы</span>
+        <h2>Спрашивают чаще всего</h2>
+      </div>
+    </div>
+    <div class="faq">
+      <details open><summary>Нужно записываться заранее?</summary><p>Желательно за день, но на утро обычно есть окна. Онлайн показывает всё свободное время на две недели.</p></details>
+      <details><summary>Почему топ-мастер дороже?</summary><p>+500 ₽ за опыт и запись за 2–3 дня. Стрижка та же по времени, разница в форме и деталях.</p></details>
+      <details><summary>Сколько держится стрижка?</summary><p>При короткой форме — 3–4 недели. Стрижём так, чтобы через месяц это выглядело как стрижка, а не как отросшее.</p></details>
+      <details><summary>А если мастер заболел?</summary><p>Перезваниваем минимум за 3 часа: предлагаем другое время или другого мастера. Без «приходите, разберёмся».</p></details>
+      <details><summary>Можно прийти с ребёнком?</summary><p>Да, есть кресло-подставка и мультик. Предупредите при записи — поставим к окну, там спокойнее.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec--line" id="book">
+  <div class="wrap book">
+    <div>
+      <span class="sec__num">06 — запись</span>
+      <h2>Оставьте имя и телефон</h2>
+      <p class="sec__sub" style="margin-top:14px">Перезвоним в течение 10 минут в рабочее время и подтвердим окно. Если удобнее — напишите в WhatsApp.</p>
+      <div class="book__info">
+        <dl>
+          <dt>Адрес</dt><dd data-addr>ул. Примерная, 21 · первый этаж, чёрная вывеска</dd>
+          <dt>Часы</dt><dd>вт–сб 10:00–21:00, вс 11:00–18:00, пн — выходной</dd>
+          <dt>Телефон</dt><dd><a href="tel:+79000000000" data-phone>+7 900 000-00-00</a></dd>
+        </dl>
+      </div>
+    </div>
+
+    <form id="bookForm" novalidate>
+      <div class="field" data-f="name">
+        <label for="f-name">Как вас зовут</label>
+        <input id="f-name" name="name" type="text" placeholder="Имя" autocomplete="name" required>
+      </div>
+      <div class="field" data-f="phone">
+        <label for="f-phone">Телефон</label>
+        <input id="f-phone" name="phone" type="tel" placeholder="+7 ___ ___-__-__" inputmode="tel" autocomplete="tel" required>
+      </div>
+      <div class="field">
+        <label for="f-svc">Что нужно</label>
+        <select id="f-svc" name="service">
+          <option>Стрижка</option>
+          <option>Комплекс: стрижка + борода</option>
+          <option>Борода</option>
+          <option>Не знаю, подскажите</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-time">Когда удобно</label>
+        <select id="f-time" name="time">
+          <option>Сегодня (14:00–18:00)</option>
+          <option>Сегодня (18:00–21:00)</option>
+          <option>Завтра</option>
+          <option>Любой день, скажите когда</option>
+        </select>
+      </div>
+      <div class="hp" aria-hidden="true"><label for="f-last">Фамилия</label><input id="f-last" name="lastname" tabindex="-1" autocomplete="off"></div>
+      <label class="consent" id="consentBox" for="f-consent">
+        <input id="f-consent" name="consent" type="checkbox" required>
+        <span>Согласен с <a href="./privacy.html" target="_blank" rel="noopener">политикой обработки персональных данных</a></span>
+      </label>
+      <button class="btn btn--block" type="submit">Записаться</button>
+      <p class="note" id="formNote">Демо-страница: заявка никуда не отправляется.</p>
+    </form>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <span data-name>Топор</span>
+    <span>Йошкар-Ола · <a href="./privacy.html">политика обработки данных</a></span>
+    <span>Демо-сайт для портфолио. Барбершоп вымышлен.</span>
+  </div>
+</footer>
+
+<div class="cta-bar">
+  <a class="btn btn--ghost" href="tel:+79000000000" data-phone>Позвонить</a>
+  <a class="btn" href="#book">Записаться</a>
+</div>
+
+<script>
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- персонализация: ?n=Название&p=+7...&a=адрес&clean=1 ---------- */
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var n = q.get("n"), p = q.get("p"), a = q.get("a");
+    if (n) {
+      document.title = n + " — барбершоп в Йошкар-Оле";
+      document.querySelectorAll("[data-name]").forEach(function (el) { el.textContent = n; });
+    }
+    if (p) {
+      var tel = p.replace(/[^\d+]/g, "");
+      document.querySelectorAll("[data-phone]").forEach(function (el) {
+        if (el.tagName === "A") {
+          el.href = "tel:" + tel;
+          if (el.classList.contains("btn")) return;
+          var small = el.querySelector("small");
+          el.textContent = p;
+          if (small) el.appendChild(small);
+        } else el.textContent = p;
+      });
+    }
+    if (a) {
+      document.querySelectorAll("[data-addr]").forEach(function (el) { el.textContent = a; });
+    }
+    if (q.get("clean") === "1") {
+      document.querySelectorAll(".note").forEach(function (el) { el.textContent = ""; });
+      document.querySelectorAll(".foot__in span:last-child").forEach(function (el) { el.remove(); });
+    }
+  })();
+
+  /* ---------- шапка при скролле ---------- */
+  var bar = document.getElementById("topbar"), ticking = false;
+  function onScroll() {
+    var y = window.scrollY || document.documentElement.scrollTop;
+    bar.classList.toggle("is-stuck", y > 14);
+    ticking = false;
+  }
+  window.addEventListener("scroll", function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
+  }, { passive: true });
+  onScroll();
+
+  /* ---------- появление блоков ---------- */
+  (function () {
+    var els = document.querySelectorAll(".rv");
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach(function (el) { el.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    els.forEach(function (el) { io.observe(el); });
+    /* страховка, если кадры не рисуются */
+    setTimeout(function () {
+      els.forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.top < innerHeight && r.bottom > 0) el.classList.add("in");
+      });
+    }, 1200);
+  })();
+
+  /* ---------- рябь на кнопках ---------- */
+  document.addEventListener("pointerdown", function (e) {
+    if (reduce) return;
+    var btn = e.target.closest(".btn");
+    if (!btn) return;
+    var r = btn.getBoundingClientRect();
+    var s = document.createElement("span");
+    var d = Math.max(r.width, r.height);
+    s.className = "ripple";
+    s.style.width = s.style.height = d + "px";
+    s.style.left = (e.clientX - r.left - d / 2) + "px";
+    s.style.top = (e.clientY - r.top - d / 2) + "px";
+    btn.appendChild(s);
+    setTimeout(function () { s.remove(); }, 620);
+  }, { passive: true });
+
+  /* ---------- калькулятор ---------- */
+  (function () {
+    var sels = ["b1", "b2", "b3"].map(function (id) { return document.getElementById(id); });
+    var total = document.getElementById("bTotal");
+    var time = document.getElementById("bTime");
+    if (!sels[0]) return;
+    var shown = 1700;
+
+    function calc() {
+      var sum = 0, mins = 0;
+      sels.forEach(function (s) {
+        var o = s.options[s.selectedIndex];
+        sum += Number(o.value) || 0;
+        mins += Number(o.dataset.min) || 0;
+      });
+      return { sum: sum, mins: mins };
+    }
+    function paint(v) { total.textContent = Math.round(v).toLocaleString("ru-RU") + " ₽"; }
+
+    function go(animate) {
+      var r = calc();
+      time.textContent = "около " + r.mins + " минут";
+      if (!animate || reduce) { shown = r.sum; paint(r.sum); return; }
+      var from = shown, start = performance.now(), dur = 380;
+      requestAnimationFrame(function tick(now) {
+        var p = Math.min(1, (now - start) / dur);
+        var e = 1 - Math.pow(1 - p, 3);
+        shown = from + (r.sum - from) * e;
+        paint(shown);
+        if (p < 1) requestAnimationFrame(tick);
+        else { shown = r.sum; paint(r.sum); }
+      });
+    }
+    sels.forEach(function (s) { s.addEventListener("change", function () { go(true); }); });
+    go(false);
+  })();
+
+  /* ---------- форма ---------- */
+  (function () {
+    var form = document.getElementById("bookForm");
+    var note = document.getElementById("formNote");
+    var box = document.getElementById("consentBox");
+    if (!form) return;
+
+    function bad(f, on) {
+      var w = form.querySelector('[data-f="' + f + '"]');
+      if (w) w.classList.toggle("is-bad", on);
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (form.querySelector('[name="lastname"]').value) return;
+      var name = form.querySelector('[name="name"]').value.trim();
+      var phone = form.querySelector('[name="phone"]').value.trim();
+      var consent = form.querySelector('[name="consent"]');
+      var bName = name.length < 2;
+      var bPhone = phone.replace(/\D/g, "").length < 10;
+      var bConsent = !consent.checked;
+      bad("name", bName); bad("phone", bPhone);
+      box.classList.toggle("is-bad", bConsent);
+
+      if (bName || bPhone || bConsent) {
+        var m = [];
+        if (bName) m.push("имя");
+        if (bPhone) m.push("телефон");
+        if (bConsent) m.push("галочку согласия");
+        note.textContent = "Не хватает: " + m.join(", ") + ".";
+        note.style.color = "#e08b76";
+        return;
+      }
+      note.textContent = "Спасибо, " + name + "! Демо-страница: заявка не отправляется.";
+      note.style.color = "#93cf93";
+      form.reset();
+    });
+
+    form.querySelectorAll("input").forEach(function (el) {
+      el.addEventListener("input", function () { bad(el.name, false); });
+    });
+    form.querySelector('[name="consent"]').addEventListener("change", function () {
+      box.classList.remove("is-bad");
+    });
+  })();
+</script>
+</body>
+</html>

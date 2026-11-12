@@ -211,13 +211,12 @@ Pay SDK инициализируется значением `console_app_id_valu
 `RuStorePayClient` не создастся и покупки вернут `false`. Игра при этом не падает.
 
 Реклама включается только когда заполнены `YANDEX_REWARDED_AD_UNIT_ID` и
-`YANDEX_INTERSTITIAL_AD_UNIT_ID` в том же `strings.xml`. Сейчас там демо-ID
-Яндекса: реклама показывается тестовая и дохода не приносит.
+`YANDEX_INTERSTITIAL_AD_UNIT_ID` в том же `strings.xml`. Сейчас там боевые блоки
+Яндекса (приложение `20406547`): rewarded `R-M-20406547-1`,
+interstitial `R-M-20406547-2`. Если блок пересоздадут, ID поменяются.
 Порядок: https://ads.yandex.com → приложение `dev.mensori.seabattle` →
 рекламные места Rewarded и Interstitial → вставить их ID в `strings.xml`,
-пересобрать APK/AAB. Пока стоят демо-ID, `adsSupported()` возвращает `true`,
-а витрина «Убрать рекламу» уже продаётся — загружать в магазин нужно сборку
-с настоящими ID.
+пересобрать APK/AAB.
 
 Товары в консоли: `support_99` (непотребляемый, 99 ₽) и
 `remove_ads` (непотребляемый, 149 ₽) — оба нужны, витрина показывает их,

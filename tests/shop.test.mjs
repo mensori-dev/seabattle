@@ -41,8 +41,8 @@ test('Магазин: remove_ads 149 ₽ и support_99 99 ₽, обе кнопк
   assert.match(html, /id="shop-buy-remove-ads"[^>]*data-product="remove_ads"[^>]*disabled[^>]*>149 ₽/);
   assert.match(html, /id="shop-buy-support"[^>]*data-product="support_99"[^>]*disabled[^>]*>99 ₽/);
   assert.match(html, /Покупки доступны только в RuStore/);
-  assert.match(app, /removeBtn\.disabled = !available/);
-  assert.match(app, /supportBtn\.disabled = !available/);
+  assert.match(app, /removeBtn\.disabled = !canBuy/);
+  assert.match(app, /supportBtn\.disabled = !canBuy/);
 });
 
 test('Магазин: косметика «Скоро» без цены и покупки', () => {
@@ -69,9 +69,16 @@ test('Магазин: покупки идут только через RuStorePla
 });
 
 test('Магазин: без SDK покупка не запускается и показывает честную подпись', () => {
-  assert.match(app, /if \(!RU \|\| !RU\.available\(\)\) \{\s*toast\('Покупки доступны только в RuStore'/);
+  assert.match(app, /if \(!RU \|\| !RU\.available\(\) \|\| !RU\.products\(\)\.length\) \{\s*toast\('Покупки временно недоступны'/);
   assert.match(html, /id="shop-note"[^>]*>Покупки доступны только в RuStore/);
-  assert.match(app, /note\.hidden = available/);
+  assert.match(app, /note\.hidden = canBuy \|\| !available/);
+});
+
+test('Магазин: без активных товаров витрина и кнопки скрыты', () => {
+  assert.match(app, /const canBuy = available && list\.length > 0/);
+  assert.match(app, /shopBtn\.hidden = !canBuy/);
+  assert.match(app, /removeSection\.hidden = !canBuy \|\| !adsSupported/);
+  assert.match(app, /menuRemove\.hidden = !canBuy/);
 });
 
 test('Магазин: remove_ads сохраняется, выключает рекламу и прячет rewarded', () => {
@@ -130,7 +137,7 @@ test('Документ RuStore: честная монетизация без pay
   // снова продаётся; покупки идут через RuStore Pay SDK.
   assert.match(doc, /Содержит рекламу \| Да/);
   assert.match(doc, /Yandex Mobile Ads/);
-  assert.match(doc, /Встроенные покупки \| Да/);
+  assert.match(doc, /Встроенные покупки \| Нет/);
   assert.match(doc, /RuStore Pay SDK/);
   assert.match(doc, /## Монетизация/);
   assert.match(doc, /remove_ads`? — 149 ₽/);

@@ -44,7 +44,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v46';
+  const SW_VERSION = 'sb-v47';
 
   const state = {
     profile: null,
@@ -3716,23 +3716,34 @@
   function renderShop() {
     const p = state.profile || {};
     const available = !!(RU && RU.available());
+    // Покупки показываем только когда в консоли RuStore есть активные товары:
+    // у физлица монетизация недоступна, и «мёртвые» кнопки не нужны.
+    const list = RU ? RU.products() : [];
+    const canBuy = available && list.length > 0;
     // Блок «Убрать рекламу» показываем, только если в сборке есть рекламные места.
     const adsSupported = !!(RU && typeof RU.adsSupported === 'function' && RU.adsSupported());
+    const shopBtn = $('#btn-shop');
+    if (shopBtn) shopBtn.hidden = !canBuy;
     const removeSection = $('#shop-remove-section');
-    if (removeSection) removeSection.hidden = !adsSupported;
+    if (removeSection) removeSection.hidden = !canBuy || !adsSupported;
+    const supportSection = $('#shop-support-section');
+    if (supportSection) supportSection.hidden = !canBuy;
     const note = $('#shop-note');
-    if (note) note.hidden = available;
+    if (note) {
+      note.textContent = available ? 'Покупки временно недоступны' : 'Покупки доступны только в RuStore';
+      note.hidden = canBuy || !available;
+    }
 
     const removeBtn = $('#shop-buy-remove-ads');
     if (removeBtn) {
       removeBtn.textContent = shopPrice('remove_ads', '149 ₽');
-      removeBtn.disabled = !available || !!p.removeAds;
+      removeBtn.disabled = !canBuy || !!p.removeAds;
       removeBtn.hidden = !!p.removeAds;
     }
     const supportBtn = $('#shop-buy-support');
     if (supportBtn) {
       supportBtn.textContent = shopPrice('support_99', '99 ₽');
-      supportBtn.disabled = !available || !!p.supportThanks;
+      supportBtn.disabled = !canBuy || !!p.supportThanks;
       supportBtn.hidden = !!p.supportThanks;
     }
 
@@ -3741,11 +3752,11 @@
     const supportStatus = $('#shop-support-status');
     if (supportStatus) supportStatus.hidden = !p.supportThanks;
 
-    // Кнопки-дубли в меню тоже показываем только при живом мосте.
+    // Кнопки-дубли в меню тоже показываем только при живом мосте и товарах.
     const menuRemove = $('#btn-remove-ads');
-    if (menuRemove) menuRemove.hidden = !available || !adsSupported || !!p.removeAds;
+    if (menuRemove) menuRemove.hidden = !canBuy || !adsSupported || !!p.removeAds;
     const menuSupport = $('#btn-support');
-    if (menuSupport) menuSupport.hidden = !available || !!p.supportThanks;
+    if (menuSupport) menuSupport.hidden = !canBuy || !!p.supportThanks;
   }
 
   function openShop() {
@@ -3757,8 +3768,8 @@
   }
 
   function buyShopProduct(productId, btn) {
-    if (!RU || !RU.available()) {
-      toast('Покупки доступны только в RuStore', 'miss');
+    if (!RU || !RU.available() || !RU.products().length) {
+      toast('Покупки временно недоступны', 'miss');
       renderShop();
       return;
     }

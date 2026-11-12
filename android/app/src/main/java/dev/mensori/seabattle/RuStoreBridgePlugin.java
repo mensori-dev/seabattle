@@ -8,6 +8,20 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.yandex.mobile.ads.common.AdError;
+import com.yandex.mobile.ads.common.AdRequest;
+import com.yandex.mobile.ads.common.AdRequestError;
+import com.yandex.mobile.ads.common.ImpressionData;
+import com.yandex.mobile.ads.common.YandexAds;
+import com.yandex.mobile.ads.interstitial.InterstitialAd;
+import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener;
+import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener;
+import com.yandex.mobile.ads.interstitial.InterstitialAdLoader;
+import com.yandex.mobile.ads.rewarded.Reward;
+import com.yandex.mobile.ads.rewarded.RewardedAd;
+import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
+import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
+import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +43,8 @@ import ru.rustore.sdk.pay.model.SdkTheme;
  * Мост между js/rustore.js и RuStore Pay SDK.
  *
  * Плагин ничего не хранит на сервере и не знает про игрока: он только
- * показывает платёжную шторку RuStore и отдаёт список покупок с ценами.
+ * показывает платёжную шторку RuStore, отдаёт список покупок с ценами
+ * и крутит рекламу Yandex Mobile Ads.
  *
  * Если SDK не инициализировался (нет RuStore на устройстве, неверный
  * console_app_id_value, песочница), методы отвечают отказом — игра
@@ -41,6 +56,48 @@ public class RuStoreBridgePlugin extends Plugin {
     private static final String REMOVE_ADS = "remove_ads";
 
     static final List<String> PRODUCT_IDS = Arrays.asList(REMOVE_ADS, "support_99");
+
+    private boolean yandexReady = false;
+
+    @Override
+    public void load() {
+        super.load();
+        try {
+            // Согласие на обработку данных для рекламы: политика описывает
+            // Yandex Mobile Ads и AppMetrica, отдельных трекеров в игре нет.
+            YandexAds.setUserConsent(true);
+            YandexAds.setLocationTracking(false);
+            YandexAds.initialize(getContext(), () -> {
+                yandexReady = true;
+                Log.d(TAG, "Yandex Mobile Ads готов");
+            });
+        } catch (Throwable error) {
+            Log.w(TAG, "Yandex Mobile Ads недоступен", error);
+        }
+    }
+
+    /** Реклама работает только когда рекламные места заданы в strings.xml. */
+    private String adUnitId(int resId) {
+        try {
+            String value = getContext().getString(resId);
+            return value == null ? "" : value.trim();
+        } catch (Throwable error) {
+            return "";
+        }
+    }
+
+    private boolean adsSupported() {
+        return !adUnitId(R.string.YANDEX_REWARDED_AD_UNIT_ID).isEmpty()
+                && !adUnitId(R.string.YANDEX_INTERSTITIAL_AD_UNIT_ID).isEmpty();
+    }
+
+    private void resolveAd(final PluginCall call, final boolean shown, final boolean rewarded) {
+        JSObject res = new JSObject();
+        res.put("shown", shown);
+        res.put("rewarded", rewarded);
+        resolveOnUi(call, res);
+    }
+
 
     private RuStorePayClient client() {
         return RuStorePayClient.Companion.getInstance();
@@ -58,8 +115,14 @@ public class RuStoreBridgePlugin extends Plugin {
     }
 
     private JSObject emptyItems() {
+        return itemsResult(new JSArray());
+    }
+
+    private JSObject itemsResult(JSArray items) {
         JSObject res = new JSObject();
-        res.put("items", new JSArray());
+        res.put("items", items);
+        // Рекламные места заполнены — app.js может показать витрину «Убрать рекламу».
+        res.put("ads", adsSupported());
         return res;
     }
 
@@ -105,8 +168,7 @@ public class RuStoreBridgePlugin extends Plugin {
                                 items.put(toJson(product));
                             }
                         }
-                        JSObject res = new JSObject();
-                        res.put("items", items);
+                        JSObject res = itemsResult(items);
                         resolveOnUi(call, res);
                     })
                     .addOnFailureListener(error -> {
@@ -117,6 +179,139 @@ public class RuStoreBridgePlugin extends Plugin {
             Log.w(TAG, "RuStore Pay SDK недоступен", error);
             resolveOnUi(call, emptyItems());
         }
+    }
+
+    /* ---------------- Реклама: Yandex Mobile Ads ---------------- */
+
+    /**
+     * Rewarded-видео. Ответ: { shown, rewarded }.
+     * Показ — только по кнопке в интерфейсе, награду начисляет app.js.
+     */
+    @PluginMethod
+    public void showRewarded(final PluginCall call) {
+        final String unitId = adUnitId(R.string.YANDEX_REWARDED_AD_UNIT_ID);
+        if (unitId.isEmpty() || getActivity() == null) {
+            resolveAd(call, false, false);
+            return;
+        }
+        final AtomicBoolean answered = new AtomicBoolean(false);
+        final AtomicBoolean rewarded = new AtomicBoolean(false);
+        try {
+            RewardedAdLoader loader = new RewardedAdLoader(getContext());
+            RewardedAdLoadListener listener = new RewardedAdLoadListener() {
+                @Override
+                public void onAdLoaded(final RewardedAd ad) {
+                    ad.setAdEventListener(new RewardedAdEventListener() {
+                        @Override
+                        public void onAdShown() {
+                        }
+
+                        @Override
+                        public void onAdFailedToShow(AdError error) {
+                            Log.w(TAG, "rewarded show failed");
+                            resolveOnce(call, answered, false, false);
+                        }
+
+                        @Override
+                        public void onAdDismissed() {
+                            resolveOnce(call, answered, true, rewarded.get());
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                        }
+
+                        @Override
+                        public void onAdImpression(ImpressionData data) {
+                        }
+
+                        @Override
+                        public void onRewarded(Reward reward) {
+                            rewarded.set(true);
+                        }
+                    });
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> ad.show(getActivity()));
+                    } else {
+                        resolveOnce(call, answered, false, false);
+                    }
+                }
+
+                @Override
+                public void onAdFailedToLoad(AdRequestError error) {
+                    Log.w(TAG, "rewarded load failed: " + error.getDescription());
+                    resolveOnce(call, answered, false, false);
+                }
+            };
+            loader.loadAd(new AdRequest.Builder(unitId).build(), listener);
+        } catch (Throwable error) {
+            Log.w(TAG, "rewarded failed", error);
+            resolveOnce(call, answered, false, false);
+        }
+    }
+
+    /** Межстраничная реклама между боями. Ответ: { shown }. */
+    @PluginMethod
+    public void showInterstitial(final PluginCall call) {
+        final String unitId = adUnitId(R.string.YANDEX_INTERSTITIAL_AD_UNIT_ID);
+        if (unitId.isEmpty() || getActivity() == null) {
+            resolveAd(call, false, false);
+            return;
+        }
+        final AtomicBoolean answered = new AtomicBoolean(false);
+        try {
+            InterstitialAdLoader loader = new InterstitialAdLoader(getContext());
+            InterstitialAdLoadListener listener = new InterstitialAdLoadListener() {
+                @Override
+                public void onAdLoaded(final InterstitialAd ad) {
+                    ad.setAdEventListener(new InterstitialAdEventListener() {
+                        @Override
+                        public void onAdShown() {
+                        }
+
+                        @Override
+                        public void onAdFailedToShow(AdError error) {
+                            Log.w(TAG, "interstitial show failed");
+                            resolveOnce(call, answered, false, false);
+                        }
+
+                        @Override
+                        public void onAdDismissed() {
+                            resolveOnce(call, answered, true, false);
+                        }
+
+                        @Override
+                        public void onAdClicked() {
+                        }
+
+                        @Override
+                        public void onAdImpression(ImpressionData data) {
+                        }
+                    });
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> ad.show(getActivity()));
+                    } else {
+                        resolveOnce(call, answered, false, false);
+                    }
+                }
+
+                @Override
+                public void onAdFailedToLoad(AdRequestError error) {
+                    Log.w(TAG, "interstitial load failed: " + error.getDescription());
+                    resolveOnce(call, answered, false, false);
+                }
+            };
+            loader.loadAd(new AdRequest.Builder(unitId).build(), listener);
+        } catch (Throwable error) {
+            Log.w(TAG, "interstitial failed", error);
+            resolveOnce(call, answered, false, false);
+        }
+    }
+
+    private void resolveOnce(final PluginCall call, final AtomicBoolean answered,
+                             final boolean shown, final boolean rewarded) {
+        if (!answered.compareAndSet(false, true)) return;
+        resolveAd(call, shown, rewarded);
     }
 
     /** Покупка товара. Ответ: { ok: true|false, message?: string }. */

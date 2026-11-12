@@ -7,5 +7,10 @@
     <!-- ID приложения из RuStore Консоли: https://console.rustore.ru/apps/<ID>.
          Без него RuStore Pay SDK не инициализируется, и покупки просто
          недоступны — игра работает как раньше. Подставить перед сборкой. -->
-    <string name="CONSOLE_APPLICATION_ID" translatable="false">000000</string>
+    <string name="CONSOLE_APPLICATION_ID" translatable="false">2063780859</string>
+    <!-- Рекламные места Yandex Mobile Ads (ads.yandex.com, приложение
+         dev.mensori.seabattle). Пока стоят демо-ID: реклама показывается
+         тестовая и дохода не приносит. Заменить на свои перед загрузкой. -->
+    <string name="YANDEX_REWARDED_AD_UNIT_ID" translatable="false">R-M-DEMO-rewarded-client-side-rtb</string>
+    <string name="YANDEX_INTERSTITIAL_AD_UNIT_ID" translatable="false">R-M-DEMO-interstitial</string>
 </resources>

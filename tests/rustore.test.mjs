@@ -105,6 +105,62 @@ test('RuStore: действия возвращают результат мост
   assert.deepEqual(bridge.calls, ['interstitial', 'rewarded', 'purchase:remove_ads', 'restore']);
 });
 
+test('RuStore: нативный мост включает рекламу только при заполненных местах', async () => {
+  const calls = [];
+  const plugin = {
+    products: () => Promise.resolve({ items: [{ id: 'remove_ads' }], ads: true }),
+    showRewarded: () => {
+      calls.push('rewarded');
+      return Promise.resolve({ shown: true, rewarded: true });
+    },
+    showInterstitial: () => {
+      calls.push('interstitial');
+      return Promise.resolve({ shown: true, rewarded: false });
+    },
+    purchase: () => Promise.resolve({ ok: true }),
+    restore: () => Promise.resolve({ restored: true })
+  };
+  const { platform } = load({ Capacitor: { Plugins: { RuStoreBridge: plugin } } });
+  await platform.whenReady();
+
+  assert.equal(platform.adsSupported(), true);
+  assert.deepEqual(Array.from(platform.products()).map((p) => p.id), ['remove_ads']);
+  assert.equal(await platform.showRewarded(), true);
+  assert.equal(await platform.showInterstitial(), true);
+  assert.deepEqual(calls, ['rewarded', 'interstitial']);
+
+  // «Убрать рекламу»: мост получает команду и дальше рекламу не показывает.
+  assert.equal(platform.setAdsEnabled(false), true);
+  assert.equal(platform.adsEnabled(), false);
+  assert.equal(await platform.showRewarded(), false);
+  assert.equal(await platform.showInterstitial(), false);
+  assert.deepEqual(calls, ['rewarded', 'interstitial']);
+});
+
+test('RuStore: без рекламных мест мост не показывает рекламу', async () => {
+  const calls = [];
+  const plugin = {
+    products: () => Promise.resolve({ items: [] }),
+    showRewarded: () => {
+      calls.push('rewarded');
+      return Promise.resolve({ shown: true, rewarded: true });
+    },
+    showInterstitial: () => {
+      calls.push('interstitial');
+      return Promise.resolve({ shown: true });
+    },
+    purchase: () => Promise.resolve({ ok: true }),
+    restore: () => Promise.resolve({ restored: true })
+  };
+  const { platform } = load({ Capacitor: { Plugins: { RuStoreBridge: plugin } } });
+  await platform.whenReady();
+
+  assert.equal(platform.adsSupported(), false);
+  assert.equal(await platform.showRewarded(), false);
+  assert.equal(await platform.showInterstitial(), false);
+  assert.deepEqual(calls, []);
+});
+
 test('RuStore: неуспех и пустой id не считаются покупкой', async () => {
   const { platform, init } = load();
   const bridge = fakeBridge({
@@ -197,21 +253,23 @@ test('RuStore: кнопки скрыты, скрипт подключён до a
 
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.match(sw, /\.\/js\/rustore\.js/);
-  assert.match(sw, /const VERSION = 'sb-v45'/);
+  assert.match(sw, /const VERSION = 'sb-v46'/);
 
   const js = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
   assert.match(js, /window\.RuStorePlatform/);
   assert.match(js, /wireRuStore\(\)/);
-  assert.match(js, /const SW_VERSION = 'sb-v45'/);
+  assert.match(js, /const SW_VERSION = 'sb-v46'/);
 });
 
 test('RuStore: политика и документ описывают рекламу, покупки и запрет pay-to-win', () => {
   const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
-  assert.match(privacy, /Покупки в RuStore/);
+  assert.match(privacy, /покупки в RuStore/i);
   assert.match(privacy, /данные банковской карты/);
-  assert.match(privacy, /не влияет на ELO/);
+  assert.match(privacy, /не влияют на ELO/i);
   assert.match(privacy, /RuStore Pay SDK/);
-  assert.match(privacy, /рекламы в версии для RuStore нет/i);
+  assert.match(privacy, /Yandex Mobile Ads/);
+  assert.match(privacy, /Реклама и покупки в RuStore/);
+  assert.doesNotMatch(privacy, /рекламы в версии для RuStore нет/i);
 
   const doc = fs.readFileSync(path.join(root, 'docs', 'rustore-monetization.md'), 'utf8');
   assert.match(doc, /remove_ads/);

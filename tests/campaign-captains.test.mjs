@@ -116,6 +116,6 @@ test('экран кампании хранит выбор капитана и п
 
 test('результат кампании показывает капитана и PWA-кэш поднят', () => {
   assert.match(app, /Капитан: ' \+ cap\.name \+ ' · ' \+ cap\.desc/);
-  assert.match(read('sw.js'), /const VERSION = 'sb-v45'/);
-  assert.match(app, /const SW_VERSION = 'sb-v45'/);
+  assert.match(read('sw.js'), /const VERSION = 'sb-v46'/);
+  assert.match(app, /const SW_VERSION = 'sb-v46'/);
 });

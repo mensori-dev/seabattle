@@ -26,9 +26,25 @@
      отсутствовать, поэтому RU остаётся null, а кнопки магазина скрыты. */
   const RU = window.RuStorePlatform || null;
 
+  /* Единый источник рекламы: Яндекс Игры / VK отдают SDK через YG,
+     RuStore — через нативный мост с Yandex Mobile Ads. В браузере
+     RuStorePlatform без рекламных мест, поэтому ADS остаётся null. */
+  function adsProvider() {
+    if (YG) return YG;
+    if (RU && typeof RU.adsSupported === 'function' && RU.adsSupported()) {
+      return {
+        available: function () { return true; },
+        whenReady: function () { return RU.whenReady().then(function () { return true; }); },
+        showRewarded: function () { return RU.showRewarded(); },
+        showInterstitial: function () { return RU.showInterstitial(); }
+      };
+    }
+    return null;
+  }
+
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v45';
+  const SW_VERSION = 'sb-v46';
 
   const state = {
     profile: null,
@@ -3277,8 +3293,9 @@
     if (playerWon && fleetKey() === 'admiral') unlock('admiral');
     if (cupInfo && cupInfo.done && cupInfo.won) unlock('cup');
 
-    // Яндекс Игры: считаем бои для показа рекламы между матчами
-    if (YG && YG.available()) p.adMatches = (p.adMatches || 0) + 1;
+    // Реклама (Яндекс Игры, VK или RuStore): считаем бои для показа между матчами
+    const adsForMatch = adsProvider();
+    if (adsForMatch && adsForMatch.available()) p.adMatches = (p.adMatches || 0) + 1;
 
     saveProfile();
     updateMenu();
@@ -3584,7 +3601,8 @@
 
   /* Награда за rewarded-видео: раз в день, +25 к рейтингу. */
   function canShowAdBonus() {
-    return !!YG && YG.available() && state.profile.adBonusDate !== dayKey();
+    const A = adsProvider();
+    return !!A && A.available() && state.profile.adBonusDate !== dayKey();
   }
 
   function updateBonusButton() {
@@ -3592,9 +3610,10 @@
     if (!btn) return;
     btn.hidden = true;
     if (RU && state.profile.removeAds) return;
-    if (!YG) return;
+    const A = adsProvider();
+    if (!A) return;
     // SDK инициализируется асинхронно — показываем кнопку, когда он готов
-    YG.whenReady().then(function (sdk) {
+    A.whenReady().then(function (sdk) {
       if (!sdk || !canShowAdBonus()) return;
       const overlay = $('#overlay');
       if (overlay && !overlay.hidden) btn.hidden = false;
@@ -3607,8 +3626,9 @@
     if (!btn) return;
     btn.hidden = true;
     if (RU && state.profile.removeAds) return;
-    if (!YG) return;
-    YG.whenReady().then(function (sdk) {
+    const A = adsProvider();
+    if (!A) return;
+    A.whenReady().then(function (sdk) {
       if (!sdk || !canShowAdBonus()) return;
       btn.hidden = false;
     });
@@ -3616,12 +3636,14 @@
 
   function watchAdBonus() {
     if (RU && state.profile.removeAds) return;
+    const A = adsProvider();
+    if (!A) return;
     if (!canShowAdBonus()) return;
     const buttons = [$('#btn-bonus'), $('#btn-ad-bonus')].filter(Boolean);
     if (buttons.some(function (b) { return b.disabled; })) return;
     Sfx.play('click');
     buttons.forEach(function (b) { b.disabled = true; });
-    YG.showRewarded().then(function (ok) {
+    A.showRewarded().then(function (ok) {
       buttons.forEach(function (b) { b.disabled = false; });
       if (!ok) {
         toast('Реклама не загрузилась — попробуй позже', 'miss');
@@ -3661,10 +3683,11 @@
     const p = state.profile;
     // Куплено «Убрать рекламу» в RuStore — принудительный показ пропускаем целиком.
     if (RU && p.removeAds) { done(); return; }
-    const ready = !!YG && YG.available() &&
+    const A = adsProvider();
+    const ready = !!A && A.available() &&
       (p.adMatches || 0) >= 2 && Date.now() - (p.lastAdAt || 0) >= 90000;
     if (!ready) { done(); return; }
-    YG.showInterstitial().then(function (wasShown) {
+    A.showInterstitial().then(function (wasShown) {
       // даже неудачный показ считаем попыткой: иначе будем дёргать SDK каждый бой
       p.lastAdAt = Date.now();
       if (wasShown) p.adMatches = 0;
@@ -3693,7 +3716,7 @@
   function renderShop() {
     const p = state.profile || {};
     const available = !!(RU && RU.available());
-    // RuStore не показывает рекламу: «Убрать рекламу» вернём, когда появится сеть.
+    // Блок «Убрать рекламу» показываем, только если в сборке есть рекламные места.
     const adsSupported = !!(RU && typeof RU.adsSupported === 'function' && RU.adsSupported());
     const removeSection = $('#shop-remove-section');
     if (removeSection) removeSection.hidden = !adsSupported;

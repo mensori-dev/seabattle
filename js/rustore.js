@@ -1,5 +1,5 @@
 /* ============================================================
-   RuStore: покупки через нативный RuStore Pay SDK.
+   RuStore: покупки через нативный RuStore Pay SDK и реклама Yandex Mobile Ads.
    Классический IIFE — файл работает и через file://, и в PWA.
 
    В Capacitor-сборке мост собирается поверх плагина RuStoreBridge
@@ -15,6 +15,7 @@
      products()           -> Array<{ id, title, price, currency }>
      setAdsEnabled(on)    -> void (необязательно)
      adsEnabled()         -> boolean (необязательно)
+     adsSupported()       -> boolean (необязательно)
    Мост может появиться позже: тогда нативная обёртка вызывает
    window.onRuStoreReady(bridge).
    ============================================================ */
@@ -92,6 +93,10 @@
 
   function wrapNative(plugin) {
     var items = [];
+    var adsAvailable = false;
+    var adsAllowed = true;
+    var hasRewarded = typeof plugin.showRewarded === 'function';
+    var hasInterstitial = typeof plugin.showInterstitial === 'function';
     var shim = {
       products: function () { return items.slice(); },
       purchase: function (productId) {
@@ -104,15 +109,26 @@
           return !!(res && res.restored === true);
         }, function () { return false; });
       },
-      /* Рекламного SDK у RuStore нет: rewarded и межстраничная реклама
-         в RuStore-версии не показываются. */
-      showRewarded: function () { return Promise.resolve(false); },
-      showInterstitial: function () { return Promise.resolve(false); },
-      setAdsEnabled: function () {},
-      adsEnabled: function () { return false; }
+      /* Реклама: Yandex Mobile Ads внутри нативного плагина. */
+      showRewarded: function () {
+        if (!adsAvailable || !adsAllowed || !hasRewarded) return Promise.resolve(false);
+        return plugin.showRewarded().then(function (res) {
+          return !!(res && res.rewarded === true);
+        }, function () { return false; });
+      },
+      showInterstitial: function () {
+        if (!adsAvailable || !adsAllowed || !hasInterstitial) return Promise.resolve(false);
+        return plugin.showInterstitial().then(function (res) {
+          return !!(res && res.shown === true);
+        }, function () { return false; });
+      },
+      setAdsEnabled: function (on) { adsAllowed = !!on; },
+      adsEnabled: function () { return adsAllowed; },
+      adsSupported: function () { return adsAvailable; }
     };
     plugin.products().then(function (res) {
       if (res && Array.isArray(res.items)) items = res.items.slice();
+      adsAvailable = !!(res && res.ads === true) && hasRewarded && hasInterstitial;
       global.onRuStoreReady(shim);
     }, function () {
       global.onRuStoreReady(shim);
@@ -249,8 +265,11 @@
 
     products: productList,
 
-    /* У RuStore нет рекламного SDK: пока реклама не подключена, витрина
-       «Убрать рекламу» не показывается — нельзя продавать её отсутствие. */
-    adsSupported: function () { return false; }
+    /* Реклама есть только в нативной сборке с Yandex Mobile Ads: мост сам
+       сообщает, заполнены ли рекламные места. В браузере — false. */
+    adsSupported: function () {
+      if (!bridge || typeof bridge.adsSupported !== 'function') return false;
+      return safe(function () { return bridge.adsSupported(); }) === true;
+    }
   };
 })(window);

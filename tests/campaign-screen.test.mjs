@@ -80,10 +80,10 @@ test('кнопка кампании ведёт к последней откры�
   assert.match(app, /prefers-reduced-motion: reduce/);
 });
 
-test('PWA-кэш поднят до sb-v45 в sw.js и app.js', () => {
-  assert.match(sw, /const VERSION = 'sb-v45'/);
-  assert.match(app, /const SW_VERSION = 'sb-v45'/);
-  assert.match(read('tests/rustore.test.mjs'), /sb-v45/);
+test('PWA-кэш поднят до sb-v46 в sw.js и app.js', () => {
+  assert.match(sw, /const VERSION = 'sb-v46'/);
+  assert.match(app, /const SW_VERSION = 'sb-v46'/);
+  assert.match(read('tests/rustore.test.mjs'), /sb-v46/);
 });
 
 test('карта адаптивна, тач-цели крупные и уважают reduced-motion', () => {

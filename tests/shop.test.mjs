@@ -126,9 +126,12 @@ test('RuStore: setAdsEnabled/adsEnabled без моста и с мостом', (
 
 test('Документ RuStore: честная монетизация без pay-to-win', () => {
   const doc = read('docs/rustore.md');
-  assert.doesNotMatch(doc, /Содержит рекламу \| Нет/);
-  assert.doesNotMatch(doc, /Встроенные покупки \| Нет/);
-  assert.match(doc, /Монетизация \(1\.6\.1\)/);
+  // Рекламного SDK у RuStore нет: реклама только на Яндекс Играх и в VK/OK,
+  // витрина «Убрать рекламу» скрыта, покупки идут через RuStore Pay SDK.
+  assert.match(doc, /Содержит рекламу \| Нет/);
+  assert.match(doc, /Встроенные покупки \| Да/);
+  assert.match(doc, /RuStore Pay SDK/);
+  assert.match(doc, /## Монетизация/);
   assert.match(doc, /remove_ads`? — 149 ₽/);
   assert.match(doc, /support_99`? — 99 ₽/);
   assert.match(doc, /rewarded/i);

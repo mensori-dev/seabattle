@@ -18,6 +18,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Возврат из банка после оплаты RuStore Pay SDK. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="devmensoriseabattle" />
+            </intent-filter>
         </activity>
 
         <provider
@@ -27,6 +34,14 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- RuStore Pay SDK: ID приложения из консоли и схема возврата из банка. -->
+        <meta-data
+            android:name="console_app_id_value"
+            android:value="@string/CONSOLE_APPLICATION_ID" />
+        <meta-data
+            android:name="sdk_pay_scheme_value"
+            android:value="devmensoriseabattle" />
     </application>
 
     <!-- Permissions -->

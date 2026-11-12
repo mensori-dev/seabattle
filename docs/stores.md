@@ -1,22 +1,23 @@
 # Магазины приложений: статус и чек-лист
 
-Текущая версия — **1.6.0**, `versionCode 7`, `versionName "1.6.0"`,
-package `dev.mensori.seabattle`. В RuStore на модерации всё ещё сборка 1.5.0:
-её публикуем первой, 1.6.0 загружаем обновлением.
+Текущая версия — **1.8.0**, `versionCode 9`, `versionName "1.8.0"`,
+package `dev.mensori.seabattle`. В RuStore прошла модерацию **1.3.0**; обновление
+до 1.8.0 собрано с RuStore Pay SDK и подписано — загружается в ту же карточку
+(см. `docs/rustore.md`).
 
 ## Что уже есть
 
 | Площадка | Статус | Артефакт |
 | --- | --- | --- |
-| RuStore | 1.5.0 на модерации; 1.6.0 (versionCode 7) готова к загрузке обновлением | `dist/seabattle-1.6.0-release.apk` / `.aab` |
-| GitHub Releases | опубликовано | тег `v1.6.0`, APK/AAB/IPA |
+| RuStore | 1.3.0 прошла модерацию — в магазине; 1.8.0 (versionCode 9, Pay SDK) готова к загрузке обновлением | `dist/seabattle-1.8.0-release.apk` / `.aab` |
+| GitHub Releases | опубликовано | тег `v1.7.0`, APK/AAB/IPA |
 | Сайт-витрина | опубликовано | https://mensori-dev.github.io/seabattle/site/ |
-| Яндекс Игры | сборка готова, черновик в консоли не заполнен | `dist/seabattle-yandex-1.6.0.zip` |
+| Яндекс Игры | сборка готова, черновик в консоли не заполнен | `dist/seabattle-yandex-1.8.0.zip` |
 | VK Games | заявка на модерацию отправлена 6 ноября 00:23 (ВКонтакте и Одноклассники, Mobile + Web); ждёт проверки | архив v3 на GamePush-хостинге |
 | VK Play | материалы загружены в GamePush, ждут обработки/публикации | `dist/gamepush-assets.zip` |
 | GamePush Distribution | **отказ** 6 ноября: «ожидаем игры с более высоким качеством и визуальным стилем, чтобы игроки оставались дольше и делились с другими»; повторная заявка — не раньше 2–4 недель и только с заметно другой игрой | — |
-| OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.6.0.zip` |
-| Google Play | не начато | `dist/seabattle-1.6.0-release.aab` |
+| OK Games | одиночная сборка готова, нужны ключи OK (ИП/юрлицо есть) | `dist/seabattle-gamepush-1.7.0.zip` |
+| Google Play | не начато | `dist/seabattle-1.8.0-release.aab` |
 | App Store | не начато, нужен Apple Developer | unsigned IPA + подпись |
 
 ### Что это значит для трафика

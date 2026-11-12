@@ -28,7 +28,7 @@
 
   /* Версия кэша PWA. Должна совпадать с VERSION в sw.js: адрес `sw.js?v=…`
      не даёт CDN GitHub Pages отдать старый service worker (кэш 10 минут). */
-  const SW_VERSION = 'sb-v44';
+  const SW_VERSION = 'sb-v45';
 
   const state = {
     profile: null,
@@ -3693,6 +3693,10 @@
   function renderShop() {
     const p = state.profile || {};
     const available = !!(RU && RU.available());
+    // RuStore не показывает рекламу: «Убрать рекламу» вернём, когда появится сеть.
+    const adsSupported = !!(RU && typeof RU.adsSupported === 'function' && RU.adsSupported());
+    const removeSection = $('#shop-remove-section');
+    if (removeSection) removeSection.hidden = !adsSupported;
     const note = $('#shop-note');
     if (note) note.hidden = available;
 
@@ -3716,7 +3720,7 @@
 
     // Кнопки-дубли в меню тоже показываем только при живом мосте.
     const menuRemove = $('#btn-remove-ads');
-    if (menuRemove) menuRemove.hidden = !available || !!p.removeAds;
+    if (menuRemove) menuRemove.hidden = !available || !adsSupported || !!p.removeAds;
     const menuSupport = $('#btn-support');
     if (menuSupport) menuSupport.hidden = !available || !!p.supportThanks;
   }

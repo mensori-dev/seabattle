@@ -21,6 +21,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // RuStore Pay SDK (см. docs/rustore.md).
+        maven { url "https://nexus-external.rustore.ru/repository/maven-rustore-exposed" }
     }
 }
 

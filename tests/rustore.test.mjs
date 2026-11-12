@@ -197,19 +197,21 @@ test('RuStore: кнопки скрыты, скрипт подключён до a
 
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.match(sw, /\.\/js\/rustore\.js/);
-  assert.match(sw, /const VERSION = 'sb-v44'/);
+  assert.match(sw, /const VERSION = 'sb-v45'/);
 
   const js = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
   assert.match(js, /window\.RuStorePlatform/);
   assert.match(js, /wireRuStore\(\)/);
-  assert.match(js, /const SW_VERSION = 'sb-v44'/);
+  assert.match(js, /const SW_VERSION = 'sb-v45'/);
 });
 
 test('RuStore: политика и документ описывают рекламу, покупки и запрет pay-to-win', () => {
   const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
-  assert.match(privacy, /Реклама и покупки в RuStore/);
+  assert.match(privacy, /Покупки в RuStore/);
   assert.match(privacy, /данные банковской карты/);
-  assert.match(privacy, /не влияют на ELO/);
+  assert.match(privacy, /не влияет на ELO/);
+  assert.match(privacy, /RuStore Pay SDK/);
+  assert.match(privacy, /рекламы в версии для RuStore нет/i);
 
   const doc = fs.readFileSync(path.join(root, 'docs', 'rustore-monetization.md'), 'utf8');
   assert.match(doc, /remove_ads/);

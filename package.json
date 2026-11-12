@@ -1,6 +1,6 @@
 {
   "name": "seabattle-arena",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "description": "Морской бой против бота с ELO-рейтингом — vanilla HTML/CSS/JS",

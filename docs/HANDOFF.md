@@ -25,7 +25,10 @@
 
 - **VK**: заявка отправлена 6 ноября 00:23, площадки ВКонтакте и Одноклассники, платформы Mobile + Web. Статус «Проверка».
 - **GamePush Distribution**: заявка отправлена для VK Games, OK Games, CrazyGames, GamePush, PlayDeck, Pikabu, Moi Mir. Draft v3.
-- **RuStore**: на модерации.
+- **RuStore**: 1.3.0 прошла модерацию и опубликована; обновление до 1.8.0 собрано
+  с RuStore Pay SDK (`dist/seabattle-1.8.0-release.apk`, versionCode 9) — загружается
+  в ту же карточку. Перед сборкой подставить ID приложения в
+  `CONSOLE_APPLICATION_ID` (`android/app/src/main/res/values/strings.xml`).
 - **Google Play / App Store**: аккаунтов нет, отложены.
 - **Яндекс Игры**: новых игр не принимают.
 

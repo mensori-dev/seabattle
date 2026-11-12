@@ -4,4 +4,8 @@
     <string name="title_activity_main">Морской бой</string>
     <string name="package_name">dev.mensori.seabattle</string>
     <string name="custom_url_scheme">dev.mensori.seabattle</string>
+    <!-- ID приложения из RuStore Консоли: https://console.rustore.ru/apps/<ID>.
+         Без него RuStore Pay SDK не инициализируется, и покупки просто
+         недоступны — игра работает как раньше. Подставить перед сборкой. -->
+    <string name="CONSOLE_APPLICATION_ID" translatable="false">000000</string>
 </resources>

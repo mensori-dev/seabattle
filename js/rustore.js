@@ -1,9 +1,11 @@
 /* ============================================================
-   RuStore: фундамент монетизации без нативного SDK.
+   RuStore: покупки через нативный RuStore Pay SDK.
    Классический IIFE — файл работает и через file://, и в PWA.
 
-   Пока нативный мост не подключён, все действия возвращают false,
-   а products() — пустой массив. Игра обязана работать без RuStore.
+   В Capacitor-сборке мост собирается поверх плагина RuStoreBridge
+   (android/.../RuStoreBridgePlugin.java). В браузере и PWA плагина нет:
+   все покупки возвращают false, products() — пустой массив, рекламы нет.
+   Игра обязана работать без RuStore.
 
    Контракт моста (window.RuStoreBridge):
      showRewarded()       -> Promise<boolean>
@@ -28,6 +30,7 @@
   var readyResolve = null;
   var readyPromise = new Promise(function (resolve) { readyResolve = resolve; });
   var readyTimer = null;
+  var nativeWait = null;
   var rewardedBusy = false;
   var adsOn = true;
   var adsSet = false;
@@ -56,6 +59,10 @@
     }
     if (readyDone) return;
     readyDone = true;
+    if (nativeWait) {
+      clearTimeout(nativeWait);
+      nativeWait = null;
+    }
     if (readyTimer) {
       clearTimeout(readyTimer);
       readyTimer = null;
@@ -72,12 +79,69 @@
     settle(sdk || findBridge());
   };
 
+  /* Capacitor-сборка: нативный плагин RuStoreBridge (см.
+     android/app/src/main/java/dev/mensori/seabattle/RuStoreBridgePlugin.java).
+     Плагин отвечает промисами, а контракт ждёт синхронные products() и
+     adsEnabled(), поэтому кэшируем товары и собираем объект-мост сами. */
+  function nativePlugin() {
+    var cap = global.Capacitor;
+    if (!cap || !cap.Plugins) return null;
+    var plugin = cap.Plugins.RuStoreBridge;
+    return plugin && typeof plugin.purchase === 'function' ? plugin : null;
+  }
+
+  function wrapNative(plugin) {
+    var items = [];
+    var shim = {
+      products: function () { return items.slice(); },
+      purchase: function (productId) {
+        return plugin.purchase({ productId: productId }).then(function (res) {
+          return !!(res && res.ok === true);
+        }, function () { return false; });
+      },
+      restore: function () {
+        return plugin.restore().then(function (res) {
+          return !!(res && res.restored === true);
+        }, function () { return false; });
+      },
+      /* Рекламного SDK у RuStore нет: rewarded и межстраничная реклама
+         в RuStore-версии не показываются. */
+      showRewarded: function () { return Promise.resolve(false); },
+      showInterstitial: function () { return Promise.resolve(false); },
+      setAdsEnabled: function () {},
+      adsEnabled: function () { return false; }
+    };
+    plugin.products().then(function (res) {
+      if (res && Array.isArray(res.items)) items = res.items.slice();
+      global.onRuStoreReady(shim);
+    }, function () {
+      global.onRuStoreReady(shim);
+    });
+    return shim;
+  }
+
   // Без SDK не держим игру: через 8 секунд просто живём дальше.
   readyTimer = setTimeout(function () { settle(null); }, READY_WAIT_MS);
 
   // Мост мог быть внедрён до загрузки этого файла.
   var detected = findBridge();
   if (detected) settle(detected);
+
+  /* capacitor.js приходит после наших скриптов: подхватываем плагин, как
+     только он появится. Опрашиваем через setTimeout, а не setInterval:
+     так мост не тянет таймер, если плагина нет вовсе. */
+  function pollNative() {
+    if (readyDone) return;
+    var plugin = nativePlugin();
+    if (plugin) {
+      nativeWait = null;
+      wrapNative(plugin);
+      return;
+    }
+    nativeWait = setTimeout(pollNative, 150);
+  }
+
+  if (!detected) pollNative();
 
   /* SDK может не ответить (нет инвентаря, блокировщик, сбой).
      Не держим игрока с нажатой кнопкой дольше 20 секунд. */
@@ -183,6 +247,10 @@
       return adsOn;
     },
 
-    products: productList
+    products: productList,
+
+    /* У RuStore нет рекламного SDK: пока реклама не подключена, витрина
+       «Убрать рекламу» не показывается — нельзя продавать её отсутствие. */
+    adsSupported: function () { return false; }
   };
 })(window);

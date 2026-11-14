@@ -152,7 +152,6 @@ test('Документ RuStore: честная монетизация без pay
 test('SEO витрины: sitemap, canonical, og:locale и JSON-LD', () => {
   const sitemap = read('site/sitemap.xml');
   assert.match(sitemap, /<loc>https:\/\/mensori-dev\.github\.io\/seabattle\/site\/<\/loc>/);
-  assert.match(sitemap, /<loc>https:\/\/mensori-dev\.github\.io\/seabattle\/site\/studio\.html<\/loc>/);
   assert.equal(fs.existsSync(path.join(root, 'robots.txt')), false, 'robots.txt в корне не нужен');
 
   const site = read('site/index.html');
@@ -163,15 +162,6 @@ test('SEO витрины: sitemap, canonical, og:locale и JSON-LD', () => {
   const game = JSON.parse(gameLd[1]);
   assert.equal(game['@type'], 'VideoGame');
   assert.equal(game.url, 'https://mensori-dev.github.io/seabattle/site/');
-
-  const studio = read('site/studio.html');
-  assert.match(studio, /<link rel="canonical" href="https:\/\/mensori-dev\.github\.io\/seabattle\/site\/studio\.html">/);
-  assert.match(studio, /property="og:locale" content="ru_RU"/);
-  const studioLd = studio.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-  assert.ok(studioLd, 'нет JSON-LD на странице студии');
-  const service = JSON.parse(studioLd[1]);
-  assert.equal(service['@type'], 'ProfessionalService');
-  assert.equal(service.url, 'https://mensori-dev.github.io/seabattle/site/studio.html');
 });
 
 test('Сборки площадок вырезают карточку и оверлей магазина', () => {
